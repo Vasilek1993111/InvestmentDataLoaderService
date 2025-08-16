@@ -1,0 +1,611 @@
+/* Общие стили */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'PT Sans Narrow', Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+    background-color: #f8f8f8;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    border: 0;
+    padding: 0;
+    white-space: nowrap;
+    clip-path: inset(100%);
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+}
+
+/* Кнопки */
+.button {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #000;
+    color: #fff;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.button:hover {
+    background-color: #333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Шапка сайта */
+.main-header {
+    background-color: #000;
+    color: #fff;
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.main-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo img {
+    height: 24px;
+    width: auto;
+}
+
+.site-navigation {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 30px;
+}
+
+.site-navigation a {
+    color: #fff;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-weight: 700;
+    transition: color 0.3s ease;
+}
+
+.site-navigation a:hover {
+    color: #ccc;
+}
+
+.user-navigation {
+    display: flex;
+    align-items: center;
+}
+
+.login-link {
+    color: #fff;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-weight: 700;
+    transition: color 0.3s ease;
+}
+
+.login-link:hover {
+    color: #ccc;
+}
+
+/* Основной контент */
+main {
+    padding: 40px 0;
+}
+
+/* Преимущества */
+.features {
+    margin-bottom: 60px;
+}
+
+.features-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.feature-item {
+    text-align: center;
+    padding: 30px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.feature-item h3 {
+    font-size: 24px;
+    margin: 0 0 20px 0;
+    color: #000;
+    text-transform: uppercase;
+}
+
+.feature-item p {
+    margin: 0;
+    color: #666;
+    line-height: 1.6;
+}
+
+/* Колонки */
+.index-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 40px;
+    margin-bottom: 60px;
+}
+
+/* Новости */
+.news {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.news h2 {
+    font-size: 28px;
+    margin: 0 0 30px 0;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.news-list {
+    list-style: none;
+    margin: 0 0 30px 0;
+    padding: 0;
+}
+
+.news-item {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.news-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.news-item p {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.news-item time {
+    color: #999;
+    font-size: 14px;
+}
+
+/* Галерея */
+.gallery {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.gallery h2 {
+    font-size: 28px;
+    margin: 0 0 30px 0;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.gallery-content {
+    margin: 0 0 20px 0;
+}
+
+.gallery-content img {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+    transition: transform 0.3s ease;
+}
+
+.gallery-content img:hover {
+    transform: scale(1.05);
+}
+
+.gallery-button {
+    margin: 0 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+/* Контакты */
+.contacts {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.contacts h2 {
+    font-size: 28px;
+    margin: 0 0 30px 0;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.contacts p {
+    margin: 0 0 20px 0;
+    color: #333;
+    line-height: 1.6;
+}
+
+.contacts a {
+    color: #000;
+    text-decoration: none;
+    border-bottom: 1px solid #000;
+    transition: color 0.3s ease;
+}
+
+.contacts a:hover {
+    color: #666;
+}
+
+/* Запись */
+.appointment {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.appointment h2 {
+    font-size: 28px;
+    margin: 0 0 30px 0;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.appointment-info {
+    margin: 0 0 30px 0;
+    color: #666;
+}
+
+.appointment-form {
+    display: grid;
+    gap: 20px;
+}
+
+.appointment-item {
+    display: grid;
+    gap: 8px;
+}
+
+.appointment-item label {
+    font-weight: 700;
+    color: #000;
+    text-transform: uppercase;
+}
+
+.appointment-item input {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.appointment-item input:focus {
+    outline: none;
+    border-color: #000;
+}
+
+/* Подвал */
+.main-footer {
+    background: #000;
+    color: #fff;
+    padding: 40px 0;
+    margin-top: 60px;
+}
+
+.main-footer .container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+    align-items: start;
+}
+
+.footer-contacts {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.footer-contacts a {
+    color: #fff;
+    text-decoration: none;
+    border-bottom: 1px solid #fff;
+    transition: color 0.3s ease;
+}
+
+.footer-contacts a:hover {
+    color: #ccc;
+}
+
+.footer-social b {
+    display: block;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+}
+
+.footer-social ul {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 10px;
+}
+
+.social-button {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    background: #333;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.social-button:hover {
+    background: #666;
+    transform: scale(1.1);
+}
+
+.footer-copyright {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.footer-copyright a {
+    color: #fff;
+    text-decoration: none;
+    border-bottom: 1px solid #fff;
+    transition: color 0.3s ease;
+}
+
+.footer-copyright a:hover {
+    color: #ccc;
+}
+
+/* Модальные окна */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-login {
+    background: #fff;
+    padding: 40px;
+    border-radius: 10px;
+    max-width: 400px;
+    width: 90%;
+    position: relative;
+}
+
+.modal-login h2 {
+    font-size: 28px;
+    margin: 0 0 20px 0;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.modal-description {
+    margin: 0 0 30px 0;
+    color: #666;
+}
+
+.login-form {
+    display: grid;
+    gap: 20px;
+}
+
+.login-form p {
+    margin: 0;
+}
+
+.login-form input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.login-form input:focus {
+    outline: none;
+    border-color: #000;
+}
+
+.login-password-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.login-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox-indicator {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-radius: 3px;
+    position: relative;
+    transition: border-color 0.3s ease;
+}
+
+.login-checkbox input:checked + .checkbox-indicator::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-weight: bold;
+}
+
+.restore {
+    color: #666;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.restore:hover {
+    color: #000;
+}
+
+.modal-map {
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 800px;
+    width: 90%;
+    position: relative;
+}
+
+.modal-map img {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+}
+
+.modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: #000;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+}
+
+.modal-close:hover {
+    background: #333;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .main-navigation {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .site-navigation {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .index-columns {
+        grid-template-columns: 1fr;
+    }
+    
+    .features-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .main-footer .container {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+    
+    .footer-social ul {
+        justify-content: center;
+    }
+    
+    .login-password-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    .feature-item,
+    .news,
+    .gallery,
+    .contacts,
+    .appointment {
+        padding: 20px;
+    }
+    
+    .modal-login,
+    .modal-map {
+        padding: 20px;
+        margin: 20px;
+    }
+}

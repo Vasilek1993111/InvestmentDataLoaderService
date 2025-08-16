@@ -1,0 +1,6 @@
+<svg width="111" height="24" viewBox="0 0 111 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 2C10 0.895431 10.8954 0 12 0H99C100.105 0 101 0.895431 101 2V22C101 23.1046 100.105 24 99 24H12C10.8954 24 10 23.1046 10 22V2Z" fill="white"/>
+  <path d="M15 6H96V18H15V6Z" fill="black"/>
+  <text x="55.5" y="14" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">БАРБЕРШОП</text>
+  <text x="55.5" y="22" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8">БОРОДИНСКИЙ</text>
+</svg>
