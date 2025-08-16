@@ -1,0 +1,99 @@
+# Исходный код и конфигурация
+src/
+pom.xml
+mvnw
+mvnw.cmd
+.mvn/
+
+# Логи и временные файлы
+logs/
+*.log
+target/
+!target/*.jar
+
+# IDE файлы
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Документация
+docs/
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+
+# Docker файлы
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Конфигурационные файлы
+application-*.properties
+application-*.yml
+*.env
+
+# Тестовые файлы
+test/
+**/test/
+**/tests/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Архивы
+*.zip
+*.tar.gz
+*.rar
+
+# Мониторинг (если не нужен в образе)
+monitoring/
+
+# Скрипты разработки
+scripts/
+*.sh
+*.bat
+
+# Node.js (если есть фронтенд)
+node_modules/
+package.json
+package-lock.json
+yarn.lock
+
+# Python (если есть скрипты)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
