@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Демо сайт — HTML/CSS/JS + jQuery</title>
+    <meta name="description" content="Одностраничный демо сайт на HTML, CSS, JavaScript и jQuery." />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="#home">DemoSite</a>
+        <nav class="nav" aria-label="Главное меню">
+          <button class="hamburger" aria-label="Открыть меню" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+          <ul class="nav-list">
+            <li><a href="#home">Главная</a></li>
+            <li><a href="#features">Функции</a></li>
+            <li><a href="#gallery">Галерея</a></li>
+            <li><a href="#contact">Контакты</a></li>
+          </ul>
+        </nav>
+        <button id="themeToggle" class="theme-toggle" aria-label="Переключить тему">🌓</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="home" class="section hero">
+        <div class="container hero-inner">
+          <h1>Современный лендинг на HTML/CSS/JS + jQuery</h1>
+          <p>Адаптивная верстка, плавная прокрутка, модальные окна и простая форма без бэкенда.</p>
+          <div class="cta-group">
+            <a href="#features" class="btn btn-primary">Смотреть возможности</a>
+            <a href="#contact" class="btn btn-secondary">Связаться</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="section features">
+        <div class="container">
+          <h2>Что внутри</h2>
+          <div class="grid three">
+            <article class="card">
+              <h3>Плавная навигация</h3>
+              <p>Переход по якорям со сглаженной прокруткой и учётом высоты шапки.</p>
+            </article>
+            <article class="card">
+              <h3>Темная/светлая тема</h3>
+              <p>Переключение темы с сохранением выбора в браузере.</p>
+            </article>
+            <article class="card">
+              <h3>Галерея + модалка</h3>
+              <p>Открытие изображений в модальном окне, управление клавишей Esc.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="gallery" class="section gallery">
+        <div class="container">
+          <h2>Галерея</h2>
+          <div class="grid gallery-grid">
+            <figure class="gallery-item">
+              <img src="https://picsum.photos/id/1015/480/320" alt="Пейзаж 1" data-full="https://picsum.photos/id/1015/1600/900" />
+            </figure>
+            <figure class="gallery-item">
+              <img src="https://picsum.photos/id/1025/480/320" alt="Пейзаж 2" data-full="https://picsum.photos/id/1025/1600/900" />
+            </figure>
+            <figure class="gallery-item">
+              <img src="https://picsum.photos/id/1035/480/320" alt="Пейзаж 3" data-full="https://picsum.photos/id/1035/1600/900" />
+            </figure>
+            <figure class="gallery-item">
+              <img src="https://picsum.photos/id/1041/480/320" alt="Пейзаж 4" data-full="https://picsum.photos/id/1041/1600/900" />
+            </figure>
+            <figure class="gallery-item">
+              <img src="https://picsum.photos/id/1059/480/320" alt="Пейзаж 5" data-full="https://picsum.photos/id/1059/1600/900" />
+            </figure>
+            <figure class="gallery-item">
+              <img src="https://picsum.photos/id/1069/480/320" alt="Пейзаж 6" data-full="https://picsum.photos/id/1069/1600/900" />
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section id="contact" class="section contact">
+        <div class="container">
+          <h2>Связаться с нами</h2>
+          <form id="contactForm" novalidate>
+            <div class="form-row">
+              <label for="name">Имя</label>
+              <input id="name" name="name" type="text" placeholder="Иван" required />
+              <small class="error" data-for="name"></small>
+            </div>
+            <div class="form-row">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" placeholder="you@example.com" required />
+              <small class="error" data-for="email"></small>
+            </div>
+            <div class="form-row">
+              <label for="message">Сообщение</label>
+              <textarea id="message" name="message" rows="5" placeholder="Коротко опишите ваш вопрос" required></textarea>
+              <small class="error" data-for="message"></small>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Отправить</button>
+              <button type="reset" class="btn btn-ghost">Сбросить</button>
+            </div>
+          </form>
+          <div id="formToast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>© <span id="year"></span> DemoSite. Все права защищены.</p>
+      </div>
+    </footer>
+
+    <button id="backToTop" class="back-to-top" aria-label="Наверх">↑</button>
+
+    <div id="imageModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal-backdrop" data-close="true"></div>
+      <div class="modal-dialog" role="document">
+        <button class="modal-close" aria-label="Закрыть" data-close="true">×</button>
+        <img id="modalImage" alt="Просмотр изображения" />
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="./script.js"></script>
+  </body>
+  </html>
+
