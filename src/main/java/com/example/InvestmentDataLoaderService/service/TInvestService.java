@@ -128,24 +128,196 @@ public class TInvestService {
         return savedShares;
     }
 
-    public List<FutureDto> getFutures(String status, String exchange) {
-        FuturesResponse res = instrumentsService.futures(InstrumentsRequest.newBuilder()
-                .setInstrumentStatus("".equals(status) ? InstrumentStatus.INSTRUMENT_STATUS_BASE : InstrumentStatus.valueOf(status))
+    public SaveResponseDto saveShares(ShareFilterDto filter) {
+        // Получаем акции из API (используем существующий метод)
+        List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker());
+        
+        List<ShareDto> savedShares = new ArrayList<>();
+        int existingCount = 0;
+        
+        for (ShareDto shareDto : sharesFromApi) {
+            // Проверяем, существует ли акция в БД
+            if (!shareRepo.existsById(shareDto.getFigi())) {
+                // Создаем и сохраняем новую акцию
+                ShareEntity shareEntity = new ShareEntity(
+                    shareDto.getFigi(),
+                    shareDto.getTicker(),
+                    shareDto.getName(),
+                    shareDto.getCurrency(),
+                    shareDto.getExchange()
+                );
+                
+                try {
+                    shareRepo.save(shareEntity);
+                    savedShares.add(shareDto);
+                } catch (Exception e) {
+                    // Логируем ошибку, но продолжаем обработку других акций
+                    System.err.println("Error saving share " + shareDto.getFigi() + ": " + e.getMessage());
+                }
+            } else {
+                existingCount++;
+            }
+        }
+        
+        // Формируем ответ
+        boolean success = !sharesFromApi.isEmpty();
+        String message;
+        
+        if (savedShares.isEmpty()) {
+            if (sharesFromApi.isEmpty()) {
+                message = "Новых акций не обнаружено. По заданным фильтрам акции не найдены.";
+            } else {
+                message = "Новых акций не обнаружено. Все найденные акции уже существуют в базе данных.";
+            }
+        } else {
+            message = String.format("Успешно загружено %d новых акций из %d найденных.", savedShares.size(), sharesFromApi.size());
+        }
+        
+        return new SaveResponseDto(
+            success,
+            message,
+            sharesFromApi.size(),
+            savedShares.size(),
+            existingCount,
+            savedShares
+        );
+    }
+
+    public List<FutureDto> getFutures(String status, String exchange, String currency, String ticker, String assetType) {
+        // Определяем статус инструмента для запроса к API
+        InstrumentStatus instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
+        if (status != null && !status.isEmpty()) {
+            try {
+                instrumentStatus = InstrumentStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Если статус некорректный, используем значение по умолчанию
+                instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
+            }
+        }
+
+        // Запрашиваем фьючерсы из T-Bank API
+        FuturesResponse response = instrumentsService.futures(InstrumentsRequest.newBuilder()
+                .setInstrumentStatus(instrumentStatus)
                 .build());
-        List<FutureDto> list = new ArrayList<>();
-        for (var f : res.getInstrumentsList()) {
-            if (exchange == null || exchange.isEmpty() || f.getExchange().equalsIgnoreCase(exchange)) {
-                list.add(new FutureDto(f.getFigi(), f.getTicker(), f.getAssetType(), f.getBasicAsset(), f.getCurrency(), f.getExchange()));
+        
+        List<FutureDto> futures = new ArrayList<>();
+        for (var instrument : response.getInstrumentsList()) {
+            // Применяем фильтры
+            boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
+                                     instrument.getExchange().equalsIgnoreCase(exchange));
+            boolean matchesCurrency = (currency == null || currency.isEmpty() || 
+                                     instrument.getCurrency().equalsIgnoreCase(currency));
+            boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
+                                   instrument.getTicker().equalsIgnoreCase(ticker));
+            boolean matchesAssetType = (assetType == null || assetType.isEmpty() || 
+                                      instrument.getAssetType().equalsIgnoreCase(assetType));
+            
+            if (matchesExchange && matchesCurrency && matchesTicker && matchesAssetType) {
+                futures.add(new FutureDto(
+                    instrument.getFigi(),
+                    instrument.getTicker(),
+                    instrument.getAssetType(),
+                    instrument.getBasicAsset(),
+                    instrument.getCurrency(),
+                    instrument.getExchange(),
+                    null // stockTicker будет null, так как его нет в API фьючерсов
+                ));
             }
         }
-        // сохраняем новые
-        for (var dto : list) {
-            if (!futureRepo.existsById(dto.getFigi())) {
-                futureRepo.save(new FutureEntity(dto.getFigi(), dto.getTicker(), dto.getAssetType(), dto.getBasicAsset(), dto.getCurrency(), dto.getExchange(), null));
+        
+        // Сортируем по тикеру
+        futures.sort(Comparator.comparing(FutureDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+        return futures;
+    }
+
+    public List<FutureDto> saveFutures(String status, String exchange, String currency, String ticker, String assetType) {
+        // Получаем фьючерсы из API (используем существующий метод)
+        List<FutureDto> futuresFromApi = getFutures(status, exchange, currency, ticker, assetType);
+        
+        List<FutureDto> savedFutures = new ArrayList<>();
+        
+        for (FutureDto futureDto : futuresFromApi) {
+            // Проверяем, существует ли фьючерс в БД
+            if (!futureRepo.existsById(futureDto.getFigi())) {
+                // Создаем и сохраняем новый фьючерс
+                FutureEntity futureEntity = new FutureEntity(
+                    futureDto.getFigi(),
+                    futureDto.getTicker(),
+                    futureDto.getAssetType(),
+                    futureDto.getBasicAsset(),
+                    futureDto.getCurrency(),
+                    futureDto.getExchange(),
+                    futureDto.getStockTicker()
+                );
+                
+                try {
+                    futureRepo.save(futureEntity);
+                    savedFutures.add(futureDto);
+                } catch (Exception e) {
+                    // Логируем ошибку, но продолжаем обработку других фьючерсов
+                    System.err.println("Error saving future " + futureDto.getFigi() + ": " + e.getMessage());
+                }
             }
         }
-        list.sort(Comparator.comparing(FutureDto::getTicker, String.CASE_INSENSITIVE_ORDER));
-        return list;
+        
+        return savedFutures;
+    }
+
+    public SaveResponseDto saveFutures(FutureFilterDto filter) {
+        // Получаем фьючерсы из API (используем существующий метод)
+        List<FutureDto> futuresFromApi = getFutures(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getAssetType());
+        
+        List<FutureDto> savedFutures = new ArrayList<>();
+        int existingCount = 0;
+        
+        for (FutureDto futureDto : futuresFromApi) {
+            // Проверяем, существует ли фьючерс в БД
+            if (!futureRepo.existsById(futureDto.getFigi())) {
+                // Создаем и сохраняем новый фьючерс
+                FutureEntity futureEntity = new FutureEntity(
+                    futureDto.getFigi(),
+                    futureDto.getTicker(),
+                    futureDto.getAssetType(),
+                    futureDto.getBasicAsset(),
+                    futureDto.getCurrency(),
+                    futureDto.getExchange(),
+                    futureDto.getStockTicker()
+                );
+                
+                try {
+                    futureRepo.save(futureEntity);
+                    savedFutures.add(futureDto);
+                } catch (Exception e) {
+                    // Логируем ошибку, но продолжаем обработку других фьючерсов
+                    System.err.println("Error saving future " + futureDto.getFigi() + ": " + e.getMessage());
+                }
+            } else {
+                existingCount++;
+            }
+        }
+        
+        // Формируем ответ
+        boolean success = !futuresFromApi.isEmpty();
+        String message;
+        
+        if (savedFutures.isEmpty()) {
+            if (futuresFromApi.isEmpty()) {
+                message = "Новых фьючерсов не обнаружено. По заданным фильтрам фьючерсы не найдены.";
+            } else {
+                message = "Новых фьючерсов не обнаружено. Все найденные фьючерсы уже существуют в базе данных.";
+            }
+        } else {
+            message = String.format("Успешно загружено %d новых фьючерсов из %d найденных.", savedFutures.size(), futuresFromApi.size());
+        }
+        
+        return new SaveResponseDto(
+            success,
+            message,
+            futuresFromApi.size(),
+            savedFutures.size(),
+            existingCount,
+            savedFutures
+        );
     }
 
     public List<TradingScheduleDto> getTradingSchedules(String exchange, Instant from, Instant to) {

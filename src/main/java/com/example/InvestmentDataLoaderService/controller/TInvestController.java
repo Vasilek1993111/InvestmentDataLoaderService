@@ -34,22 +34,26 @@ public class TInvestController {
     }
 
     @PostMapping("/shares")
-    public ResponseEntity<List<ShareDto>> saveShares(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String exchange,
-            @RequestParam(required = false) String currency,
-            @RequestParam(required = false) String ticker
-    ) {
-        List<ShareDto> savedShares = service.saveShares(status, exchange, currency, ticker);
-        return ResponseEntity.ok(savedShares);
+    public ResponseEntity<SaveResponseDto> saveShares(@RequestBody ShareFilterDto filter) {
+        SaveResponseDto response = service.saveShares(filter);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/futures")
     public ResponseEntity<List<FutureDto>> futures(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String exchange
+            @RequestParam(required = false) String exchange,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String ticker,
+            @RequestParam(required = false) String assetType
     ) {
-        return ResponseEntity.ok(service.getFutures(status, exchange));
+        return ResponseEntity.ok(service.getFutures(status, exchange, currency, ticker, assetType));
+    }
+
+    @PostMapping("/futures")
+    public ResponseEntity<SaveResponseDto> saveFutures(@RequestBody FutureFilterDto filter) {
+        SaveResponseDto response = service.saveFutures(filter);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/trading-schedules")
