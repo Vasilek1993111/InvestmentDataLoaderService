@@ -418,7 +418,16 @@ public class TInvestService {
             Quotation qp = p.getPrice();
             BigDecimal price = BigDecimal.valueOf(qp.getUnits())
                     .add(BigDecimal.valueOf(qp.getNano()).movePointLeft(9));
-            list.add(new ClosePriceDto(p.getFigi(), date, price));
+            
+            // Обрабатываем eveningSessionPrice если оно есть
+            BigDecimal eveningSessionPrice = null;
+            if (p.hasEveningSessionPrice()) {
+                Quotation esp = p.getEveningSessionPrice();
+                eveningSessionPrice = BigDecimal.valueOf(esp.getUnits())
+                        .add(BigDecimal.valueOf(esp.getNano()).movePointLeft(9));
+            }
+            
+            list.add(new ClosePriceDto(p.getFigi(), date, price, eveningSessionPrice));
         }
         return list;
     }
