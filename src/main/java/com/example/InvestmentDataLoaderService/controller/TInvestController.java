@@ -6,7 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/")
@@ -90,6 +92,31 @@ public class TInvestController {
             @RequestParam List<String> instrumentId
     ) {
         return ResponseEntity.ok(service.getTradingStatuses(instrumentId));
+    }
+
+    @PostMapping("/candles")
+    public ResponseEntity<CandleLoadResponseDto> saveCandles(@RequestBody(required = false) CandleRequestDto request) {
+        // Если request null, создаем пустой объект
+        if (request == null) {
+            request = new CandleRequestDto();
+        }
+        
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        service.saveCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка свечей запущена в фоновом режиме",
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
 }

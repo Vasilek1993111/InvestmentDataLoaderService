@@ -3,6 +3,8 @@ package com.example.InvestmentDataLoaderService.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "last_prices", schema = "invest")
@@ -18,10 +20,25 @@ public class LastPriceEntity {
 
     public LastPriceEntity(String figi, LocalDateTime time, BigDecimal price,
                            String currency, String exchange) {
-        this.id = new LastPriceKey(figi, time);
+        // Конвертируем время в московское время
+        LocalDateTime moscowTime = convertToMoscowTime(time);
+        this.id = new LastPriceKey(figi, moscowTime);
         this.price = price;
         this.currency = currency;
         this.exchange = exchange;
+    }
+    
+    /**
+     * Конвертирует время в московское время (UTC+3)
+     */
+    private LocalDateTime convertToMoscowTime(LocalDateTime time) {
+        if (time == null) {
+            return null;
+        }
+        // Предполагаем, что входящее время в UTC, конвертируем в московское
+        ZonedDateTime utcTime = time.atZone(ZoneId.of("UTC"));
+        ZonedDateTime moscowTime = utcTime.withZoneSameInstant(ZoneId.of("Europe/Moscow"));
+        return moscowTime.toLocalDateTime();
     }
     // getters/setters
 }

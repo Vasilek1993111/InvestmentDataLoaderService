@@ -189,7 +189,7 @@ curl "http://localhost:8083/shares?status=INSTRUMENT_STATUS_BASE&exchange=moex_m
 Сохранение акций в базу данных. Метод запрашивает список акций из T-Bank API согласно параметрам фильтрации, проверяет их наличие в таблице `invest.shares` и сохраняет только новые акции.
 
 ### Описание
-Эндпоинт получает акции из T-Bank API, фильтрует их по заданным параметрам, проверяет существование в базе данных и сохраняет только те акции, которых еще нет в таблице `shares`.
+Эндпоинт получает акции из T-Bank API, фильтрует их по заданным параметрам, проверяет существование в базе данных и сохраняет только те акции, которых еще нет в таблице `invest.shares`.
 
 ### URL
 ```
@@ -362,14 +362,14 @@ curl -X POST "http://localhost:8083/shares" \
 ### Логика работы
 
 1. **Получение данных**: Запрашивает акции из T-Bank API с применением фильтров
-2. **Проверка существования**: Для каждой акции проверяет наличие в таблице `shares` по `figi`
+2. **Проверка существования**: Для каждой акции проверяет наличие в таблице `invest.shares` по `figi`
 3. **Сохранение**: Сохраняет только те акции, которых нет в базе данных
 4. **Возврат результата**: Возвращает список только сохраненных акций
 
 ### Схема таблицы shares
 
 ```sql
-CREATE TABLE shares (
+CREATE TABLE invest.shares (
     figi     VARCHAR(50)  NOT NULL PRIMARY KEY,
     ticker   VARCHAR(20)  NOT NULL UNIQUE,
     name     VARCHAR(100) NOT NULL,
@@ -490,7 +490,7 @@ curl "http://localhost:8083/futures?status=INSTRUMENT_STATUS_BASE&exchange=FORTS
 Сохранение фьючерсов в базу данных. Метод запрашивает список фьючерсов из T-Bank API согласно параметрам фильтрации, проверяет их наличие в таблице `invest.futures` и сохраняет только новые фьючерсы.
 
 ### Описание
-Эндпоинт получает фьючерсы из T-Bank API, фильтрует их по заданным параметрам, проверяет существование в базе данных и сохраняет только те фьючерсы, которых еще нет в таблице `futures`.
+Эндпоинт получает фьючерсы из T-Bank API, фильтрует их по заданным параметрам, проверяет существование в базе данных и сохраняет только те фьючерсы, которых еще нет в таблице `invest.futures`.
 
 ### URL
 ```
@@ -633,7 +633,7 @@ curl -X POST "http://localhost:8083/futures" \
 ### Структура таблицы futures
 
 ```sql
-CREATE TABLE futures (
+CREATE TABLE invest.futures (
     figi         varchar(255) not null primary key,
     ticker       varchar(255) not null,
     asset_type   varchar(255) not null,
@@ -642,7 +642,7 @@ CREATE TABLE futures (
     exchange     varchar(255) not null,
     stock_ticker varchar(255)
         constraint fk_stock_ticker
-            references shares (ticker)
+            references invest.shares (ticker)
             on delete set null
 );
 ```
@@ -891,7 +891,7 @@ curl -X POST "http://localhost:8083/close-prices" \
 ### Структура таблицы close_prices
 
 ```sql
-CREATE TABLE close_prices (
+CREATE TABLE invest.close_prices (
     price_date      DATE                                    NOT NULL,
     figi            VARCHAR(255)                            NOT NULL,
     instrument_type VARCHAR(255)                            NOT NULL,
@@ -965,6 +965,230 @@ public void fetchAndUpdateClosePricesForDate(LocalDate date)
 4. **Автоматическая фильтрация**: Загружаются только RUB инструменты
 5. **Интеграция с API**: Использует тот же эндпоинт `POST /close-prices`
 
+## POST /candles
+
+Асинхронное получение и сохранение исторических свечей по инструментам в базу данных.
+
+### Описание
+Эндпоинт запрашивает исторические свечи для указанных инструментов за указанную дату и сохраняет их в таблицу `invest.candles`. Процесс выполняется асинхронно с соблюдением лимитов API T-Bank.
+
+### URL
+```
+POST http://localhost:8083/candles
+```
+
+### Тело запроса
+
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"],
+  "date": "2024-01-15",
+  "interval": "CANDLE_INTERVAL_1_MIN",
+  "assetType": ["SHARES", "FUTURES"]
+}
+```
+
+### Параметры запроса
+
+| Параметр | Тип | Обязательный | Описание | Возможные значения |
+|----------|-----|--------------|----------|-------------------|
+| `instruments` | List<String> | Нет | Список идентификаторов инструментов (FIGI). Если не указан, используются все инструменты из БД | Массив строк с FIGI инструментов |
+| `date` | String (LocalDate) | Нет | Дата для получения свечей (YYYY-MM-DD). Если не указана, используется вчерашний день | Дата в формате YYYY-MM-DD |
+| `interval` | String | Нет | Интервал свечей. Если не указан, используется 1 минута | `CANDLE_INTERVAL_1_MIN`, `CANDLE_INTERVAL_5_MIN`, `CANDLE_INTERVAL_15_MIN`, `CANDLE_INTERVAL_HOUR`, `CANDLE_INTERVAL_DAY` и др. |
+| `assetType` | List<String> | Нет | Типы активов для загрузки. Если не указан, загружаются все типы инструментов | `["SHARES"]`, `["FUTURES"]`, `["SHARES", "FUTURES"]` |
+
+### Логика работы
+
+1. **С параметрами**: Если переданы `instruments`, запрашиваются свечи только для указанных инструментов
+2. **Без параметров**: Если `instruments` не указан, автоматически получаются FIGI из базы данных:
+   - Если указан `assetType` с `"SHARES"` - загружаются только акции из таблицы `invest.shares`
+   - Если указан `assetType` с `"FUTURES"` - загружаются только фьючерсы из таблицы `invest.futures`
+   - Если указаны оба типа `["SHARES", "FUTURES"]` - загружаются и акции, и фьючерсы
+   - Если `assetType` не указан - загружаются все инструменты (акции и фьючерсы)
+3. **Дата по умолчанию**: Если `date` не указана, используется вчерашний день
+4. **Интервал по умолчанию**: Если `interval` не указан, используется `CANDLE_INTERVAL_1_MIN`
+5. **Соблюдение лимитов**: Между запросами к API добавляются задержки (100мс между запросами, 200мс между инструментами)
+6. **Проверка дубликатов**: Свечи сохраняются только если нет записи с такой же `figi` + `time`
+
+### Примеры запросов
+
+#### Сохранить свечи за вчерашний день для всех инструментов из БД
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+#### Сохранить свечи за конкретную дату для всех инструментов
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-15"
+  }'
+```
+
+#### Сохранить свечи для конкретных инструментов
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruments": ["BBG004730N88", "BBG004730ZJ9"],
+    "date": "2024-01-15",
+    "interval": "CANDLE_INTERVAL_1_MIN"
+  }'
+```
+
+#### Сохранить 5-минутные свечи
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruments": ["BBG004730N88"],
+    "date": "2024-01-15",
+    "interval": "CANDLE_INTERVAL_5_MIN"
+  }'
+```
+
+#### Сохранить свечи только для акций
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-15",
+    "assetType": ["SHARES"]
+  }'
+```
+
+#### Сохранить свечи только для фьючерсов
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-15",
+    "assetType": ["FUTURES"]
+  }'
+```
+
+#### Сохранить свечи для акций и фьючерсов
+```bash
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-15",
+    "assetType": ["SHARES", "FUTURES"]
+  }'
+```
+
+### Формат ответа
+
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 1440 новых свечей из 1440 найденных.",
+  "totalRequested": 1440,
+  "newItemsSaved": 1440,
+  "existingItemsSkipped": 0,
+  "savedItems": [
+    {
+      "figi": "BBG004730N88",
+      "volume": 1000000,
+      "high": 250.75,
+      "low": 248.50,
+      "time": "2024-01-15T09:00:00Z",
+      "close": 250.25,
+      "open": 249.00,
+      "isComplete": true
+    }
+  ]
+}
+```
+
+### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `success` | Boolean | Успешность операции |
+| `message` | String | Описательное сообщение о результате |
+| `totalRequested` | Integer | Общее количество запрошенных свечей |
+| `newItemsSaved` | Integer | Количество новых свечей, сохраненных в БД |
+| `existingItemsSkipped` | Integer | Количество свечей, которые уже существовали в БД |
+| `savedItems` | List<CandleDto> | Список сохраненных свечей |
+
+### Поля CandleDto
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | Уникальный идентификатор инструмента |
+| `volume` | Long | Объем торгов |
+| `high` | BigDecimal | Максимальная цена за период |
+| `low` | BigDecimal | Минимальная цена за период |
+| `time` | Instant | Время свечи в формате ISO 8601 (московское время UTC+3) |
+| `close` | BigDecimal | Цена закрытия |
+| `open` | BigDecimal | Цена открытия |
+| `isComplete` | Boolean | Завершена ли свеча |
+
+### Возможные интервалы свечей
+
+| Интервал | Описание | Максимальный лимит |
+|----------|----------|-------------------|
+| `CANDLE_INTERVAL_1_MIN` | 1 минута | 2400 |
+| `CANDLE_INTERVAL_5_MIN` | 5 минут | 2400 |
+| `CANDLE_INTERVAL_15_MIN` | 15 минут | 2400 |
+| `CANDLE_INTERVAL_HOUR` | 1 час | 2400 |
+| `CANDLE_INTERVAL_DAY` | 1 день | 2400 |
+| `CANDLE_INTERVAL_2_MIN` | 2 минуты | 1200 |
+| `CANDLE_INTERVAL_3_MIN` | 3 минуты | 750 |
+| `CANDLE_INTERVAL_10_MIN` | 10 минут | 1200 |
+| `CANDLE_INTERVAL_30_MIN` | 30 минут | 1200 |
+| `CANDLE_INTERVAL_2_HOUR` | 2 часа | 2400 |
+| `CANDLE_INTERVAL_4_HOUR` | 4 часа | 700 |
+| `CANDLE_INTERVAL_WEEK` | 1 неделя | 300 |
+| `CANDLE_INTERVAL_MONTH` | 1 месяц | 120 |
+
+### Структура таблицы candles
+
+```sql
+CREATE TABLE invest.candles (
+    figi        VARCHAR(255)                           NOT NULL,
+    volume      BIGINT                                 NOT NULL,
+    high        NUMERIC(18, 9)                         NOT NULL,
+    low         NUMERIC(18, 9)                         NOT NULL,
+    time        TIMESTAMP WITH TIME ZONE               NOT NULL,
+    close       NUMERIC(18, 9)                         NOT NULL,
+    open        NUMERIC(18, 9)                         NOT NULL,
+    is_complete BOOLEAN                                NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    updated_at  TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    PRIMARY KEY (figi, time)
+);
+```
+
+### Особенности
+
+1. **Асинхронность**: Операция выполняется асинхронно, возвращается CompletableFuture
+2. **Соблюдение лимитов**: Автоматические задержки между запросами для соблюдения лимитов T-Bank API
+3. **Автоматическое получение инструментов**: При отсутствии параметра `instruments` система автоматически получает все FIGI из таблиц `invest.shares` и `invest.futures`
+4. **Проверка дубликатов**: Свечи сохраняются только если нет записи с такой же `figi` + `time`
+5. **Обработка ошибок**: Ошибки сохранения отдельных свечей не прерывают процесс
+6. **Идемпотентность**: Повторные вызовы с теми же параметрами не создадут дубликаты
+7. **Временная зона**: Все времена сохраняются в московском времени (UTC+3)
+
+### Обработка временных зон
+
+- **Входящие данные**: T-Bank API возвращает время в UTC
+- **Конвертация**: Система автоматически конвертирует UTC время в московское время (UTC+3) при сохранении
+- **Хранение**: Все времена в базе данных хранятся в московской временной зоне
+- **Отображение**: Время в ответах API отображается в московском времени
+
+### Коды ответов
+
+| Код | Описание |
+|-----|----------|
+| 200 | Успешное выполнение запроса |
+| 400 | Некорректные параметры запроса |
+| 500 | Внутренняя ошибка сервера |
+
 ### Связанные эндпоинты
 
 - `GET /shares` - получение списка акций без сохранения в БД
@@ -973,6 +1197,158 @@ public void fetchAndUpdateClosePricesForDate(LocalDate date)
 - `POST /futures` - сохранение фьючерсов в БД
 - `GET /close-prices` - получение цен закрытия без сохранения в БД
 - `POST /close-prices` - сохранение цен закрытия в БД (используется шедулером)
+- `POST /candles` - получение и сохранение исторических свечей в БД
 - `GET /accounts` - получение списка счетов
 - `GET /trading-schedules` - получение расписаний торгов
 - `GET /trading-statuses` - получение статусов торговли
+
+---
+
+## Админские эндпоинты
+
+Эндпоинты для административного управления загрузкой данных.
+
+### POST /admin/load-close-prices
+
+Ручной запуск загрузки цен закрытия за вчерашний день.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-close-prices
+```
+
+#### Ответ
+```json
+"Close prices loaded for today"
+```
+
+### POST /admin/load-candles
+
+Ручной запуск загрузки свечей за вчерашний день (акции + фьючерсы).
+
+#### URL
+```
+POST http://localhost:8083/admin/load-candles
+```
+
+#### Ответ
+```json
+"Candles loading started for today"
+```
+
+### POST /admin/load-candles/{date}
+
+Ручной запуск загрузки свечей за указанную дату (акции + фьючерсы).
+
+#### URL
+```
+POST http://localhost:8083/admin/load-candles/2024-01-15
+```
+
+#### Параметры
+- `date` - дата в формате YYYY-MM-DD
+
+#### Ответ
+```json
+"Candles loading started for 2024-01-15"
+```
+
+### POST /admin/load-candles/shares/{date}
+
+Ручной запуск загрузки свечей только для акций за указанную дату.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-candles/shares/2024-01-15
+```
+
+#### Параметры
+- `date` - дата в формате YYYY-MM-DD
+
+#### Ответ
+```json
+"Shares candles loading started for 2024-01-15"
+```
+
+### POST /admin/load-candles/futures/{date}
+
+Ручной запуск загрузки свечей только для фьючерсов за указанную дату.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-candles/futures/2024-01-15
+```
+
+#### Параметры
+- `date` - дата в формате YYYY-MM-DD
+
+#### Ответ
+```json
+"Futures candles loading started for 2024-01-15"
+```
+
+### POST /admin/load-evening-session-prices
+
+Ручной запуск загрузки цен закрытия вечерней сессии за вчерашний день.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-evening-session-prices
+```
+
+#### Ответ
+```json
+"Evening session prices loading started for today"
+```
+
+### POST /admin/load-evening-session-prices/{date}
+
+Ручной запуск загрузки цен закрытия вечерней сессии за указанную дату.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-evening-session-prices/2024-01-15
+```
+
+#### Параметры
+- `date` - дата в формате YYYY-MM-DD
+
+#### Ответ
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 150 новых цен закрытия вечерней сессии из 150 найденных.",
+  "totalRequested": 150,
+  "newItemsSaved": 150,
+  "existingItemsSkipped": 0,
+  "savedItems": [...]
+}
+```
+
+---
+
+## Автоматические шедулеры
+
+### Шедулер цен закрытия
+
+- **Время запуска**: 01:00 по московскому времени ежедневно
+- **Функция**: Загружает цены закрытия за предыдущий день для всех RUB инструментов
+- **Cron**: `0 0 1 * * *`
+
+### Шедулер свечей
+
+- **Время запуска**: 01:10 по московскому времени ежедневно
+- **Функция**: Загружает минутные свечи за предыдущий день
+- **Последовательность**: Сначала акции, затем фьючерсы (с паузой 5 секунд между ними)
+- **Cron**: `0 10 1 * * *`
+
+### Шедулер цен закрытия вечерней сессии
+
+- **Время запуска**: 02:00 по московскому времени ежедневно
+- **Функция**: Загружает цены закрытия вечерней сессии за предыдущий день
+- **Логика работы**:
+  1. Получает список всех акций из таблицы `invest.shares`
+  2. Для каждой акции находит последнюю свечу за предыдущий день в таблице `invest.candles`
+  3. Извлекает цену закрытия (`close`) из последней свечи
+  4. Сохраняет данные в таблицу `invest.close_prices_evening_session`
+- **Cron**: `0 0 2 * * *`

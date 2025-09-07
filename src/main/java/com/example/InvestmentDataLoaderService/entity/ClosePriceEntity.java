@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Entity
@@ -30,10 +31,10 @@ public class ClosePriceEntity {
     private String exchange;
     
     @Column(name = "created_at", nullable = false)
-    private ZonedDateTime createdAt = ZonedDateTime.now();
+    private ZonedDateTime createdAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow"));
     
     @Column(name = "updated_at", nullable = false)
-    private ZonedDateTime updatedAt = ZonedDateTime.now();
+    private ZonedDateTime updatedAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow"));
 
     public ClosePriceEntity(LocalDate date, String figi, String instrumentType,
                             BigDecimal closePrice, String currency, String exchange) {
@@ -42,8 +43,8 @@ public class ClosePriceEntity {
         this.closePrice = closePrice;
         this.currency = currency;
         this.exchange = exchange;
-        this.createdAt = ZonedDateTime.now();
-        this.updatedAt = ZonedDateTime.now();
+        this.createdAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow"));
+        this.updatedAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow"));
     }
 }
 
