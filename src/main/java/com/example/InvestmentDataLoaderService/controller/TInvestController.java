@@ -28,9 +28,10 @@ public class TInvestController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String exchange,
             @RequestParam(required = false) String currency,
-            @RequestParam(required = false) String ticker
+            @RequestParam(required = false) String ticker,
+            @RequestParam(required = false) String figi
     ) {
-        return ResponseEntity.ok(service.getShares(status, exchange, currency, ticker));
+        return ResponseEntity.ok(service.getShares(status, exchange, currency, ticker, figi));
     }
 
     @PostMapping("/shares")
@@ -56,6 +57,24 @@ public class TInvestController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/close-prices")
+    public ResponseEntity<List<ClosePriceDto>> closes(
+            @RequestParam(required = false) List<String> instrumentId,
+            @RequestParam(required = false) String instrumentStatus
+    ) {
+        return ResponseEntity.ok(service.getClosePrices(instrumentId, instrumentStatus));
+    }
+
+    @PostMapping("/close-prices")
+    public ResponseEntity<SaveResponseDto> saveClosePrices(@RequestBody(required = false) ClosePriceRequestDto request) {
+        // Если request null, создаем пустой объект
+        if (request == null) {
+            request = new ClosePriceRequestDto();
+        }
+        SaveResponseDto response = service.saveClosePrices(request);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/trading-schedules")
     public ResponseEntity<List<TradingScheduleDto>> schedules(
             @RequestParam(required = false) String exchange,
@@ -73,11 +92,4 @@ public class TInvestController {
         return ResponseEntity.ok(service.getTradingStatuses(instrumentId));
     }
 
-    @GetMapping("/close-prices")
-    public ResponseEntity<List<ClosePriceDto>> closes(
-            @RequestParam List<String> instrumentId,
-            @RequestParam(required = false) String instrumentStatus
-    ) {
-        return ResponseEntity.ok(service.getClosePrices(instrumentId, instrumentStatus));
-    }
 }

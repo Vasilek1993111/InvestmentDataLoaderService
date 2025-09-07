@@ -20,6 +20,7 @@ GET http://localhost:8083/shares
 | `exchange` | String | Нет | Биржа | `moex_mrng_evng_e_wknd_dlr`, `SPB`, `NASDAQ`, `NYSE`, и др. |
 | `currency` | String | Нет | Валюта инструмента | `RUB`, `USD`, `EUR`, и др. |
 | `ticker` | String | Нет | Тикер инструмента | `SBER`, `GAZP`, `LKOH`, `NVTK`, и др. |
+| `figi` | String | Нет | Уникальный идентификатор инструмента | `BBG004730N88`, `BBG004730ZJ9`, и др. |
 
 ### Примеры запросов
 
@@ -48,9 +49,14 @@ curl "http://localhost:8083/shares?currency=RUB"
 curl "http://localhost:8083/shares?ticker=SBER"
 ```
 
+#### Получить акцию по FIGI
+```bash
+curl "http://localhost:8083/shares?figi=BBG004730N88"
+```
+
 #### Комбинированный запрос
 ```bash
-curl "http://localhost:8083/shares?status=INSTRUMENT_STATUS_BASE&exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB&ticker=SBER"
+curl "http://localhost:8083/shares?status=INSTRUMENT_STATUS_BASE&exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB&ticker=SBER&figi=BBG004730N88"
 ```
 
 ### Формат ответа
@@ -124,6 +130,59 @@ curl "http://localhost:8083/shares?status=INSTRUMENT_STATUS_BASE&exchange=moex_m
 - Максимальное количество возвращаемых инструментов ограничено возможностями T-Bank API
 - При некорректном значении параметра `status` используется значение по умолчанию `INSTRUMENT_STATUS_BASE`
 - Все параметры фильтрации являются необязательными
+
+### Примеры для Postman
+
+#### 1. Получить все акции
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Headers**: Не требуются
+
+#### 2. Получить акции с базовым статусом
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Query Parameters**:
+  - `status`: `INSTRUMENT_STATUS_BASE`
+- **Headers**: Не требуются
+
+#### 3. Получить акции с биржи MOEX
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Query Parameters**:
+  - `exchange`: `moex_mrng_evng_e_wknd_dlr`
+- **Headers**: Не требуются
+
+#### 4. Получить акции в рублях
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Query Parameters**:
+  - `currency`: `RUB`
+- **Headers**: Не требуются
+
+#### 5. Получить акцию по тикеру
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Query Parameters**:
+  - `ticker`: `SBER`
+- **Headers**: Не требуются
+
+#### 6. Получить акцию по FIGI
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Query Parameters**:
+  - `figi`: `BBG004730N88`
+- **Headers**: Не требуются
+
+#### 7. Комбинированный запрос
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/shares`
+- **Query Parameters**:
+  - `status`: `INSTRUMENT_STATUS_BASE`
+  - `exchange`: `moex_mrng_evng_e_wknd_dlr`
+  - `currency`: `RUB`
+  - `ticker`: `SBER`
+  - `figi`: `BBG004730N88`
+- **Headers**: Не требуются
 
 ## POST /shares
 
@@ -601,12 +660,261 @@ CREATE TABLE futures (
 3. **Обработка ошибок**: Ошибки сохранения отдельных фьючерсов не прерывают процесс
 4. **Фильтрация**: Применяются те же фильтры, что и в GET /futures
 
+## GET /close-prices
+
+Получение цен закрытия торговой сессии по инструментам из T-Bank API.
+
+### Описание
+Эндпоинт возвращает цены закрытия торговой сессии для указанных инструментов. Если инструменты не указаны, автоматически запрашиваются цены для всех инструментов, сохраненных в базе данных (акции и фьючерсы).
+
+### URL
+```
+GET http://localhost:8083/close-prices
+```
+
+### Параметры запроса
+
+| Параметр | Тип | Обязательный | Описание | Возможные значения |
+|----------|-----|--------------|----------|-------------------|
+| `instrumentId` | List<String> | Нет | Список идентификаторов инструментов (FIGI) | Массив строк с FIGI инструментов |
+| `instrumentStatus` | String | Нет | Статус запрашиваемых инструментов | `INSTRUMENT_STATUS_UNSPECIFIED`, `INSTRUMENT_STATUS_BASE`, `INSTRUMENT_STATUS_ALL` |
+
+### Логика работы
+
+1. **С параметрами**: Если переданы `instrumentId`, запрашиваются цены закрытия только для указанных инструментов
+2. **Без параметров**: Если `instrumentId` не указан, автоматически получаются все FIGI из таблиц `shares` и `futures` в базе данных
+3. **Пустая БД**: Если в базе данных нет инструментов, возвращается пустой список
+
+### Примеры запросов
+
+#### Получить цены закрытия для всех инструментов из БД
+```bash
+curl "http://localhost:8083/close-prices"
+```
+
+#### Получить цены закрытия для конкретных инструментов
+```bash
+curl "http://localhost:8083/close-prices?instrumentId=BBG004730N88&instrumentId=BBG004730ZJ9"
+```
+
+#### Получить цены закрытия с определенным статусом
+```bash
+curl "http://localhost:8083/close-prices?instrumentStatus=INSTRUMENT_STATUS_BASE"
+```
+
+#### Postman примеры
+
+**Запрос 1: Все инструменты из БД**
+- Method: `GET`
+- URL: `http://localhost:8083/close-prices`
+- Headers: `Content-Type: application/json`
+
+**Запрос 2: Конкретные инструменты**
+- Method: `GET`
+- URL: `http://localhost:8083/close-prices?instrumentId=BBG004730N88&instrumentId=BBG004730ZJ9`
+- Headers: `Content-Type: application/json`
+
+**Запрос 3: С фильтром по статусу**
+- Method: `GET`
+- URL: `http://localhost:8083/close-prices?instrumentStatus=INSTRUMENT_STATUS_BASE`
+- Headers: `Content-Type: application/json`
+
+### Формат ответа
+
+```json
+[
+  {
+    "figi": "BBG004730N88",
+    "tradingDate": "2024-01-15",
+    "closePrice": 250.75
+  },
+  {
+    "figi": "BBG004730ZJ9", 
+    "tradingDate": "2024-01-15",
+    "closePrice": 125.50
+  }
+]
+```
+
+### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | Уникальный идентификатор инструмента |
+| `tradingDate` | String | Дата торговой сессии (YYYY-MM-DD) |
+| `closePrice` | BigDecimal | Цена закрытия торговой сессии |
+
+### Возможные статусы инструментов
+
+| Статус | Описание |
+|--------|----------|
+| `INSTRUMENT_STATUS_UNSPECIFIED` | Значение не определено (по умолчанию) |
+| `INSTRUMENT_STATUS_BASE` | Базовый список инструментов, доступных для торговли через T-Invest API |
+| `INSTRUMENT_STATUS_ALL` | Список всех инструментов |
+
+### Особенности
+
+1. **Автоматическое получение инструментов**: При отсутствии параметра `instrumentId` система автоматически получает все FIGI из БД
+2. **Объединение данных**: Запрашиваются цены как для акций, так и для фьючерсов
+3. **Обработка пустых результатов**: Если в БД нет инструментов, возвращается пустой массив
+4. **Валидация статуса**: Некорректные значения статуса заменяются на `INSTRUMENT_STATUS_BASE`
+
+## POST /close-prices
+
+Сохранение цен закрытия торговой сессии в базу данных.
+
+### Описание
+Эндпоинт запрашивает цены закрытия для указанных инструментов (или всех инструментов в рублях из БД) и сохраняет их в таблицу `invest.close_prices`. Цены обновляются только если нет аналогичной записи с такой же `figi` + `price_date`.
+
+### URL
+```
+POST http://localhost:8083/close-prices
+```
+
+### Тело запроса
+
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"]
+}
+```
+
+### Параметры запроса
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `instruments` | List<String> | Нет | Список идентификаторов инструментов (FIGI). Если не указан, используются все инструменты в рублях из БД |
+
+### Логика работы
+
+1. **С параметрами**: Если передан массив `instruments`, запрашиваются цены закрытия только для указанных инструментов
+2. **Без параметров**: Если `instruments` не указан или пуст, автоматически получаются только FIGI инструментов в рублях из таблиц `shares` и `futures` в базе данных
+3. **Пустая БД**: Если в базе данных нет инструментов в рублях, возвращается сообщение об ошибке
+4. **Проверка дубликатов**: Цены сохраняются только если нет записи с такой же `figi` + `price_date`
+5. **Определение типа**: Автоматически определяется тип инструмента (`SHARE` или `FUTURE`) и получается дополнительная информация (валюта, биржа)
+
+### Примеры запросов
+
+#### Сохранить цены закрытия для всех инструментов в рублях из БД
+```bash
+curl -X POST "http://localhost:8083/close-prices" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Или без тела запроса:
+```bash
+curl -X POST "http://localhost:8083/close-prices" \
+  -H "Content-Type: application/json"
+```
+
+#### Сохранить цены закрытия для конкретных инструментов
+```bash
+curl -X POST "http://localhost:8083/close-prices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruments": ["BBG004730N88", "BBG004730ZJ9"]
+  }'
+```
+
+#### Postman примеры
+
+**Запрос 1: Все инструменты в рублях из БД**
+- Method: `POST`
+- URL: `http://localhost:8083/close-prices`
+- Headers: `Content-Type: application/json`
+- Body (raw JSON) - можно оставить пустым или указать:
+```json
+{}
+```
+
+**Запрос 2: Конкретные инструменты**
+- Method: `POST`
+- URL: `http://localhost:8083/close-prices`
+- Headers: `Content-Type: application/json`
+- Body (raw JSON):
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"]
+}
+```
+
+### Формат ответа
+
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 15 новых цен закрытия из 20 найденных.",
+  "totalRequested": 20,
+  "newItemsSaved": 15,
+  "existingItemsSkipped": 5,
+  "savedItems": [
+    {
+      "figi": "BBG004730N88",
+      "tradingDate": "2024-01-15",
+      "closePrice": 250.75
+    },
+    {
+      "figi": "BBG004730ZJ9",
+      "tradingDate": "2024-01-15", 
+      "closePrice": 125.50
+    }
+  ]
+}
+```
+
+### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `success` | Boolean | Успешность операции |
+| `message` | String | Описательное сообщение о результате |
+| `totalRequested` | Integer | Общее количество запрошенных цен |
+| `newItemsSaved` | Integer | Количество новых цен, сохраненных в БД |
+| `existingItemsSkipped` | Integer | Количество цен, которые уже существовали в БД |
+| `savedItems` | List<ClosePriceDto> | Список сохраненных цен закрытия |
+
+### Возможные сообщения
+
+| Сообщение | Описание |
+|-----------|----------|
+| `"Успешно загружено X новых цен закрытия из Y найденных."` | Успешная загрузка с указанием количества |
+| `"Новых цен закрытия не обнаружено. Все найденные цены уже существуют в базе данных."` | Все цены уже были в БД |
+| `"Новых цен закрытия не обнаружено. По заданным инструментам цены не найдены."` | API не вернул цены для указанных инструментов |
+| `"Нет инструментов в рублях для загрузки цен закрытия. В базе данных нет акций или фьючерсов с валютой RUB."` | В БД нет инструментов в рублях для загрузки |
+
+### Структура таблицы close_prices
+
+```sql
+CREATE TABLE close_prices (
+    price_date      DATE                                    NOT NULL,
+    figi            VARCHAR(255)                            NOT NULL,
+    instrument_type VARCHAR(255)                            NOT NULL,
+    close_price     NUMERIC(18, 9)                          NOT NULL,
+    currency        VARCHAR(255)                            NOT NULL,
+    exchange        VARCHAR(255)                            NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL,
+    PRIMARY KEY (price_date, figi)
+);
+```
+
+### Особенности
+
+1. **Автоматическое получение инструментов**: При отсутствии параметра `instruments` система автоматически получает только FIGI инструментов в рублях из БД
+2. **Объединение данных**: Запрашиваются цены как для акций, так и для фьючерсов
+3. **Проверка дубликатов**: Цены сохраняются только если нет записи с такой же `figi` + `price_date`
+4. **Автоматическое определение типа**: Система автоматически определяет `instrument_type` (`SHARE` или `FUTURE`)
+5. **Обработка ошибок**: Ошибки сохранения отдельных цен не прерывают процесс
+6. **Идемпотентность**: Повторные вызовы с теми же параметрами не создадут дубликаты
+
 ### Связанные эндпоинты
 
 - `GET /shares` - получение списка акций без сохранения в БД
 - `POST /shares` - сохранение акций в БД
 - `GET /futures` - получение списка фьючерсов без сохранения в БД
+- `POST /futures` - сохранение фьючерсов в БД
+- `GET /close-prices` - получение цен закрытия без сохранения в БД
 - `GET /accounts` - получение списка счетов
 - `GET /trading-schedules` - получение расписаний торгов
 - `GET /trading-statuses` - получение статусов торговли
-- `GET /close-prices` - получение цен закрытия

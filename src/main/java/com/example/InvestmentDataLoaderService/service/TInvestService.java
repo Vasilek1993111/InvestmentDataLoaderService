@@ -1,12 +1,14 @@
 package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.entity.ClosePriceEntity;
+import com.example.InvestmentDataLoaderService.entity.ClosePriceKey;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
+import com.example.InvestmentDataLoaderService.repository.ClosePriceRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.google.protobuf.Timestamp;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
@@ -15,6 +17,7 @@ import ru.tinkoff.piapi.contract.v1.UsersServiceGrpc.UsersServiceBlockingStub;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -29,18 +32,20 @@ public class TInvestService {
     private final MarketDataServiceBlockingStub marketDataService;
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
+    private final ClosePriceRepository closePriceRepo;
 
-    @Autowired
     public TInvestService(UsersServiceBlockingStub usersService,
                           InstrumentsServiceBlockingStub instrumentsService,
                           MarketDataServiceBlockingStub marketDataService,
                           ShareRepository shareRepo,
-                          FutureRepository futureRepo) {
+                          FutureRepository futureRepo,
+                          ClosePriceRepository closePriceRepo) {
         this.usersService = usersService;
         this.instrumentsService = instrumentsService;
         this.marketDataService = marketDataService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
+        this.closePriceRepo = closePriceRepo;
     }
 
     public List<AccountDto> getAccounts() {
@@ -52,7 +57,7 @@ public class TInvestService {
         return list;
     }
 
-    public List<ShareDto> getShares(String status, String exchange, String currency, String ticker) {
+    public List<ShareDto> getShares(String status, String exchange, String currency, String ticker, String figi) {
         // Определяем статус инструмента для запроса к API
         InstrumentStatus instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
         if (status != null && !status.isEmpty()) {
@@ -78,8 +83,10 @@ public class TInvestService {
                                      instrument.getCurrency().equalsIgnoreCase(currency));
             boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
                                    instrument.getTicker().equalsIgnoreCase(ticker));
+            boolean matchesFigi = (figi == null || figi.isEmpty() || 
+                                 instrument.getFigi().equalsIgnoreCase(figi));
             
-            if (matchesExchange && matchesCurrency && matchesTicker) {
+            if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
                 shares.add(new ShareDto(
                     instrument.getFigi(),
                     instrument.getTicker(),
@@ -99,7 +106,7 @@ public class TInvestService {
 
     public List<ShareDto> saveShares(String status, String exchange, String currency, String ticker) {
         // Получаем акции из API (используем существующий метод)
-        List<ShareDto> sharesFromApi = getShares(status, exchange, currency, ticker);
+        List<ShareDto> sharesFromApi = getShares(status, exchange, currency, ticker, null);
         
         List<ShareDto> savedShares = new ArrayList<>();
         
@@ -130,7 +137,7 @@ public class TInvestService {
 
     public SaveResponseDto saveShares(ShareFilterDto filter) {
         // Получаем акции из API (используем существующий метод)
-        List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker());
+        List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), null);
         
         List<ShareDto> savedShares = new ArrayList<>();
         int existingCount = 0;
@@ -367,8 +374,32 @@ public class TInvestService {
 
     public List<ClosePriceDto> getClosePrices(List<String> instrumentIds, String status) {
         GetClosePricesRequest.Builder builder = GetClosePricesRequest.newBuilder();
+        
+        // Если instrumentIds не переданы, получаем все инструменты из БД
+        if (instrumentIds == null || instrumentIds.isEmpty()) {
+            List<String> allInstrumentIds = new ArrayList<>();
+            
+            // Получаем все FIGI из таблицы shares
+            List<ShareEntity> shares = shareRepo.findAll();
+            for (ShareEntity share : shares) {
+                allInstrumentIds.add(share.getFigi());
+            }
+            
+            // Получаем все FIGI из таблицы futures
+            List<FutureEntity> futures = futureRepo.findAll();
+            for (FutureEntity future : futures) {
+                allInstrumentIds.add(future.getFigi());
+            }
+            
+            instrumentIds = allInstrumentIds;
+        }
+        
+        // Если после получения из БД список все еще пуст, возвращаем пустой результат
+        if (instrumentIds.isEmpty()) {
+            return new ArrayList<>();
+        }
 
-        // Исправленный код: lambda для создания и добавления каждого InstrumentClosePriceRequest
+        // Добавляем каждый инструмент в запрос
         instrumentIds.forEach(id -> {
             builder.addInstruments(
                     InstrumentClosePriceRequest.newBuilder()
@@ -390,5 +421,121 @@ public class TInvestService {
             list.add(new ClosePriceDto(p.getFigi(), date, price));
         }
         return list;
+    }
+
+    public SaveResponseDto saveClosePrices(ClosePriceRequestDto request) {
+        List<String> instrumentIds = request.getInstruments();
+        
+        // Если инструменты не указаны, получаем только RUB инструменты из БД
+        if (instrumentIds == null || instrumentIds.isEmpty()) {
+            List<String> allInstrumentIds = new ArrayList<>();
+            
+            // Получаем только акции в рублях из таблицы shares
+            List<ShareEntity> shares = shareRepo.findAll();
+            for (ShareEntity share : shares) {
+                if ("RUB".equalsIgnoreCase(share.getCurrency())) {
+                    allInstrumentIds.add(share.getFigi());
+                }
+            }
+            
+            // Получаем только фьючерсы в рублях из таблицы futures
+            List<FutureEntity> futures = futureRepo.findAll();
+            for (FutureEntity future : futures) {
+                if ("RUB".equalsIgnoreCase(future.getCurrency())) {
+                    allInstrumentIds.add(future.getFigi());
+                }
+            }
+            
+            instrumentIds = allInstrumentIds;
+        }
+        
+        // Если после получения из БД список все еще пуст, возвращаем пустой результат
+        if (instrumentIds.isEmpty()) {
+            return new SaveResponseDto(
+                false,
+                "Нет инструментов в рублях для загрузки цен закрытия. В базе данных нет акций или фьючерсов с валютой RUB.",
+                0, 0, 0, new ArrayList<>()
+            );
+        }
+
+        // Получаем цены закрытия из API
+        List<ClosePriceDto> closePricesFromApi = getClosePrices(instrumentIds, null);
+        
+        List<ClosePriceDto> savedPrices = new ArrayList<>();
+        int existingCount = 0;
+        
+        for (ClosePriceDto closePriceDto : closePricesFromApi) {
+            LocalDate priceDate = LocalDate.parse(closePriceDto.getTradingDate());
+            ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.getFigi());
+            
+            // Проверяем, существует ли запись с такой датой и FIGI
+            if (!closePriceRepo.existsById(key)) {
+                // Определяем тип инструмента и получаем дополнительную информацию
+                String instrumentType = "UNKNOWN";
+                String currency = "UNKNOWN";
+                String exchange = "UNKNOWN";
+                
+                // Проверяем в таблице shares
+                ShareEntity share = shareRepo.findById(closePriceDto.getFigi()).orElse(null);
+                if (share != null) {
+                    instrumentType = "SHARE";
+                    currency = share.getCurrency();
+                    exchange = share.getExchange();
+                } else {
+                    // Проверяем в таблице futures
+                    FutureEntity future = futureRepo.findById(closePriceDto.getFigi()).orElse(null);
+                    if (future != null) {
+                        instrumentType = "FUTURE";
+                        currency = future.getCurrency();
+                        exchange = future.getExchange();
+                    }
+                }
+                
+                // Создаем и сохраняем новую запись
+                ClosePriceEntity closePriceEntity = new ClosePriceEntity(
+                    priceDate,
+                    closePriceDto.getFigi(),
+                    instrumentType,
+                    closePriceDto.getClosePrice(),
+                    currency,
+                    exchange
+                );
+                
+                try {
+                    closePriceRepo.save(closePriceEntity);
+                    savedPrices.add(closePriceDto);
+                } catch (Exception e) {
+                    // Логируем ошибку, но продолжаем обработку других цен
+                    System.err.println("Error saving close price for " + closePriceDto.getFigi() + 
+                                     " on " + priceDate + ": " + e.getMessage());
+                }
+            } else {
+                existingCount++;
+            }
+        }
+        
+        // Формируем ответ
+        boolean success = !closePricesFromApi.isEmpty();
+        String message;
+        
+        if (savedPrices.isEmpty()) {
+            if (closePricesFromApi.isEmpty()) {
+                message = "Новых цен закрытия не обнаружено. По заданным инструментам цены не найдены.";
+            } else {
+                message = "Новых цен закрытия не обнаружено. Все найденные цены уже существуют в базе данных.";
+            }
+        } else {
+            message = String.format("Успешно загружено %d новых цен закрытия из %d найденных.", 
+                                  savedPrices.size(), closePricesFromApi.size());
+        }
+        
+        return new SaveResponseDto(
+            success,
+            message,
+            closePricesFromApi.size(),
+            savedPrices.size(),
+            existingCount,
+            savedPrices
+        );
     }
 }
