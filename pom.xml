@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.example</groupId>
-    <artifactId>ingestion-service</artifactId>
+    <artifactId>investment-data-loader-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>ingestion-service</name>
-    <description>ingestion-service</description>
+    <name>investment-data-loader-service</name>
+    <description>investment-data-loader-service</description>
     <url/>
     <licenses>
         <license/>
@@ -80,6 +80,13 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+        
+        <!-- Spring Boot Test Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
