@@ -3,6 +3,8 @@ package com.example.InvestmentDataLoaderService.controller;
 import com.example.InvestmentDataLoaderService.service.ClosePriceSchedulerService;
 import com.example.InvestmentDataLoaderService.service.CandleSchedulerService;
 import com.example.InvestmentDataLoaderService.service.EveningSessionService;
+import com.example.InvestmentDataLoaderService.service.LastTradesService;
+import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -17,13 +19,16 @@ public class AdminController {
     private final ClosePriceSchedulerService closePriceScheduler;
     private final CandleSchedulerService candleScheduler;
     private final EveningSessionService eveningSessionService;
+    private final LastTradesService lastTradesService;
 
     public AdminController(ClosePriceSchedulerService closePriceScheduler, 
                           CandleSchedulerService candleScheduler,
-                          EveningSessionService eveningSessionService) {
+                          EveningSessionService eveningSessionService,
+                          LastTradesService lastTradesService) {
         this.closePriceScheduler = closePriceScheduler;
         this.candleScheduler = candleScheduler;
         this.eveningSessionService = eveningSessionService;
+        this.lastTradesService = lastTradesService;
     }
 
     @PostMapping("/load-close-prices")
@@ -74,5 +79,11 @@ public class AdminController {
     ) {
         SaveResponseDto response = eveningSessionService.fetchAndStoreEveningSessionPricesForDate(date);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/load-last-trades")
+    public ResponseEntity<String> loadLastTrades(@RequestBody LastTradesRequestDto request) {
+        lastTradesService.fetchAndStoreLastTradesByRequestAsync(request);
+        return ResponseEntity.ok("Загрузка обезличенных сделок запущена в фоновом режиме");
     }
 }

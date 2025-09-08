@@ -560,6 +560,11 @@ public class TInvestService {
      * Получает свечи для указанного инструмента за указанную дату
      */
     public List<CandleDto> getCandles(String instrumentId, LocalDate date, String interval) {
+        System.out.println("=== T-Invest API GetCandles DEBUG ===");
+        System.out.println("Instrument ID: " + instrumentId);
+        System.out.println("Date: " + date);
+        System.out.println("Interval: " + interval);
+        
         // Определяем интервал свечей
         CandleInterval candleInterval = CandleInterval.CANDLE_INTERVAL_1_MIN; // По умолчанию 1 минута
         if (interval != null && !interval.isEmpty()) {
@@ -569,10 +574,14 @@ public class TInvestService {
                 candleInterval = CandleInterval.CANDLE_INTERVAL_1_MIN;
             }
         }
+        System.out.println("Selected interval: " + candleInterval);
 
         // Создаем временной диапазон для запроса (весь день)
         Instant startTime = date.atStartOfDay(ZoneId.of("UTC")).toInstant();
         Instant endTime = date.plusDays(1).atStartOfDay(ZoneId.of("UTC")).toInstant();
+        
+        System.out.println("Time range UTC: " + startTime + " to " + endTime);
+        System.out.println("Time range Moscow: " + startTime.atZone(ZoneId.of("Europe/Moscow")) + " to " + endTime.atZone(ZoneId.of("Europe/Moscow")));
 
         // Создаем запрос
         GetCandlesRequest request = GetCandlesRequest.newBuilder()
@@ -582,6 +591,14 @@ public class TInvestService {
                 .setInterval(candleInterval)
                 .build();
 
+        System.out.println("Request created successfully");
+        System.out.println("Request details:");
+        System.out.println("  - InstrumentId: " + request.getInstrumentId());
+        System.out.println("  - From: " + request.getFrom());
+        System.out.println("  - To: " + request.getTo());
+        System.out.println("  - Interval: " + request.getInterval());
+        System.out.println("  - Request toString: " + request.toString());
+
         // Выполняем запрос с задержкой для соблюдения лимитов API
         try {
             Thread.sleep(100); // Задержка 100мс между запросами
@@ -589,35 +606,64 @@ public class TInvestService {
             Thread.currentThread().interrupt();
         }
 
-        GetCandlesResponse response = marketDataService.getCandles(request);
-        
-        List<CandleDto> candles = new ArrayList<>();
-        for (var candle : response.getCandlesList()) {
-            Instant candleTime = Instant.ofEpochSecond(candle.getTime().getSeconds());
+        try {
+            System.out.println("Calling T-Invest API GetCandles...");
+            GetCandlesResponse response = marketDataService.getCandles(request);
+            System.out.println("API Response received successfully");
+            System.out.println("Response details:");
+            System.out.println("  - Candles count: " + response.getCandlesList().size());
+            System.out.println("  - Response toString: " + response.toString());
             
-            // Конвертируем цены из Quotation в BigDecimal
-            BigDecimal open = BigDecimal.valueOf(candle.getOpen().getUnits())
-                    .add(BigDecimal.valueOf(candle.getOpen().getNano()).movePointLeft(9));
-            BigDecimal close = BigDecimal.valueOf(candle.getClose().getUnits())
-                    .add(BigDecimal.valueOf(candle.getClose().getNano()).movePointLeft(9));
-            BigDecimal high = BigDecimal.valueOf(candle.getHigh().getUnits())
-                    .add(BigDecimal.valueOf(candle.getHigh().getNano()).movePointLeft(9));
-            BigDecimal low = BigDecimal.valueOf(candle.getLow().getUnits())
-                    .add(BigDecimal.valueOf(candle.getLow().getNano()).movePointLeft(9));
+            List<CandleDto> candles = new ArrayList<>();
+            for (int i = 0; i < response.getCandlesList().size(); i++) {
+                var candle = response.getCandlesList().get(i);
+                Instant candleTime = Instant.ofEpochSecond(candle.getTime().getSeconds());
+                
+                // Конвертируем цены из Quotation в BigDecimal
+                BigDecimal open = BigDecimal.valueOf(candle.getOpen().getUnits())
+                        .add(BigDecimal.valueOf(candle.getOpen().getNano()).movePointLeft(9));
+                BigDecimal close = BigDecimal.valueOf(candle.getClose().getUnits())
+                        .add(BigDecimal.valueOf(candle.getClose().getNano()).movePointLeft(9));
+                BigDecimal high = BigDecimal.valueOf(candle.getHigh().getUnits())
+                        .add(BigDecimal.valueOf(candle.getHigh().getNano()).movePointLeft(9));
+                BigDecimal low = BigDecimal.valueOf(candle.getLow().getUnits())
+                        .add(BigDecimal.valueOf(candle.getLow().getNano()).movePointLeft(9));
+                
+                System.out.println("Candle #" + (i + 1) + ":");
+                System.out.println("  - Time: " + candleTime);
+                System.out.println("  - Time Moscow: " + candleTime.atZone(ZoneId.of("Europe/Moscow")));
+                System.out.println("  - Open: " + open);
+                System.out.println("  - Close: " + close);
+                System.out.println("  - High: " + high);
+                System.out.println("  - Low: " + low);
+                System.out.println("  - Volume: " + candle.getVolume());
+                System.out.println("  - IsComplete: " + candle.getIsComplete());
+                System.out.println("  - Candle toString: " + candle.toString());
+                
+                candles.add(new CandleDto(
+                    instrumentId,
+                    candle.getVolume(),
+                    high,
+                    low,
+                    candleTime,
+                    close,
+                    open,
+                    candle.getIsComplete()
+                ));
+            }
             
-            candles.add(new CandleDto(
-                instrumentId,
-                candle.getVolume(),
-                high,
-                low,
-                candleTime,
-                close,
-                open,
-                candle.getIsComplete()
-            ));
+            System.out.println("=== End T-Invest API GetCandles DEBUG ===");
+            return candles;
+            
+        } catch (Exception e) {
+            System.err.println("ERROR calling T-Invest API GetCandles:");
+            System.err.println("Exception type: " + e.getClass().getSimpleName());
+            System.err.println("Exception message: " + e.getMessage());
+            System.err.println("Stack trace:");
+            e.printStackTrace();
+            System.out.println("=== End T-Invest API GetCandles DEBUG (ERROR) ===");
+            return new ArrayList<>();
         }
-        
-        return candles;
     }
 
     /**
@@ -757,6 +803,192 @@ public class TInvestService {
                 allCandles
             );
         });
+    }
+
+    /**
+     * Получает обезличенные сделки для указанного инструмента за указанную дату
+     */
+    public List<LastTradeDto> getLastTrades(String instrumentId, LocalDate date, String tradeSource) {
+        return getLastTrades(instrumentId, date, tradeSource, null, null);
+    }
+    
+    public List<LastTradeDto> getLastTrades(String instrumentId, LocalDate date, String tradeSource, Instant fromTime, Instant toTime) {
+        System.out.println("=== T-Invest API GetLastTrades DEBUG ===");
+        System.out.println("Instrument ID: " + instrumentId);
+        System.out.println("Date: " + date);
+        System.out.println("Trade Source: " + tradeSource);
+        
+        // Параметр tradeSource пока не используется в API
+
+        // Создаем временной диапазон для запроса
+        Instant startTime;
+        Instant endTime;
+        
+        if (fromTime != null && toTime != null) {
+            // Используем переданные временные метки
+            startTime = fromTime;
+            endTime = toTime;
+            System.out.println("Using provided time range");
+        } else {
+            // Используем время торговой сессии (10:00 - 18:40 по московскому времени)
+            startTime = date.atTime(10, 0).atZone(ZoneId.of("Europe/Moscow")).toInstant();
+            endTime = date.atTime(18, 40).atZone(ZoneId.of("Europe/Moscow")).toInstant();
+            System.out.println("Using default trading session time range");
+        }
+        
+        System.out.println("Time range UTC: " + startTime + " to " + endTime);
+        System.out.println("Time range Moscow: " + startTime.atZone(ZoneId.of("Europe/Moscow")) + " to " + endTime.atZone(ZoneId.of("Europe/Moscow")));
+
+        // Создаем запрос
+        GetLastTradesRequest request = GetLastTradesRequest.newBuilder()
+                .setInstrumentId(instrumentId)
+                .setFrom(Timestamp.newBuilder().setSeconds(startTime.getEpochSecond()).setNanos(startTime.getNano()).build())
+                .setTo(Timestamp.newBuilder().setSeconds(endTime.getEpochSecond()).setNanos(endTime.getNano()).build())
+                .build();
+
+        System.out.println("Request created successfully");
+        System.out.println("Request details:");
+        System.out.println("  - InstrumentId: " + request.getInstrumentId());
+        System.out.println("  - From: " + request.getFrom());
+        System.out.println("  - To: " + request.getTo());
+
+        // Выполняем запрос с задержкой для соблюдения лимитов API
+        try {
+            Thread.sleep(100); // Задержка 100мс между запросами
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        try {
+            System.out.println("Calling T-Invest API...");
+            GetLastTradesResponse response = marketDataService.getLastTrades(request);
+            System.out.println("API Response received successfully");
+            System.out.println("Response details:");
+            System.out.println("  - Trades count: " + response.getTradesList().size());
+            System.out.println("  - Response toString: " + response.toString());
+            
+            List<LastTradeDto> trades = new ArrayList<>();
+            for (int i = 0; i < response.getTradesList().size(); i++) {
+                var trade = response.getTradesList().get(i);
+                Instant tradeTime = Instant.ofEpochSecond(trade.getTime().getSeconds());
+                
+                // Конвертируем цену из Quotation в BigDecimal
+                BigDecimal price = BigDecimal.valueOf(trade.getPrice().getUnits())
+                        .add(BigDecimal.valueOf(trade.getPrice().getNano()).movePointLeft(9));
+                
+                System.out.println("Trade #" + (i + 1) + ":");
+                System.out.println("  - Direction: " + trade.getDirection());
+                System.out.println("  - Price: " + price);
+                System.out.println("  - Quantity: " + trade.getQuantity());
+                System.out.println("  - Time: " + tradeTime);
+                System.out.println("  - Time Moscow: " + tradeTime.atZone(ZoneId.of("Europe/Moscow")));
+                System.out.println("  - Trade toString: " + trade.toString());
+                
+                trades.add(new LastTradeDto(
+                    instrumentId,
+                    trade.getDirection().name(),
+                    price,
+                    trade.getQuantity(),
+                    tradeTime,
+                    "TRADE_SOURCE_ALL"
+                ));
+            }
+            
+            System.out.println("=== End T-Invest API GetLastTrades DEBUG ===");
+            return trades;
+            
+        } catch (Exception e) {
+            System.err.println("ERROR calling T-Invest API GetLastTrades:");
+            System.err.println("Exception type: " + e.getClass().getSimpleName());
+            System.err.println("Exception message: " + e.getMessage());
+            System.err.println("Stack trace:");
+            e.printStackTrace();
+            System.out.println("=== End T-Invest API GetLastTrades DEBUG (ERROR) ===");
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Получает обезличенные сделки за последний час для указанного инструмента
+     */
+    public List<LastTradeDto> getLastTradesForLastHour(String instrumentId, String tradeSource) {
+        Instant now = Instant.now();
+        Instant oneHourAgo = now.minus(1, java.time.temporal.ChronoUnit.HOURS);
+        
+        System.out.println("=== T-Invest API GetLastTrades (Last Hour) DEBUG ===");
+        System.out.println("Instrument ID: " + instrumentId);
+        System.out.println("Trade Source: " + tradeSource);
+        System.out.println("Time range: Last hour from " + oneHourAgo + " to " + now);
+        System.out.println("Time range Moscow: " + oneHourAgo.atZone(ZoneId.of("Europe/Moscow")) + " to " + now.atZone(ZoneId.of("Europe/Moscow")));
+        
+        // Создаем запрос
+        GetLastTradesRequest request = GetLastTradesRequest.newBuilder()
+                .setInstrumentId(instrumentId)
+                .setFrom(Timestamp.newBuilder().setSeconds(oneHourAgo.getEpochSecond()).setNanos(oneHourAgo.getNano()).build())
+                .setTo(Timestamp.newBuilder().setSeconds(now.getEpochSecond()).setNanos(now.getNano()).build())
+                .build();
+
+        System.out.println("Request created successfully");
+        System.out.println("Request details:");
+        System.out.println("  - InstrumentId: " + request.getInstrumentId());
+        System.out.println("  - From: " + request.getFrom());
+        System.out.println("  - To: " + request.getTo());
+        System.out.println("  - Request toString: " + request.toString());
+
+        // Выполняем запрос с задержкой для соблюдения лимитов API
+        try {
+            Thread.sleep(100); // Задержка 100мс между запросами
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        try {
+            System.out.println("Calling T-Invest API...");
+            GetLastTradesResponse response = marketDataService.getLastTrades(request);
+            System.out.println("API Response received successfully");
+            System.out.println("Response details:");
+            System.out.println("  - Trades count: " + response.getTradesList().size());
+            System.out.println("  - Response toString: " + response.toString());
+            
+            List<LastTradeDto> trades = new ArrayList<>();
+            for (int i = 0; i < response.getTradesList().size(); i++) {
+                var trade = response.getTradesList().get(i);
+                Instant tradeTime = Instant.ofEpochSecond(trade.getTime().getSeconds());
+                
+                // Конвертируем цену из Quotation в BigDecimal
+                BigDecimal price = BigDecimal.valueOf(trade.getPrice().getUnits())
+                        .add(BigDecimal.valueOf(trade.getPrice().getNano()).movePointLeft(9));
+                
+                System.out.println("Trade #" + (i + 1) + ":");
+                System.out.println("  - Direction: " + trade.getDirection());
+                System.out.println("  - Price: " + price);
+                System.out.println("  - Quantity: " + trade.getQuantity());
+                System.out.println("  - Time: " + tradeTime);
+                System.out.println("  - Time Moscow: " + tradeTime.atZone(ZoneId.of("Europe/Moscow")));
+                System.out.println("  - Trade toString: " + trade.toString());
+                
+                trades.add(new LastTradeDto(
+                    instrumentId,
+                    trade.getDirection().name(),
+                    price,
+                    trade.getQuantity(),
+                    tradeTime,
+                    "TRADE_SOURCE_ALL"
+                ));
+            }
+            
+            System.out.println("=== End T-Invest API GetLastTrades (Last Hour) DEBUG ===");
+            return trades;
+            
+        } catch (Exception e) {
+            System.err.println("ERROR calling T-Invest API GetLastTrades:");
+            System.err.println("Exception type: " + e.getClass().getSimpleName());
+            System.err.println("Exception message: " + e.getMessage());
+            System.err.println("Stack trace:");
+            e.printStackTrace();
+            System.out.println("=== End T-Invest API GetLastTrades (Last Hour) DEBUG (ERROR) ===");
+            return new ArrayList<>();
+        }
     }
 
     /**

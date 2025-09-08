@@ -1325,6 +1325,66 @@ POST http://localhost:8083/admin/load-evening-session-prices/2024-01-15
 }
 ```
 
+### POST /admin/load-last-trades
+
+Асинхронная загрузка обезличенных сделок за последний час.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-last-trades
+```
+
+#### Тело запроса
+```json
+{
+  "figis": ["ALL_SHARES"],
+  "tradeSource": "TRADE_SOURCE_ALL"
+}
+```
+
+#### Параметры
+- `figis` - массив FIGI инструментов или ключевых слов:
+  - `["ALL"]` - все инструменты (акции + фьючерсы)
+  - `["ALL_SHARES"]` - все акции
+  - `["ALL_FUTURES"]` - все фьючерсы
+  - `["BBG004730N88", "BBG004730ZJ9"]` - конкретные FIGI
+- `tradeSource` - источник сделок (обычно `"TRADE_SOURCE_ALL"`)
+
+#### Ответ
+```
+"Загрузка обезличенных сделок запущена в фоновом режиме"
+```
+
+#### Примеры использования
+
+**Загрузка всех акций:**
+```bash
+curl -X POST http://localhost:8083/admin/load-last-trades \
+  -H "Content-Type: application/json" \
+  -d '{"figis": ["ALL_SHARES"], "tradeSource": "TRADE_SOURCE_ALL"}'
+```
+
+**Загрузка всех фьючерсов:**
+```bash
+curl -X POST http://localhost:8083/admin/load-last-trades \
+  -H "Content-Type: application/json" \
+  -d '{"figis": ["ALL_FUTURES"], "tradeSource": "TRADE_SOURCE_ALL"}'
+```
+
+**Загрузка всех инструментов:**
+```bash
+curl -X POST http://localhost:8083/admin/load-last-trades \
+  -H "Content-Type: application/json" \
+  -d '{"figis": ["ALL"], "tradeSource": "TRADE_SOURCE_ALL"}'
+```
+
+**Загрузка конкретных инструментов:**
+```bash
+curl -X POST http://localhost:8083/admin/load-last-trades \
+  -H "Content-Type: application/json" \
+  -d '{"figis": ["BBG004730N88", "BBG004730ZJ9"], "tradeSource": "TRADE_SOURCE_ALL"}'
+```
+
 ---
 
 ## Автоматические шедулеры
@@ -1352,3 +1412,22 @@ POST http://localhost:8083/admin/load-evening-session-prices/2024-01-15
   3. Извлекает цену закрытия (`close`) из последней свечи
   4. Сохраняет данные в таблицу `invest.close_prices_evening_session`
 - **Cron**: `0 0 2 * * *`
+
+### Шедулер обезличенных сделок
+
+- **Время запуска**: Каждые 30 минут с 2:00 до 00:00 по московскому времени ежедневно
+- **Функция**: Загружает обезличенные сделки за последний час
+- **Логика работы**:
+  1. **Этап 1**: Загрузка обезличенных сделок по всем акциям
+     - Использует ключевое слово `"ALL_SHARES"`
+     - Загружает сделки за последний час
+     - Сохраняет в таблицу `invest.last_prices`
+  2. **Пауза**: 5 секунд между этапами
+  3. **Этап 2**: Загрузка обезличенных сделок по всем фьючерсам
+     - Использует ключевое слово `"ALL_FUTURES"`
+     - Загружает сделки за последний час
+     - Сохраняет в таблицу `invest.last_prices`
+- **Cron**: `0 0,30 2-23 * * *`
+- **Часовой пояс**: `Europe/Moscow`
+- **Выполнение**: Асинхронное (в фоновом режиме)
+- **Время запуска**: 2:00, 2:30, 3:00, 3:30, ..., 23:00, 23:30
