@@ -54,6 +54,14 @@ public class EveningSessionService {
             System.out.println("[" + taskId + "] Дата: " + previousDay);
             System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
+            // Проверяем, является ли предыдущий день выходным
+            if (isWeekend(previousDay)) {
+                String message = "Предыдущий день является выходным (" + previousDay + "). Вечерняя сессия не проводится в выходные дни.";
+                System.out.println("[" + taskId + "] " + message);
+                System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+                return;
+            }
+            
             SaveResponseDto response = processEveningSessionPrices(previousDay, taskId);
             
             System.out.println("[" + taskId + "] Загрузка завершена:");
