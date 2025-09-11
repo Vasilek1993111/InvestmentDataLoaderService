@@ -49,4 +49,10 @@ public interface CandleRepository extends JpaRepository<CandleEntity, CandleKey>
     List<CandleEntity> findByFigiAndDateOrderByTimeDesc(@Param("figi") String figi, 
                                                        @Param("date") LocalDate date,
                                                        @Param("nextDate") LocalDate nextDate);
+    
+    /**
+     * Находит все свечи для конкретного инструмента
+     */
+    @Query("SELECT c FROM CandleEntity c WHERE c.figi = :figi ORDER BY c.time")
+    List<CandleEntity> findByFigi(@Param("figi") String figi);
 }

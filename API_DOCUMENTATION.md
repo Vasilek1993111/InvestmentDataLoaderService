@@ -904,6 +904,22 @@ CREATE TABLE invest.close_prices (
 );
 ```
 
+### Структура таблицы open_prices
+
+```sql
+CREATE TABLE invest.open_prices (
+    price_date      DATE                                    NOT NULL,
+    figi            VARCHAR(255)                            NOT NULL,
+    instrument_type VARCHAR(255)                            NOT NULL,
+    open_price      NUMERIC(18, 9)                          NOT NULL,
+    currency        VARCHAR(255)                            NOT NULL,
+    exchange        VARCHAR(255)                            NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL,
+    PRIMARY KEY (price_date, figi)
+);
+```
+
 ### Особенности
 
 1. **Автоматическое получение инструментов**: При отсутствии параметра `instruments` система автоматически получает только FIGI инструментов в рублях из БД
@@ -1313,16 +1329,340 @@ POST http://localhost:8083/admin/load-evening-session-prices/2024-01-15
 #### Параметры
 - `date` - дата в формате YYYY-MM-DD
 
+### POST /admin/load-morning-session-prices
+
+Ручной запуск загрузки цен открытия утренней сессии за вчерашний день.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-morning-session-prices
+```
+
+#### Ответ
+```json
+"Morning session prices loading started for today"
+```
+
+### POST /admin/load-morning-session-prices/{date}
+
+Ручной запуск загрузки цен открытия утренней сессии за указанную дату.
+
+#### URL
+```
+POST http://localhost:8083/admin/load-morning-session-prices/2024-01-15
+```
+
+#### Параметры
+- `date` - дата в формате YYYY-MM-DD
+
+## Система агрегации данных
+
+Система агрегации данных предназначена для расчета и хранения статистических показателей по объемам торгов для акций и фьючерсов. Агрегированные данные помогают анализировать торговую активность инструментов в различные временные периоды.
+
+### Принципы работы
+
+1. **Источник данных**: Анализируются свечи из таблицы `invest.candles`
+2. **Временные периоды**:
+   - **Утренняя сессия**: 06:50:00 - 09:59:59 (рабочие дни)
+   - **Вечерняя сессия**: 19:00:00 - 23:59:59 (только для фьючерсов, рабочие дни)
+   - **Выходные дни**: Суббота и воскресенье
+3. **Расчет показателей**: Средние объемы торгов, количество дней
+4. **Хранение**: Отдельные таблицы для акций и фьючерсов
+
+### Доступные эндпоинты
+
+- `POST /admin/recalculate-shares-aggregation` - Пересчет данных для акций
+- `POST /admin/recalculate-futures-aggregation` - Пересчет данных для фьючерсов  
+- `GET /admin/shares-aggregation` - Получение данных по акциям
+- `GET /admin/futures-aggregation` - Получение данных по фьючерсам
+
+### POST /admin/recalculate-shares-aggregation
+
+Пересчет агрегированных данных для всех акций.
+
+#### URL
+```
+POST http://localhost:8083/admin/recalculate-shares-aggregation
+```
+
+#### Описание
+Рассчитывает и сохраняет агрегированные данные по объемам торгов для всех акций:
+- Средний объем торгов с 06:50:00 по 09:59:59 (утренняя сессия)
+- Средний объем торгов в выходные дни (суббота и воскресенье)
+- Количество торговых и выходных дней
+
+#### Логика работы
+1. **Получение данных**: Загружает все акции из таблицы `invest.shares`
+2. **Анализ свечей**: Для каждой акции анализирует все свечи из таблицы `invest.candles`
+3. **Группировка по дням**: Группирует свечи по торговым дням
+4. **Расчет утренних объемов**: Суммирует объемы с 06:50:00 по 09:59:59 (рабочие дни)
+5. **Расчет выходных объемов**: Суммирует объемы в субботу и воскресенье
+6. **Сохранение**: Обновляет или создает записи в таблице `invest.shares_aggregated_data`
+
 #### Ответ
 ```json
 {
+  "taskId": "SHARES_AGGREGATION_12345678",
+  "processedInstruments": 150,
+  "successfulInstruments": 148,
+  "errorInstruments": 2,
   "success": true,
-  "message": "Успешно загружено 150 новых цен закрытия вечерней сессии из 150 найденных.",
-  "totalRequested": 150,
-  "newItemsSaved": 150,
-  "existingItemsSkipped": 0,
-  "savedItems": [...]
+  "errorMessage": null,
+  "instrumentType": "shares"
 }
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `taskId` | String | Уникальный идентификатор задачи |
+| `processedInstruments` | Integer | Общее количество обработанных инструментов |
+| `successfulInstruments` | Integer | Количество успешно обработанных инструментов |
+| `errorInstruments` | Integer | Количество инструментов с ошибками |
+| `success` | Boolean | Общий статус выполнения задачи |
+| `errorMessage` | String | Сообщение об ошибке (если есть) |
+| `instrumentType` | String | Тип инструментов ("shares") |
+
+#### Примеры использования
+
+**Запуск пересчета:**
+```bash
+curl -X POST "http://localhost:8083/admin/recalculate-shares-aggregation" \
+  -H "Content-Type: application/json"
+```
+
+**Postman:**
+- Method: `POST`
+- URL: `http://localhost:8083/admin/recalculate-shares-aggregation`
+- Headers: `Content-Type: application/json`
+
+#### Особенности
+- **Асинхронность**: Операция выполняется синхронно, но может занять длительное время
+- **Подробное логирование**: Все этапы обработки логируются в консоль
+- **Обработка ошибок**: Ошибки отдельных инструментов не прерывают общий процесс
+- **Идемпотентность**: Повторные вызовы пересчитывают данные заново
+
+### POST /admin/recalculate-futures-aggregation
+
+Пересчет агрегированных данных для всех фьючерсов.
+
+#### URL
+```
+POST http://localhost:8083/admin/recalculate-futures-aggregation
+```
+
+#### Описание
+Рассчитывает и сохраняет агрегированные данные по объемам торгов для всех фьючерсов:
+- Средний объем торгов с 06:50:00 по 09:59:59 (утренняя сессия)
+- Средний объем торгов с 19:00:00 по 23:59:59 (вечерняя сессия)
+- Средний объем торгов в выходные дни (суббота и воскресенье)
+- Количество торговых и выходных дней
+
+#### Логика работы
+1. **Получение данных**: Загружает все фьючерсы из таблицы `invest.futures`
+2. **Анализ свечей**: Для каждого фьючерса анализирует все свечи из таблицы `invest.candles`
+3. **Группировка по дням**: Группирует свечи по торговым дням
+4. **Расчет утренних объемов**: Суммирует объемы с 06:50:00 по 09:59:59 (рабочие дни)
+5. **Расчет вечерних объемов**: Суммирует объемы с 19:00:00 по 23:59:59 (рабочие дни)
+6. **Расчет выходных объемов**: Суммирует объемы в субботу и воскресенье
+7. **Сохранение**: Обновляет или создает записи в таблице `invest.futures_aggregated_data`
+
+#### Ответ
+```json
+{
+  "taskId": "FUTURES_AGGREGATION_87654321",
+  "processedInstruments": 50,
+  "successfulInstruments": 48,
+  "errorInstruments": 2,
+  "success": true,
+  "errorMessage": null,
+  "instrumentType": "futures"
+}
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `taskId` | String | Уникальный идентификатор задачи |
+| `processedInstruments` | Integer | Общее количество обработанных инструментов |
+| `successfulInstruments` | Integer | Количество успешно обработанных инструментов |
+| `errorInstruments` | Integer | Количество инструментов с ошибками |
+| `success` | Boolean | Общий статус выполнения задачи |
+| `errorMessage` | String | Сообщение об ошибке (если есть) |
+| `instrumentType` | String | Тип инструментов ("futures") |
+
+#### Примеры использования
+
+**Запуск пересчета:**
+```bash
+curl -X POST "http://localhost:8083/admin/recalculate-futures-aggregation" \
+  -H "Content-Type: application/json"
+```
+
+**Postman:**
+- Method: `POST`
+- URL: `http://localhost:8083/admin/recalculate-futures-aggregation`
+- Headers: `Content-Type: application/json`
+
+#### Особенности
+- **Асинхронность**: Операция выполняется синхронно, но может занять длительное время
+- **Подробное логирование**: Все этапы обработки логируются в консоль
+- **Обработка ошибок**: Ошибки отдельных инструментов не прерывают общий процесс
+- **Идемпотентность**: Повторные вызовы пересчитывают данные заново
+- **Вечерняя сессия**: Фьючерсы имеют дополнительную вечернюю сессию (19:00-23:59)
+
+### GET /admin/shares-aggregation
+
+Получение агрегированных данных для акций.
+
+#### URL
+```
+GET http://localhost:8083/admin/shares-aggregation
+```
+
+#### Описание
+Возвращает все рассчитанные агрегированные данные по объемам торгов для акций. Данные отсортированы по дате последнего обновления (новые записи первыми).
+
+#### Ответ
+```json
+[
+  {
+    "figi": "BBG000B9XRY4",
+    "avgVolumeMorning": 1250000.50,
+    "avgVolumeWeekend": 85000.25,
+    "totalTradingDays": 250,
+    "totalWeekendDays": 115,
+    "lastCalculated": "2024-01-15T10:30:00+03:00",
+    "createdAt": "2024-01-15T10:30:00+03:00",
+    "updatedAt": "2024-01-15T10:30:00+03:00"
+  }
+]
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | Уникальный идентификатор инструмента |
+| `avgVolumeMorning` | BigDecimal | Средний объем торгов с 06:50:00 по 09:59:59 |
+| `avgVolumeWeekend` | BigDecimal | Средний объем торгов в выходные дни |
+| `totalTradingDays` | Integer | Общее количество торговых дней |
+| `totalWeekendDays` | Integer | Общее количество выходных дней |
+| `lastCalculated` | LocalDateTime | Время последнего расчета данных |
+| `createdAt` | LocalDateTime | Время создания записи |
+| `updatedAt` | LocalDateTime | Время последнего обновления записи |
+
+#### Примеры использования
+
+**Получение всех данных:**
+```bash
+curl "http://localhost:8083/admin/shares-aggregation"
+```
+
+**Postman:**
+- Method: `GET`
+- URL: `http://localhost:8083/admin/shares-aggregation`
+- Headers: Не требуются
+
+#### Особенности
+- **Сортировка**: Результаты отсортированы по `updatedAt` в убывающем порядке
+- **Полнота данных**: Возвращаются только записи с рассчитанными данными
+- **Временная зона**: Все времена в московской временной зоне (UTC+3)
+
+### GET /admin/futures-aggregation
+
+Получение агрегированных данных для фьючерсов.
+
+#### URL
+```
+GET http://localhost:8083/admin/futures-aggregation
+```
+
+#### Описание
+Возвращает все рассчитанные агрегированные данные по объемам торгов для фьючерсов. Данные отсортированы по дате последнего обновления (новые записи первыми).
+
+#### Ответ
+```json
+[
+  {
+    "figi": "FUTSILV0324",
+    "avgVolumeMorning": 2500000.75,
+    "avgVolumeEvening": 1800000.25,
+    "avgVolumeWeekend": 150000.50,
+    "totalTradingDays": 250,
+    "totalWeekendDays": 115,
+    "lastCalculated": "2024-01-15T10:30:00+03:00",
+    "createdAt": "2024-01-15T10:30:00+03:00",
+    "updatedAt": "2024-01-15T10:30:00+03:00"
+  }
+]
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | Уникальный идентификатор инструмента |
+| `avgVolumeMorning` | BigDecimal | Средний объем торгов с 06:50:00 по 09:59:59 |
+| `avgVolumeEvening` | BigDecimal | Средний объем торгов с 19:00:00 по 23:59:59 |
+| `avgVolumeWeekend` | BigDecimal | Средний объем торгов в выходные дни |
+| `totalTradingDays` | Integer | Общее количество торговых дней |
+| `totalWeekendDays` | Integer | Общее количество выходных дней |
+| `lastCalculated` | LocalDateTime | Время последнего расчета данных |
+| `createdAt` | LocalDateTime | Время создания записи |
+| `updatedAt` | LocalDateTime | Время последнего обновления записи |
+
+#### Примеры использования
+
+**Получение всех данных:**
+```bash
+curl "http://localhost:8083/admin/futures-aggregation"
+```
+
+**Postman:**
+- Method: `GET`
+- URL: `http://localhost:8083/admin/futures-aggregation`
+- Headers: Не требуются
+
+#### Особенности
+- **Сортировка**: Результаты отсортированы по `updatedAt` в убывающем порядке
+- **Полнота данных**: Возвращаются только записи с рассчитанными данными
+- **Временная зона**: Все времена в московской временной зоне (UTC+3)
+- **Вечерняя сессия**: Включает данные по вечерней торговой сессии (19:00-23:59)
+
+### Структуры таблиц агрегации
+
+#### Таблица shares_aggregated_data
+
+```sql
+CREATE TABLE invest.shares_aggregated_data (
+    figi                VARCHAR(255)                            NOT NULL PRIMARY KEY,
+    avg_volume_morning  NUMERIC(18, 2)                          NOT NULL,
+    avg_volume_weekend  NUMERIC(18, 2)                          NOT NULL,
+    total_trading_days  INTEGER                                 NOT NULL,
+    total_weekend_days  INTEGER                                 NOT NULL,
+    last_calculated     TIMESTAMP WITH TIME ZONE                NOT NULL,
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL
+);
+```
+
+#### Таблица futures_aggregated_data
+
+```sql
+CREATE TABLE invest.futures_aggregated_data (
+    figi                VARCHAR(255)                            NOT NULL PRIMARY KEY,
+    avg_volume_morning  NUMERIC(18, 2)                          NOT NULL,
+    avg_volume_evening  NUMERIC(18, 2)                          NOT NULL,
+    avg_volume_weekend  NUMERIC(18, 2)                          NOT NULL,
+    total_trading_days  INTEGER                                 NOT NULL,
+    total_weekend_days  INTEGER                                 NOT NULL,
+    last_calculated     TIMESTAMP WITH TIME ZONE                NOT NULL,
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()  NOT NULL
+);
 ```
 
 ### POST /admin/load-last-trades
@@ -1413,6 +1753,19 @@ curl -X POST http://localhost:8083/admin/load-last-trades \
   4. Сохраняет данные в таблицу `invest.close_prices_evening_session`
 - **Cron**: `0 0 2 * * *`
 
+### Шедулер цен открытия утренней сессии
+
+- **Время запуска**: 02:01 по московскому времени ежедневно
+- **Функция**: Загружает цены открытия утренней сессии за предыдущий день
+- **Логика работы**:
+  1. Получает список всех акций и фьючерсов из таблиц `invest.shares` и `invest.futures`
+  2. **Для акций**: находит первую свечу за предыдущий день в таблице `invest.candles` до 06:59:59 включительно
+  3. **Для фьючерсов**: находит первую свечу за предыдущий день в таблице `invest.candles` до 08:59:59 включительно
+  4. Извлекает цену открытия (`open`) из первой свечи
+  5. Сохраняет данные в таблицу `invest.open_prices`
+- **Особенности**: В выходные дни (суббота и воскресенье) цены открытия не загружаются
+- **Cron**: `0 1 2 * * *`
+
 ### Шедулер обезличенных сделок
 
 - **Время запуска**: Каждые 30 минут с 2:00 до 00:00 по московскому времени ежедневно
@@ -1431,3 +1784,81 @@ curl -X POST http://localhost:8083/admin/load-last-trades \
 - **Часовой пояс**: `Europe/Moscow`
 - **Выполнение**: Асинхронное (в фоновом режиме)
 - **Время запуска**: 2:00, 2:30, 3:00, 3:30, ..., 23:00, 23:30
+
+---
+
+## Примеры использования системы агрегации
+
+### Типичный рабочий процесс
+
+1. **Загрузка данных**: Сначала загружаются свечи через эндпоинт `POST /candles`
+2. **Расчет агрегации**: Запускается пересчет агрегированных данных
+3. **Анализ результатов**: Получение и анализ рассчитанных показателей
+
+### Пример полного цикла
+
+```bash
+# 1. Загрузка свечей за последний месяц
+curl -X POST "http://localhost:8083/candles" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-15",
+    "assetType": ["SHARES", "FUTURES"]
+  }'
+
+# 2. Пересчет агрегированных данных для акций
+curl -X POST "http://localhost:8083/admin/recalculate-shares-aggregation" \
+  -H "Content-Type: application/json"
+
+# 3. Пересчет агрегированных данных для фьючерсов
+curl -X POST "http://localhost:8083/admin/recalculate-futures-aggregation" \
+  -H "Content-Type: application/json"
+
+# 4. Получение результатов по акциям
+curl "http://localhost:8083/admin/shares-aggregation"
+
+# 5. Получение результатов по фьючерсам
+curl "http://localhost:8083/admin/futures-aggregation"
+```
+
+### Анализ торговой активности
+
+Агрегированные данные позволяют:
+
+- **Сравнивать активность**: Сравнивать объемы торгов в разные периоды
+- **Выявлять паттерны**: Находить инструменты с высокой активностью в определенное время
+- **Планировать торговлю**: Использовать данные для принятия торговых решений
+- **Мониторинг**: Отслеживать изменения торговой активности
+
+### Мониторинг системы
+
+```bash
+# Проверка статуса последнего пересчета акций
+curl "http://localhost:8083/admin/shares-aggregation" | jq '.[0] | {figi, lastCalculated, avgVolumeMorning}'
+
+# Проверка статуса последнего пересчета фьючерсов  
+curl "http://localhost:8083/admin/futures-aggregation" | jq '.[0] | {figi, lastCalculated, avgVolumeMorning, avgVolumeEvening}'
+```
+
+### Автоматизация
+
+Для автоматизации процесса можно создать скрипт:
+
+```bash
+#!/bin/bash
+# Скрипт для ежедневного пересчета агрегации
+
+echo "Начинаем пересчет агрегированных данных..."
+
+# Пересчет акций
+echo "Пересчет данных для акций..."
+curl -X POST "http://localhost:8083/admin/recalculate-shares-aggregation" \
+  -H "Content-Type: application/json"
+
+# Пересчет фьючерсов
+echo "Пересчет данных для фьючерсов..."
+curl -X POST "http://localhost:8083/admin/recalculate-futures-aggregation" \
+  -H "Content-Type: application/json"
+
+echo "Пересчет завершен!"
+```
