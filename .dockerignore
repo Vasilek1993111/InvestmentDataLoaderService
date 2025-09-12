@@ -1,0 +1,60 @@
+# Игнорируем файлы, которые не нужны в Docker контексте
+target/
+!target/*.jar
+*.jar
+*.war
+*.ear
+*.class
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+
+# IDE файлы
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS файлы
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker файлы
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Логи
+*.log
+logs/
+
+# Временные файлы
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Node.js (если есть frontend)
+node_modules/
+npm-debug.log*
+
+# Тестовые файлы
+src/test/
+
+# Документация
+README.md
+*.md
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local

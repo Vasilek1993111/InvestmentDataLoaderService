@@ -6,10 +6,12 @@ import com.example.InvestmentDataLoaderService.entity.CandleKey;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceEntity;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceKey;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
+import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.repository.CandleRepository;
 import com.example.InvestmentDataLoaderService.repository.ClosePriceRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.google.protobuf.Timestamp;
 import org.springframework.stereotype.Service;
@@ -37,23 +39,29 @@ public class TInvestService {
     private final MarketDataServiceBlockingStub marketDataService;
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
+    private final IndicativeRepository indicativeRepo;
     private final ClosePriceRepository closePriceRepo;
     private final CandleRepository candleRepo;
+    private final TinkoffRestClient restClient;
 
     public TInvestService(UsersServiceBlockingStub usersService,
                           InstrumentsServiceBlockingStub instrumentsService,
                           MarketDataServiceBlockingStub marketDataService,
                           ShareRepository shareRepo,
                           FutureRepository futureRepo,
+                          IndicativeRepository indicativeRepo,
                           ClosePriceRepository closePriceRepo,
-                          CandleRepository candleRepo) {
+                          CandleRepository candleRepo,
+                          TinkoffRestClient restClient) {
         this.usersService = usersService;
         this.instrumentsService = instrumentsService;
         this.marketDataService = marketDataService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
+        this.indicativeRepo = indicativeRepo;
         this.closePriceRepo = closePriceRepo;
         this.candleRepo = candleRepo;
+        this.restClient = restClient;
     }
 
     public List<AccountDto> getAccounts() {
@@ -332,6 +340,223 @@ public class TInvestService {
             savedFutures.size(),
             existingCount,
             savedFutures
+        );
+    }
+
+    public List<IndicativeDto> getIndicatives(String exchange, String currency, String ticker, String figi) {
+        try {
+            // Используем REST API для получения индикативных инструментов
+            // Согласно документации: https://developer.tbank.ru/invest/services/instruments/methods
+            var response = restClient.getIndicatives();
+            
+            List<IndicativeDto> indicatives = new ArrayList<>();
+            
+            // Парсим JSON ответ
+            if (response.has("instruments")) {
+                var instruments = response.get("instruments");
+                if (instruments.isArray()) {
+                    for (var instrument : instruments) {
+                        // Применяем фильтры
+                        boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
+                                                 instrument.get("exchange").asText().equalsIgnoreCase(exchange));
+                        boolean matchesCurrency = (currency == null || currency.isEmpty() || 
+                                                 instrument.get("currency").asText().equalsIgnoreCase(currency));
+                        boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
+                                               instrument.get("ticker").asText().equalsIgnoreCase(ticker));
+                        boolean matchesFigi = (figi == null || figi.isEmpty() || 
+                                             instrument.get("figi").asText().equalsIgnoreCase(figi));
+                        
+                        if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
+                            indicatives.add(new IndicativeDto(
+                                instrument.get("figi").asText(),
+                                instrument.get("ticker").asText(),
+                                instrument.get("name").asText(),
+                                instrument.get("currency").asText(),
+                                instrument.get("exchange").asText(),
+                                instrument.has("classCode") ? instrument.get("classCode").asText() : null,
+                                instrument.has("uid") ? instrument.get("uid").asText() : null,
+                                instrument.has("sellAvailableFlag") ? instrument.get("sellAvailableFlag").asBoolean() : null,
+                                instrument.has("buyAvailableFlag") ? instrument.get("buyAvailableFlag").asBoolean() : null
+                            ));
+                        }
+                    }
+                }
+            }
+            
+            // Сортируем по тикеру
+            indicatives.sort(Comparator.comparing(IndicativeDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+            return indicatives;
+            
+        } catch (Exception e) {
+            // Если REST API не доступен, используем данные из БД
+            System.err.println("REST API method indicatives not available, using database: " + e.getMessage());
+            
+            List<IndicativeDto> indicatives = new ArrayList<>();
+            
+            // Получаем все индикативные инструменты из БД
+            List<IndicativeEntity> entities = indicativeRepo.findAll();
+            
+            for (IndicativeEntity entity : entities) {
+                // Применяем фильтры
+                boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
+                                         entity.getExchange().equalsIgnoreCase(exchange));
+                boolean matchesCurrency = (currency == null || currency.isEmpty() || 
+                                         entity.getCurrency().equalsIgnoreCase(currency));
+                boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
+                                       entity.getTicker().equalsIgnoreCase(ticker));
+                boolean matchesFigi = (figi == null || figi.isEmpty() || 
+                                     entity.getFigi().equalsIgnoreCase(figi));
+                
+                if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
+                    indicatives.add(new IndicativeDto(
+                        entity.getFigi(),
+                        entity.getTicker(),
+                        entity.getName(),
+                        entity.getCurrency(),
+                        entity.getExchange(),
+                        entity.getClassCode(),
+                        entity.getUid(),
+                        entity.getSellAvailableFlag(),
+                        entity.getBuyAvailableFlag()
+                    ));
+                }
+            }
+            
+            // Сортируем по тикеру
+            indicatives.sort(Comparator.comparing(IndicativeDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+            return indicatives;
+        }
+    }
+
+    /**
+     * Получение индикативного инструмента по FIGI
+     * Аналог метода ShareBy для индикативных инструментов
+     */
+    public IndicativeDto getIndicativeBy(String figi) {
+        try {
+            // Используем REST API для получения индикативного инструмента по FIGI
+            var response = restClient.getIndicativeBy(figi);
+            
+            if (response.has("instrument")) {
+                var instrument = response.get("instrument");
+                
+                return new IndicativeDto(
+                    instrument.get("figi").asText(),
+                    instrument.get("ticker").asText(),
+                    instrument.get("name").asText(),
+                    instrument.get("currency").asText(),
+                    instrument.get("exchange").asText(),
+                    instrument.has("classCode") ? instrument.get("classCode").asText() : null,
+                    instrument.has("uid") ? instrument.get("uid").asText() : null,
+                    instrument.has("sellAvailableFlag") ? instrument.get("sellAvailableFlag").asBoolean() : null,
+                    instrument.has("buyAvailableFlag") ? instrument.get("buyAvailableFlag").asBoolean() : null
+                );
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            // Если REST API не доступен, ищем в БД
+            System.err.println("REST API method getIndicativeBy not available, using database: " + e.getMessage());
+            
+            return indicativeRepo.findById(figi)
+                .map(entity -> new IndicativeDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getName(),
+                    entity.getCurrency(),
+                    entity.getExchange(),
+                    entity.getClassCode(),
+                    entity.getUid(),
+                    entity.getSellAvailableFlag(),
+                    entity.getBuyAvailableFlag()
+                ))
+                .orElse(null);
+        }
+    }
+
+    /**
+     * Получение индикативного инструмента по тикеру
+     * Удобный метод для поиска индекса по тикеру (например, IMOEX, RTSI)
+     */
+    public IndicativeDto getIndicativeByTicker(String ticker) {
+        try {
+            // Получаем все индикативные инструменты и ищем по тикеру
+            List<IndicativeDto> indicatives = getIndicatives(null, null, ticker, null);
+            
+            // Возвращаем первый найденный инструмент с таким тикером
+            return indicatives.stream()
+                .filter(indicative -> indicative.getTicker().equalsIgnoreCase(ticker))
+                .findFirst()
+                .orElse(null);
+                
+        } catch (Exception e) {
+            System.err.println("Error getting indicative by ticker: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public SaveResponseDto saveIndicatives(IndicativeFilterDto filter) {
+        // Получаем индикативные инструменты из API
+        List<IndicativeDto> indicativesFromApi = getIndicatives(
+            filter.getExchange(), 
+            filter.getCurrency(), 
+            filter.getTicker(), 
+            filter.getFigi()
+        );
+        
+        List<IndicativeDto> savedIndicatives = new ArrayList<>();
+        int existingCount = 0;
+        
+        for (IndicativeDto indicativeDto : indicativesFromApi) {
+            // Проверяем, существует ли индикативный инструмент в БД
+            if (!indicativeRepo.existsById(indicativeDto.getFigi())) {
+                // Создаем и сохраняем новый индикативный инструмент
+                IndicativeEntity indicativeEntity = new IndicativeEntity(
+                    indicativeDto.getFigi(),
+                    indicativeDto.getTicker(),
+                    indicativeDto.getName(),
+                    indicativeDto.getCurrency(),
+                    indicativeDto.getExchange(),
+                    indicativeDto.getClassCode(),
+                    indicativeDto.getUid(),
+                    indicativeDto.getSellAvailableFlag(),
+                    indicativeDto.getBuyAvailableFlag()
+                );
+                
+                try {
+                    indicativeRepo.save(indicativeEntity);
+                    savedIndicatives.add(indicativeDto);
+                } catch (Exception e) {
+                    // Логируем ошибку, но продолжаем обработку других инструментов
+                    System.err.println("Error saving indicative " + indicativeDto.getFigi() + ": " + e.getMessage());
+                }
+            } else {
+                existingCount++;
+            }
+        }
+        
+        // Формируем ответ
+        boolean success = !indicativesFromApi.isEmpty();
+        String message;
+        
+        if (savedIndicatives.isEmpty()) {
+            if (indicativesFromApi.isEmpty()) {
+                message = "Новых индикативных инструментов не обнаружено. По заданным фильтрам инструменты не найдены.";
+            } else {
+                message = "Новых индикативных инструментов не обнаружено. Все найденные инструменты уже существуют в базе данных.";
+            }
+        } else {
+            message = String.format("Успешно загружено %d новых индикативных инструментов из %d найденных.", savedIndicatives.size(), indicativesFromApi.size());
+        }
+        
+        return new SaveResponseDto(
+            success,
+            message,
+            indicativesFromApi.size(),
+            savedIndicatives.size(),
+            existingCount,
+            savedIndicatives
         );
     }
 
@@ -1123,4 +1348,5 @@ public class TInvestService {
             }
         });
     }
+
 }

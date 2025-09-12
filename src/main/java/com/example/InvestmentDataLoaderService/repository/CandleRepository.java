@@ -55,4 +55,44 @@ public interface CandleRepository extends JpaRepository<CandleEntity, CandleKey>
      */
     @Query("SELECT c FROM CandleEntity c WHERE c.figi = :figi ORDER BY c.time")
     List<CandleEntity> findByFigi(@Param("figi") String figi);
+    
+    /**
+     * Получает агрегированные данные для списка FIGI одним запросом
+     * Оптимизированный метод для пакетной обработки
+     */
+    @Query(value = """
+        SELECT c.figi, 
+               DATE(c.time) as trade_date,
+               SUM(CASE WHEN EXTRACT(HOUR FROM c.time) BETWEEN 6 AND 9 
+                        AND EXTRACT(MINUTE FROM c.time) >= 50 
+                        THEN c.volume ELSE 0 END) as morning_volume,
+               SUM(CASE WHEN EXTRACT(DOW FROM c.time) IN (0, 6) 
+                        THEN c.volume ELSE 0 END) as weekend_volume
+        FROM invest.candles c 
+        WHERE c.figi IN :figis 
+        GROUP BY c.figi, DATE(c.time)
+        ORDER BY c.figi, DATE(c.time)
+        """, nativeQuery = true)
+    List<Object[]> getAggregatedDataByFigis(@Param("figis") List<String> figis);
+    
+    /**
+     * Получает агрегированные данные для одного FIGI с ограничением по времени
+     */
+    @Query(value = """
+        SELECT DATE(c.time) as trade_date,
+               SUM(CASE WHEN EXTRACT(HOUR FROM c.time) BETWEEN 6 AND 9 
+                        AND EXTRACT(MINUTE FROM c.time) >= 50 
+                        THEN c.volume ELSE 0 END) as morning_volume,
+               SUM(CASE WHEN EXTRACT(DOW FROM c.time) IN (0, 6) 
+                        THEN c.volume ELSE 0 END) as weekend_volume
+        FROM invest.candles c 
+        WHERE c.figi = :figi 
+        AND c.time >= :startDate 
+        AND c.time < :endDate
+        GROUP BY DATE(c.time)
+        ORDER BY DATE(c.time)
+        """, nativeQuery = true)
+    List<Object[]> getAggregatedDataByFigiAndDateRange(@Param("figi") String figi,
+                                                      @Param("startDate") Instant startDate,
+                                                      @Param("endDate") Instant endDate);
 }

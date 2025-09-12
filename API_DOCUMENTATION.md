@@ -1,5 +1,57 @@
 # Investment Data Loader Service API Documentation
 
+## Настройка и запуск
+
+### Требования
+- Java 21+
+- PostgreSQL 12+
+- Токен Tinkoff Invest API
+
+### Настройка токена Tinkoff Invest API
+
+#### Способ 1: Через .env файл (рекомендуется)
+
+1. Скопируйте файл с примером конфигурации:
+   ```bash
+   cp env.example .env
+   ```
+
+2. Отредактируйте файл `.env` и укажите ваш токен:
+   ```bash
+   T_INVEST_TOKEN=ваш_реальный_токен_здесь
+   ```
+
+3. Запустите приложение:
+   ```bash
+   mvn spring-boot:run
+   ```
+
+#### Способ 2: Через переменные окружения системы
+
+```bash
+# Windows
+set T_INVEST_TOKEN=ваш_токен_здесь
+mvn spring-boot:run
+
+# Linux/Mac
+export T_INVEST_TOKEN=ваш_токен_здесь
+mvn spring-boot:run
+```
+
+### Получение токена
+
+1. Зарегистрируйтесь на [Tinkoff Invest API](https://developer.tbank.ru/invest/intro/intro)
+2. Создайте приложение в личном кабинете
+3. Скопируйте токен и добавьте его в `.env` файл
+
+### ⚠️ Безопасность
+
+**ВАЖНО**: Никогда не коммитьте файл `.env` в репозиторий! Файл уже добавлен в `.gitignore`.
+
+---
+
+## API Endpoints
+
 ## GET /shares
 
 Получение списка акций из T-Bank API с возможностью фильтрации.
@@ -1211,12 +1263,531 @@ CREATE TABLE invest.candles (
 - `POST /shares` - сохранение акций в БД
 - `GET /futures` - получение списка фьючерсов без сохранения в БД
 - `POST /futures` - сохранение фьючерсов в БД
+- `GET /indicatives` - получение списка индикативных инструментов без сохранения в БД
+- `POST /indicatives` - сохранение индикативных инструментов в БД
 - `GET /close-prices` - получение цен закрытия без сохранения в БД
 - `POST /close-prices` - сохранение цен закрытия в БД (используется шедулером)
 - `POST /candles` - получение и сохранение исторических свечей в БД
 - `GET /accounts` - получение списка счетов
 - `GET /trading-schedules` - получение расписаний торгов
 - `GET /trading-statuses` - получение статусов торговли
+
+---
+
+## GET /indicatives
+
+Получение списка индикативных инструментов (индексы, товары и другие) из T-Bank API без сохранения в базу данных.
+
+### Описание
+Эндпоинт получает индикативные инструменты из T-Bank API согласно документации: [https://developer.tbank.ru/invest/services/instruments/methods](https://developer.tbank.ru/invest/services/instruments/methods)
+
+### URL
+```
+GET http://localhost:8083/indicatives
+```
+
+### Параметры запроса
+
+| Параметр | Тип | Обязательный | Описание | Возможные значения |
+|----------|-----|--------------|----------|-------------------|
+| `exchange` | String | Нет | Биржа | `moex_mrng_evng_e_wknd_dlr`, `SPB`, `NASDAQ`, `NYSE`, и др. |
+| `currency` | String | Нет | Валюта инструмента | `RUB`, `USD`, `EUR`, и др. |
+| `ticker` | String | Нет | Тикер инструмента | `IMOEX`, `RTSI`, `SILV`, `GOLD`, и др. |
+| `figi` | String | Нет | FIGI инструмента | `BBG004730N88`, `BBG00QPYJ5X0`, и др. |
+
+### Примеры запросов
+
+#### Получить все индикативные инструменты
+```bash
+curl "http://localhost:8083/indicatives"
+```
+
+#### Получить индикативные инструменты с биржи MOEX
+```bash
+curl "http://localhost:8083/indicatives?exchange=moex_mrng_evng_e_wknd_dlr"
+```
+
+#### Получить индикативные инструменты в рублях
+```bash
+curl "http://localhost:8083/indicatives?currency=RUB"
+```
+
+#### Получить индикативный инструмент по тикеру
+```bash
+curl "http://localhost:8083/indicatives?ticker=IMOEX"
+```
+
+#### Получить индикативный инструмент по FIGI
+```bash
+curl "http://localhost:8083/indicatives?figi=BBG00QPYJ5X0"
+```
+
+#### Комбинированный запрос
+```bash
+curl "http://localhost:8083/indicatives?exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB&ticker=IMOEX"
+```
+
+### Примеры для Postman
+
+#### 1. Получить все индикативные инструменты
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives`
+- **Headers**: Не требуются
+
+#### 2. Получить индикативные инструменты с биржи MOEX
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives`
+- **Query Parameters**:
+  - `exchange`: `moex_mrng_evng_e_wknd_dlr`
+- **Headers**: Не требуются
+
+#### 3. Получить индикативные инструменты в рублях
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives`
+- **Query Parameters**:
+  - `currency`: `RUB`
+- **Headers**: Не требуются
+
+#### 4. Получить индикативный инструмент по тикеру
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives`
+- **Query Parameters**:
+  - `ticker`: `IMOEX`
+- **Headers**: Не требуются
+
+#### 5. Получить индикативный инструмент по FIGI
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives`
+- **Query Parameters**:
+  - `figi`: `BBG00QPYJ5X0`
+- **Headers**: Не требуются
+
+#### 6. Комбинированный запрос
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives`
+- **Query Parameters**:
+  - `exchange`: `moex_mrng_evng_e_wknd_dlr`
+  - `currency`: `RUB`
+  - `ticker`: `IMOEX`
+- **Headers**: Не требуются
+
+### Формат ответа
+
+Возвращает массив индикативных инструментов:
+
+```json
+[
+  {
+    "figi": "BBG00QPYJ5X0",
+    "ticker": "IMOEX",
+    "name": "Индекс МосБиржи",
+    "currency": "RUB",
+    "exchange": "moex_mrng_evng_e_wknd_dlr",
+    "classCode": "SPBXM",
+    "uid": "e6123145-9665-43e0-8413-cd61d8e6e372",
+    "sellAvailableFlag": true,
+    "buyAvailableFlag": true
+  },
+  {
+    "figi": "BBG00QPYJ5X1",
+    "ticker": "RTSI",
+    "name": "Индекс РТС",
+    "currency": "RUB",
+    "exchange": "moex_mrng_evng_e_wknd_dlr",
+    "classCode": "SPBXM",
+    "uid": "e6123145-9665-43e0-8413-cd61d8e6e373",
+    "sellAvailableFlag": true,
+    "buyAvailableFlag": true
+  }
+]
+```
+
+### Описание полей ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | FIGI инструмента |
+| `ticker` | String | Тикер инструмента |
+| `name` | String | Название инструмента |
+| `currency` | String | Валюта инструмента |
+| `exchange` | String | Биржа |
+| `classCode` | String | Класс инструмента |
+| `uid` | String | Уникальный идентификатор |
+| `sellAvailableFlag` | Boolean | Доступность для продажи |
+| `buyAvailableFlag` | Boolean | Доступность для покупки |
+
+### Коды ответов
+
+| Код | Описание |
+|-----|----------|
+| 200 | Успешный запрос |
+| 400 | Некорректные параметры запроса |
+| 500 | Внутренняя ошибка сервера |
+
+---
+
+## POST /indicatives
+
+Сохранение индикативных инструментов в базу данных. Метод запрашивает список индикативных инструментов из T-Bank API согласно параметрам фильтрации, проверяет их наличие в таблице `invest.indicatives` и сохраняет только новые инструменты.
+
+### Описание
+Эндпоинт получает индикативные инструменты из T-Bank API, фильтрует их по заданным параметрам, проверяет существование в базе данных и сохраняет только те инструменты, которых еще нет в таблице `invest.indicatives`.
+
+### URL
+```
+POST http://localhost:8083/indicatives
+```
+
+### Тело запроса
+
+Параметры передаются в теле запроса в формате JSON:
+
+```json
+{
+  "exchange": "moex_mrng_evng_e_wknd_dlr",
+  "currency": "RUB",
+  "ticker": "IMOEX"
+}
+```
+
+### Параметры тела запроса
+
+| Параметр | Тип | Обязательный | Описание | Возможные значения |
+|----------|-----|--------------|----------|-------------------|
+| `exchange` | String | Нет | Биржа | `moex_mrng_evng_e_wknd_dlr`, `SPB`, `NASDAQ`, `NYSE`, и др. |
+| `currency` | String | Нет | Валюта инструмента | `RUB`, `USD`, `EUR`, и др. |
+| `ticker` | String | Нет | Тикер инструмента | `IMOEX`, `RTSI`, `SILV`, `GOLD`, и др. |
+| `figi` | String | Нет | FIGI инструмента | `BBG00QPYJ5X0`, `BBG00QPYJ5X1`, и др. |
+
+### Примеры запросов
+
+#### Сохранить все индикативные инструменты
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+#### Сохранить индикативные инструменты с биржи MOEX
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "exchange": "moex_mrng_evng_e_wknd_dlr"
+  }'
+```
+
+#### Сохранить индикативные инструменты в рублях
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currency": "RUB"
+  }'
+```
+
+#### Сохранить индикативный инструмент по тикеру
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticker": "IMOEX"
+  }'
+```
+
+#### Комбинированный запрос
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "exchange": "moex_mrng_evng_e_wknd_dlr",
+    "currency": "RUB",
+    "ticker": "IMOEX"
+  }'
+```
+
+### Примеры для Postman
+
+#### 1. Сохранить все индикативные инструменты
+- **Method**: `POST`
+- **URL**: `http://localhost:8083/indicatives`
+- **Headers**: Не требуются
+- **Body**: Не требуется
+
+#### 2. Сохранить индикативные инструменты с биржи MOEX
+- **Method**: `POST`
+- **URL**: `http://localhost:8083/indicatives`
+- **Headers**: Не требуются
+- **Body**:
+```json
+{
+  "exchange": "moex_mrng_evng_e_wknd_dlr"
+}
+```
+
+#### 3. Сохранить индикативные инструменты в рублях
+- **Method**: `POST`
+- **URL**: `http://localhost:8083/indicatives`
+- **Headers**: Не требуются
+- **Body**:
+```json
+{
+  "currency": "RUB"
+}
+```
+
+#### 4. Сохранить индикативный инструмент по тикеру
+- **Method**: `POST`
+- **URL**: `http://localhost:8083/indicatives`
+- **Headers**: Не требуются
+- **Body**:
+```json
+{
+  "ticker": "IMOEX"
+}
+```
+
+#### 5. Комбинированный запрос
+- **Method**: `POST`
+- **URL**: `http://localhost:8083/indicatives`
+- **Headers**: Не требуются
+- **Body**:
+```json
+{
+  "exchange": "moex_mrng_evng_e_wknd_dlr",
+  "currency": "RUB",
+  "ticker": "IMOEX"
+}
+```
+
+### Формат ответа
+
+Возвращает информативный ответ о результате сохранения:
+
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 3 новых индикативных инструментов из 5 найденных.",
+  "totalRequested": 5,
+  "newItemsSaved": 3,
+  "existingItemsSkipped": 2,
+  "savedItems": [
+    {
+      "figi": "BBG00QPYJ5X0",
+      "ticker": "IMOEX",
+      "name": "Индекс МосБиржи",
+      "currency": "RUB",
+      "exchange": "moex_mrng_evng_e_wknd_dlr",
+      "classCode": "SPBXM",
+      "uid": "e6123145-9665-43e0-8413-cd61d8e6e372",
+      "sellAvailableFlag": true,
+      "buyAvailableFlag": true
+    }
+  ]
+}
+```
+
+### Описание полей ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `success` | Boolean | Успешность операции (true, если найдены индикативные инструменты по фильтрам) |
+| `message` | String | Информативное сообщение о результате операции |
+| `totalRequested` | Integer | Общее количество найденных инструментов по фильтрам |
+| `newItemsSaved` | Integer | Количество новых инструментов, сохраненных в БД |
+| `existingItemsSkipped` | Integer | Количество инструментов, которые уже существовали в БД |
+| `savedItems` | Array | Массив сохраненных индикативных инструментов |
+
+### Коды ответов
+
+| Код | Описание |
+|-----|----------|
+| 200 | Успешное сохранение |
+| 400 | Некорректные параметры запроса |
+| 500 | Внутренняя ошибка сервера |
+
+### Связанные эндпоинты
+
+- `GET /indicatives` - получение списка индикативных инструментов без сохранения в БД
+- `GET /indicatives/{figi}` - получение индикативного инструмента по FIGI
+- `GET /indicatives/ticker/{ticker}` - получение индикативного инструмента по тикеру
+- `POST /indicatives` - сохранение индикативных инструментов в БД
+- `GET /shares` - получение списка акций без сохранения в БД
+- `POST /shares` - сохранение акций в БД
+- `GET /futures` - получение списка фьючерсов без сохранения в БД
+- `POST /futures` - сохранение фьючерсов в БД
+- `GET /close-prices` - получение цен закрытия без сохранения в БД
+- `POST /close-prices` - сохранение цен закрытия в БД (используется шедулером)
+- `POST /candles` - получение и сохранение исторических свечей в БД
+- `GET /accounts` - получение списка счетов
+- `GET /trading-schedules` - получение расписаний торгов
+- `GET /trading-statuses` - получение статусов торговли
+
+---
+
+## GET /indicatives/ticker/{ticker}
+
+Получение индикативного инструмента по его тикеру.
+
+### Описание
+Эндпоинт получает конкретный индикативный инструмент из T-Bank API по его тикеру. Удобный метод для быстрого поиска индекса по тикеру (например, IMOEX, RTSI).
+
+### URL
+```
+GET http://localhost:8083/indicatives/ticker/{ticker}
+```
+
+### Параметры пути
+
+| Параметр | Тип | Обязательный | Описание | Пример |
+|----------|-----|--------------|----------|--------|
+| `ticker` | String | Да | Тикер инструмента | `IMOEX` |
+
+### Примеры запросов
+
+#### Получить индекс МосБиржи по тикеру
+```bash
+curl "http://localhost:8083/indicatives/ticker/IMOEX"
+```
+
+#### Получить индекс РТС по тикеру
+```bash
+curl "http://localhost:8083/indicatives/ticker/RTSI"
+```
+
+### Примеры для Postman
+
+#### 1. Получить индекс МосБиржи
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives/ticker/IMOEX`
+- **Headers**: Не требуются
+
+#### 2. Получить индекс РТС
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives/ticker/RTSI`
+- **Headers**: Не требуются
+
+### Формат ответа
+
+Возвращает объект индикативного инструмента:
+
+```json
+{
+  "figi": "BBG00QPYJ5X0",
+  "ticker": "IMOEX",
+  "name": "Индекс МосБиржи",
+  "currency": "RUB",
+  "exchange": "moex_mrng_evng_e_wknd_dlr",
+  "classCode": "SPBXM",
+  "uid": "e6123145-9665-43e0-8413-cd61d8e6e372",
+  "sellAvailableFlag": true,
+  "buyAvailableFlag": true
+}
+```
+
+### Описание полей ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | FIGI инструмента |
+| `ticker` | String | Тикер инструмента |
+| `name` | String | Название инструмента |
+| `currency` | String | Валюта инструмента |
+| `exchange` | String | Биржа |
+| `classCode` | String | Код класса инструмента |
+| `uid` | String | Уникальный идентификатор |
+| `sellAvailableFlag` | Boolean | Доступность для продажи |
+| `buyAvailableFlag` | Boolean | Доступность для покупки |
+
+### Коды ответов
+
+| Код | Описание |
+|-----|----------|
+| 200 | Успешный запрос, инструмент найден |
+| 404 | Инструмент с таким тикером не найден |
+| 400 | Некорректный тикер |
+| 500 | Внутренняя ошибка сервера |
+
+### Особенности
+
+- Поиск выполняется без учета регистра (case-insensitive)
+- Возвращается первый найденный инструмент с указанным тикером
+- Если найдено несколько инструментов с одинаковым тикером, возвращается первый
+
+---
+
+## GET /indicatives/{figi}
+
+Получение индикативного инструмента по его FIGI идентификатору.
+
+### Описание
+Эндпоинт получает конкретный индикативный инструмент из T-Bank API по его FIGI идентификатору. Аналог метода `ShareBy` для индикативных инструментов.
+
+### URL
+```
+GET http://localhost:8083/indicatives/{figi}
+```
+
+### Параметры пути
+
+| Параметр | Тип | Обязательный | Описание | Пример |
+|----------|-----|--------------|----------|--------|
+| `figi` | String | Да | FIGI идентификатор инструмента | `BBG00QPYJ5X0` |
+
+### Примеры запросов
+
+#### Получить индикативный инструмент по FIGI
+```bash
+curl "http://localhost:8083/indicatives/BBG00QPYJ5X0"
+```
+
+### Примеры для Postman
+
+#### 1. Получить индикативный инструмент по FIGI
+- **Method**: `GET`
+- **URL**: `http://localhost:8083/indicatives/BBG00QPYJ5X0`
+- **Headers**: Не требуются
+
+### Формат ответа
+
+Возвращает объект индикативного инструмента:
+
+```json
+{
+  "figi": "BBG00QPYJ5X0",
+  "ticker": "IMOEX",
+  "name": "Индекс МосБиржи",
+  "currency": "RUB",
+  "exchange": "moex_mrng_evng_e_wknd_dlr",
+  "classCode": "SPBXM",
+  "uid": "e6123145-9665-43e0-8413-cd61d8e6e372",
+  "sellAvailableFlag": true,
+  "buyAvailableFlag": true
+}
+```
+
+### Описание полей ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | FIGI инструмента |
+| `ticker` | String | Тикер инструмента |
+| `name` | String | Название инструмента |
+| `currency` | String | Валюта инструмента |
+| `exchange` | String | Биржа |
+| `classCode` | String | Код класса инструмента |
+| `uid` | String | Уникальный идентификатор |
+| `sellAvailableFlag` | Boolean | Доступность для продажи |
+| `buyAvailableFlag` | Boolean | Доступность для покупки |
+
+### Коды ответов
+
+| Код | Описание |
+|-----|----------|
+| 200 | Успешный запрос, инструмент найден |
+| 404 | Инструмент не найден |
+| 400 | Некорректный FIGI |
+| 500 | Внутренняя ошибка сервера |
 
 ---
 
@@ -1862,3 +2433,273 @@ curl -X POST "http://localhost:8083/admin/recalculate-futures-aggregation" \
 
 echo "Пересчет завершен!"
 ```
+
+---
+
+## Эндпоинты индикативных инструментов
+
+### GET /indicatives
+
+Получение списка индикативных инструментов (индексы, товары и другие) с возможностью фильтрации.
+
+#### Описание
+Эндпоинт возвращает список индикативных инструментов, полученных из базы данных с применением фильтров. Индикативные инструменты включают индексы, товары и другие инструменты, которые не торгуются напрямую на бирже.
+
+#### URL
+```
+GET http://localhost:8083/indicatives
+```
+
+#### Параметры запроса
+
+| Параметр | Тип | Обязательный | Описание | Возможные значения |
+|----------|-----|--------------|----------|-------------------|
+| `exchange` | String | Нет | Биржа | `MOEX`, `SPB`, и др. |
+| `currency` | String | Нет | Валюта инструмента | `RUB`, `USD`, `EUR`, и др. |
+| `ticker` | String | Нет | Тикер инструмента | `IMOEX`, `RTSI`, и др. |
+| `classCode` | String | Нет | Код класса инструмента | `SPBXM`, и др. |
+
+#### Примеры запросов
+
+##### Получить все индикативные инструменты
+```bash
+curl "http://localhost:8083/indicatives"
+```
+
+##### Получить индикативные инструменты с биржи MOEX
+```bash
+curl "http://localhost:8083/indicatives?exchange=MOEX"
+```
+
+##### Получить индикативные инструменты в рублях
+```bash
+curl "http://localhost:8083/indicatives?currency=RUB"
+```
+
+##### Получить индикативный инструмент по тикеру
+```bash
+curl "http://localhost:8083/indicatives?ticker=IMOEX"
+```
+
+##### Получить индикативные инструменты по коду класса
+```bash
+curl "http://localhost:8083/indicatives?classCode=SPBXM"
+```
+
+##### Комбинированный запрос
+```bash
+curl "http://localhost:8083/indicatives?exchange=MOEX&currency=RUB&ticker=IMOEX&classCode=SPBXM"
+```
+
+#### Формат ответа
+
+```json
+[
+  {
+    "figi": "BBG00M8XQPY9",
+    "ticker": "IMOEX",
+    "name": "Индекс МосБиржи",
+    "currency": "RUB",
+    "exchange": "MOEX",
+    "classCode": "SPBXM",
+    "uid": "6afa6f98-7b65-4c5a-ae5e-3f9d62f4ac07",
+    "sellAvailableFlag": true,
+    "buyAvailableFlag": true
+  }
+]
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `figi` | String | Уникальный идентификатор инструмента (FIGI) |
+| `ticker` | String | Тикер инструмента |
+| `name` | String | Название инструмента |
+| `currency` | String | Валюта инструмента |
+| `exchange` | String | Биржа |
+| `classCode` | String | Код класса инструмента |
+| `uid` | String | Уникальный идентификатор инструмента |
+| `sellAvailableFlag` | Boolean | Флаг доступности для продажи |
+| `buyAvailableFlag` | Boolean | Флаг доступности для покупки |
+
+#### Особенности
+
+1. **Источник данных**: Данные получаются из таблицы `invest.indicatives` в базе данных
+2. **Сортировка**: Результаты автоматически сортируются по тикеру в алфавитном порядке
+3. **Фильтрация**: Фильтры применяются регистронезависимо
+4. **Готовность к API**: Код подготовлен для интеграции с T-Bank API, когда метод `indicatives` станет доступен
+
+### POST /indicatives
+
+Сохранение индикативных инструментов в базу данных.
+
+#### Описание
+Эндпоинт сохраняет индикативные инструменты в таблицу `invest.indicatives`. В текущей реализации используется заглушка с примером данных из документации T-Bank API.
+
+#### URL
+```
+POST http://localhost:8083/indicatives
+```
+
+#### Тело запроса
+
+Параметры передаются в теле запроса в формате JSON:
+
+```json
+{
+  "exchange": "MOEX",
+  "currency": "RUB",
+  "ticker": "IMOEX",
+  "classCode": "SPBXM"
+}
+```
+
+#### Параметры тела запроса
+
+| Параметр | Тип | Обязательный | Описание | Возможные значения |
+|----------|-----|--------------|----------|-------------------|
+| `exchange` | String | Нет | Биржа | `MOEX`, `SPB`, и др. |
+| `currency` | String | Нет | Валюта инструмента | `RUB`, `USD`, `EUR`, и др. |
+| `ticker` | String | Нет | Тикер инструмента | `IMOEX`, `RTSI`, и др. |
+| `classCode` | String | Нет | Код класса инструмента | `SPBXM`, и др. |
+
+#### Примеры запросов
+
+##### Сохранить все индикативные инструменты
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+##### Сохранить индикативные инструменты с биржи MOEX
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "exchange": "MOEX"
+  }'
+```
+
+##### Сохранить индикативные инструменты в рублях
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currency": "RUB"
+  }'
+```
+
+##### Сохранить индикативный инструмент по тикеру
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticker": "IMOEX"
+  }'
+```
+
+##### Комбинированный запрос
+```bash
+curl -X POST "http://localhost:8083/indicatives" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "exchange": "MOEX",
+    "currency": "RUB",
+    "ticker": "IMOEX",
+    "classCode": "SPBXM"
+  }'
+```
+
+#### Формат ответа
+
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 2 новых индикативных инструмента из 2 найденных.",
+  "totalRequested": 2,
+  "newItemsSaved": 2,
+  "existingItemsSkipped": 0,
+  "savedItems": [
+    {
+      "figi": "BBG00M8XQPY9",
+      "ticker": "IMOEX",
+      "name": "Индекс МосБиржи",
+      "currency": "RUB",
+      "exchange": "MOEX",
+      "classCode": "SPBXM",
+      "uid": "6afa6f98-7b65-4c5a-ae5e-3f9d62f4ac07",
+      "sellAvailableFlag": true,
+      "buyAvailableFlag": true
+    },
+    {
+      "figi": "BBG00N9JX0P0",
+      "ticker": "RTSI",
+      "name": "Индекс РТС",
+      "currency": "RUB",
+      "exchange": "MOEX",
+      "classCode": "SPBXM",
+      "uid": "7c5e6d4f-3a2b-4c1d-9e8f-1a2b3c4d5e6f",
+      "sellAvailableFlag": true,
+      "buyAvailableFlag": true
+    }
+  ]
+}
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `success` | Boolean | Успешность операции |
+| `message` | String | Информативное сообщение о результате |
+| `totalRequested` | Integer | Общее количество найденных инструментов |
+| `newItemsSaved` | Integer | Количество новых инструментов, сохраненных в БД |
+| `existingItemsSkipped` | Integer | Количество инструментов, которые уже существовали в БД |
+| `savedItems` | Array | Массив сохраненных индикативных инструментов |
+
+#### Структура таблицы indicatives
+
+```sql
+CREATE TABLE invest.indicatives (
+    figi            VARCHAR(255)    PRIMARY KEY,
+    ticker          VARCHAR(255)    NOT NULL,
+    name            VARCHAR(500)    NOT NULL,
+    currency        VARCHAR(10)     NOT NULL,
+    exchange        VARCHAR(255)    NOT NULL,
+    class_code      VARCHAR(255),
+    uid             VARCHAR(255),
+    sell_available_flag BOOLEAN,
+    buy_available_flag  BOOLEAN,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+```
+
+#### Особенности
+
+1. **Заглушка данных**: В текущей реализации используются примеры данных из документации T-Bank API
+2. **Готовность к API**: Код подготовлен для интеграции с реальным API T-Bank
+3. **Идемпотентность**: Повторные вызовы с теми же параметрами не создадут дубликаты
+4. **Обработка ошибок**: Ошибки сохранения отдельных инструментов не прерывают процесс
+
+#### Интеграция с T-Bank API
+
+Когда метод `indicatives` станет доступен в T-Bank API, код будет автоматически переключен на реальные данные. В коде есть закомментированный блок с правильной реализацией:
+
+```java
+// Когда API метод будет доступен, раскомментируйте код ниже:
+/*
+var response = instrumentsService.indicatives(InstrumentsRequest.newBuilder().build());
+// ... обработка реальных данных из API
+*/
+```
+
+#### Коды ответов
+
+| Код | Описание |
+|-----|----------|
+| 200 | Успешное выполнение запроса |
+| 400 | Некорректные параметры запроса |
+| 500 | Внутренняя ошибка сервера |

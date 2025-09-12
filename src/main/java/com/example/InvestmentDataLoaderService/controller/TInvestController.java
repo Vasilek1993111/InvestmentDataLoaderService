@@ -59,6 +59,42 @@ public class TInvestController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/indicatives")
+    public ResponseEntity<List<IndicativeDto>> indicatives(
+            @RequestParam(required = false) String exchange,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String ticker,
+            @RequestParam(required = false) String figi
+    ) {
+        return ResponseEntity.ok(service.getIndicatives(exchange, currency, ticker, figi));
+    }
+
+    @PostMapping("/indicatives")
+    public ResponseEntity<SaveResponseDto> saveIndicatives(@RequestBody IndicativeFilterDto filter) {
+        SaveResponseDto response = service.saveIndicatives(filter);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/indicatives/{figi}")
+    public ResponseEntity<IndicativeDto> getIndicativeBy(@PathVariable String figi) {
+        IndicativeDto indicative = service.getIndicativeBy(figi);
+        if (indicative != null) {
+            return ResponseEntity.ok(indicative);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/indicatives/ticker/{ticker}")
+    public ResponseEntity<IndicativeDto> getIndicativeByTicker(@PathVariable String ticker) {
+        IndicativeDto indicative = service.getIndicativeByTicker(ticker);
+        if (indicative != null) {
+            return ResponseEntity.ok(indicative);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/close-prices")
     public ResponseEntity<List<ClosePriceDto>> closes(
             @RequestParam(required = false) List<String> instrumentId,

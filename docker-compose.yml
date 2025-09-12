@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: investment-postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123password123
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - investment-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot приложение
+  investment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: investment-data-loader-service
+    environment:
+      # Переменные окружения для подключения к БД
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 123password123
+      # Токен Tinkoff API (должен быть установлен в .env файле)
+      T_INVEST_TOKEN: ${T_INVEST_TOKEN}
+      # Настройки JVM для контейнера
+      JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - investment-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  investment-network:
+    driver: bridge

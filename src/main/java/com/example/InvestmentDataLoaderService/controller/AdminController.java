@@ -6,6 +6,9 @@ import com.example.InvestmentDataLoaderService.service.EveningSessionService;
 import com.example.InvestmentDataLoaderService.service.MorningSessionService;
 import com.example.InvestmentDataLoaderService.service.LastTradesService;
 import com.example.InvestmentDataLoaderService.service.AggregationService;
+import com.example.InvestmentDataLoaderService.service.OptimizedAggregationService;
+import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+import com.example.InvestmentDataLoaderService.repository.SharesAggregatedDataRepository;
 import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.dto.AggregationResult;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/admin")
@@ -28,19 +33,28 @@ public class AdminController {
     private final MorningSessionService morningSessionService;
     private final LastTradesService lastTradesService;
     private final AggregationService aggregationService;
+    private final OptimizedAggregationService optimizedAggregationService;
+    private final ShareRepository shareRepository;
+    private final SharesAggregatedDataRepository sharesAggregatedDataRepository;
 
     public AdminController(ClosePriceSchedulerService closePriceScheduler, 
                           CandleSchedulerService candleScheduler,
                           EveningSessionService eveningSessionService,
                           MorningSessionService morningSessionService,
                           LastTradesService lastTradesService,
-                          AggregationService aggregationService) {
+                          AggregationService aggregationService,
+                          OptimizedAggregationService optimizedAggregationService,
+                          ShareRepository shareRepository,
+                          SharesAggregatedDataRepository sharesAggregatedDataRepository) {
         this.closePriceScheduler = closePriceScheduler;
         this.candleScheduler = candleScheduler;
         this.eveningSessionService = eveningSessionService;
         this.morningSessionService = morningSessionService;
         this.lastTradesService = lastTradesService;
         this.aggregationService = aggregationService;
+        this.optimizedAggregationService = optimizedAggregationService;
+        this.shareRepository = shareRepository;
+        this.sharesAggregatedDataRepository = sharesAggregatedDataRepository;
     }
 
     @PostMapping("/load-close-prices")
@@ -115,16 +129,6 @@ public class AdminController {
 
     // === ЭНДПОИНТЫ ДЛЯ АГРЕГИРОВАННЫХ ДАННЫХ ===
 
-    // Пересчет агрегированных данных для всех акций
-    @PostMapping("/recalculate-shares-aggregation")
-    public ResponseEntity<AggregationResult> recalculateSharesAggregation() {
-        try {
-            AggregationResult result = aggregationService.recalculateAllSharesData();
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(new AggregationResult());
-        }
-    }
 
     // Пересчет агрегированных данных для всех фьючерсов
     @PostMapping("/recalculate-futures-aggregation")
@@ -158,4 +162,92 @@ public class AdminController {
             return ResponseEntity.status(500).body(null);
         }
     }
+
+    // === ОПТИМИЗИРОВАННЫЕ ЭНДПОИНТЫ ДЛЯ АГРЕГАЦИИ ===
+
+    /**
+     * Синхронный пересчет агрегированных данных для акций (старая версия)
+     */
+    @PostMapping("/recalculate-shares-aggregation")
+    public ResponseEntity<AggregationResult> recalculateSharesAggregation() {
+        try {
+            AggregationResult result = optimizedAggregationService.recalculateAllSharesData();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            AggregationResult errorResult = new AggregationResult("ERROR", "shares");
+            errorResult.setSuccess(false);
+            errorResult.setErrorMessage(e.getMessage());
+            return ResponseEntity.status(500).body(errorResult);
+        }
+    }
+
+    /**
+     * Оптимизированный синхронный пересчет агрегированных данных для акций
+     */
+    @PostMapping("/recalculate-shares-aggregation-optimized")
+    public ResponseEntity<AggregationResult> recalculateSharesAggregationOptimized() {
+        try {
+            AggregationResult result = optimizedAggregationService.recalculateAllSharesDataOptimized();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            AggregationResult errorResult = new AggregationResult("ERROR", "shares");
+            errorResult.setSuccess(false);
+            errorResult.setErrorMessage(e.getMessage());
+            return ResponseEntity.status(500).body(errorResult);
+        }
+    }
+
+    /**
+     * Асинхронный пересчет агрегированных данных для акций
+     * Запускает процесс в фоновом режиме
+     */
+    @PostMapping("/recalculate-shares-aggregation-async")
+    public ResponseEntity<String> recalculateSharesAggregationAsync() {
+        try {
+            // Запускаем асинхронную задачу
+            optimizedAggregationService.recalculateAllSharesDataAsync();
+            
+            // Возвращаем информацию о запущенной задаче
+            return ResponseEntity.ok("Агрегация запущена в фоновом режиме. " +
+                                   "Проверьте логи приложения для отслеживания прогресса.");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Ошибка запуска агрегации: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Проверка статуса агрегированных данных
+     * Показывает общую статистику по агрегированным данным
+     */
+    @GetMapping("/shares-aggregation-status")
+    public ResponseEntity<Map<String, Object>> getSharesAggregationStatus() {
+        try {
+            Map<String, Object> status = new HashMap<>();
+            
+            // Общее количество акций
+            long totalShares = shareRepository.count();
+            status.put("totalShares", totalShares);
+            
+            // Количество агрегированных записей
+            long aggregatedRecords = sharesAggregatedDataRepository.count();
+            status.put("aggregatedRecords", aggregatedRecords);
+            
+            // Процент покрытия
+            double coverage = totalShares > 0 ? (double) aggregatedRecords / totalShares * 100 : 0;
+            status.put("coveragePercentage", String.format("%.2f%%", coverage));
+            
+            // Статус
+            boolean isComplete = aggregatedRecords > 0 && coverage > 90; // Минимум 90% покрытие
+            status.put("isComplete", isComplete);
+            status.put("statusMessage", isComplete ? "Агрегация завершена" : "Требуется пересчет");
+            
+            return ResponseEntity.ok(status);
+            
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Ошибка получения статуса: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
 }
