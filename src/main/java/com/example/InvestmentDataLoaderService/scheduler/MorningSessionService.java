@@ -5,9 +5,11 @@ import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.entity.CandleEntity;
 import com.example.InvestmentDataLoaderService.entity.OpenPriceEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
+import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.repository.OpenPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.CandleRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,15 +30,18 @@ public class MorningSessionService {
 
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
+    private final IndicativeRepository indicativeRepository;
     private final CandleRepository candleRepository;
     private final OpenPriceRepository openPriceRepository;
 
     public MorningSessionService(ShareRepository shareRepository, 
                                FutureRepository futureRepository,
+                               IndicativeRepository indicativeRepository,
                                CandleRepository candleRepository,
                                OpenPriceRepository openPriceRepository) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
+        this.indicativeRepository = indicativeRepository;
         this.candleRepository = candleRepository;
         this.openPriceRepository = openPriceRepository;
     }
@@ -86,10 +91,11 @@ public class MorningSessionService {
         try {
             System.out.println("[" + taskId + "] Начало обработки цен открытия утренней сессии за " + date);
             
-            // Получаем все акции и фьючерсы из БД
+            // Получаем все акции, фьючерсы и индикативные инструменты из БД
             List<ShareEntity> shares = shareRepository.findAll();
             List<FutureEntity> futures = futureRepository.findAll();
-            System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций и " + futures.size() + " фьючерсов для обработки");
+            List<IndicativeEntity> indicatives = indicativeRepository.findAll();
+            System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций, " + futures.size() + " фьючерсов и " + indicatives.size() + " индикативных инструментов для обработки");
             
             List<OpenPriceDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
@@ -199,8 +205,65 @@ public class MorningSessionService {
                 }
             }
             
+            // Обрабатываем индикативные инструменты
+            for (IndicativeEntity indicative : indicatives) {
+                // Пропускаем пустые или null FIGI
+                if (indicative.getFigi() == null || indicative.getFigi().trim().isEmpty()) {
+                    System.err.println("[" + taskId + "] Skipping empty or null FIGI for indicative: " + indicative.getTicker());
+                    continue;
+                }
+                
+                try {
+                    processedInstruments++;
+                    System.out.println("[" + taskId + "] Обработка индикативного инструмента " + processedInstruments + "/" + (shares.size() + futures.size() + indicatives.size()) + ": " + indicative.getTicker() + " (" + indicative.getFigi() + ")");
+                    
+                    // Проверяем, есть ли уже запись для этой даты и FIGI
+                    if (openPriceRepository.existsByPriceDateAndFigi(date, indicative.getFigi())) {
+                        existingCount++;
+                        System.out.println("[" + taskId + "] Запись уже существует для " + indicative.getTicker() + " за " + date);
+                        continue;
+                    }
+                    
+                    // Ищем первую свечу за указанную дату до 08:59:59 (как для фьючерсов)
+                    BigDecimal firstOpenPrice = findFirstOpenPriceForDate(indicative.getFigi(), date, taskId, "indicative");
+                    
+                    if (firstOpenPrice != null) {
+                        totalRequested++;
+                        
+                        // Создаем DTO для сохранения
+                        OpenPriceDto dto = new OpenPriceDto(
+                            indicative.getFigi(),
+                            date,
+                            firstOpenPrice,
+                            "indicative",
+                            indicative.getCurrency() != null ? indicative.getCurrency() : "USD",
+                            "MOEX"
+                        );
+                        
+                        // Сохраняем в БД
+                        OpenPriceEntity entity = new OpenPriceEntity();
+                        entity.setId(new com.example.InvestmentDataLoaderService.entity.OpenPriceKey(date, indicative.getFigi()));
+                        entity.setInstrumentType(dto.instrumentType());
+                        entity.setOpenPrice(dto.openPrice());
+                        entity.setCurrency(dto.currency());
+                        entity.setExchange(dto.exchange());
+                        
+                        openPriceRepository.save(entity);
+                        savedItems.add(dto);
+                        savedCount++;
+                        
+                        System.out.println("[" + taskId + "] Сохранена цена открытия для " + indicative.getTicker() + ": " + firstOpenPrice);
+                    } else {
+                        System.out.println("[" + taskId + "] Не найдена свеча для " + indicative.getTicker() + " за " + date);
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("[" + taskId + "] Ошибка обработки индикативного инструмента " + indicative.getTicker() + ": " + e.getMessage());
+                }
+            }
+            
             System.out.println("[" + taskId + "] Обработка завершена:");
-            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments + " (акций: " + shares.size() + ", фьючерсов: " + futures.size() + ")");
+            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments + " (акций: " + shares.size() + ", фьючерсов: " + futures.size() + ", индикативных: " + indicatives.size() + ")");
             System.out.println("[" + taskId + "] - Запрошено цен: " + totalRequested);
             System.out.println("[" + taskId + "] - Сохранено новых: " + savedCount);
             System.out.println("[" + taskId + "] - Пропущено существующих: " + existingCount);
@@ -231,7 +294,7 @@ public class MorningSessionService {
     /**
      * Находит первую цену открытия для указанной даты и FIGI
      * Для акций: до 06:59:59 включительно
-     * Для фьючерсов: до 08:59:59 включительно
+     * Для фьючерсов и индикативных инструментов: до 08:59:59 включительно
      */
     private BigDecimal findFirstOpenPriceForDate(String figi, LocalDate date, String taskId, String instrumentType) {
         try {

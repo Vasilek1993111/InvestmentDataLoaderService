@@ -23,7 +23,7 @@ public class CandleSchedulerService {
     /**
      * Ежедневная загрузка минутных свечей за предыдущий день
      * Запускается в 1:10 по московскому времени
-     * Сначала загружает акции, затем фьючерсы
+     * Сначала загружает акции, затем фьючерсы, затем индикативные инструменты
      */
     @Scheduled(cron = "0 10 1 * * *", zone = "Europe/Moscow")
     public void fetchAndStoreCandles() {
@@ -42,6 +42,12 @@ public class CandleSchedulerService {
             
             // Загружаем свечи для фьючерсов
             fetchCandlesForFutures(previousDay);
+            
+            // Небольшая пауза между загрузкой фьючерсов и индикативных инструментов
+            Thread.sleep(5000);
+            
+            // Загружаем свечи для индикативных инструментов
+            fetchCandlesForIndicatives(previousDay);
             
             System.out.println("=== ЗАВЕРШЕНИЕ ЕЖЕДНЕВНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
             System.out.println("Время завершения: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
@@ -121,6 +127,12 @@ public class CandleSchedulerService {
             // Загружаем свечи для фьючерсов
             fetchCandlesForFutures(date);
             
+            // Небольшая пауза между загрузкой фьючерсов и индикативных инструментов
+            Thread.sleep(5000);
+            
+            // Загружаем свечи для индикативных инструментов
+            fetchCandlesForIndicatives(date);
+            
             System.out.println("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
             System.out.println("Время завершения: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
@@ -145,4 +157,38 @@ public class CandleSchedulerService {
     public void fetchAndStoreFuturesCandlesForDate(LocalDate date) {
         fetchCandlesForFutures(date);
     }
+
+    /**
+     * Ручная загрузка свечей только для индикативных инструментов за конкретную дату
+     * @param date дата для загрузки свечей
+     */
+    public void fetchAndStoreIndicativesCandlesForDate(LocalDate date) {
+        fetchCandlesForIndicatives(date);
+    }
+
+    /**
+     * Загружает минутные свечи для индикативных инструментов за указанную дату
+     */
+    private void fetchCandlesForIndicatives(LocalDate date) {
+        try {
+            String taskId = "INDICATIVES_" + UUID.randomUUID().toString().substring(0, 8);
+            
+            System.out.println("[" + taskId + "] Начало загрузки свечей для индикативных инструментов за " + date);
+            
+            CandleRequestDto request = new CandleRequestDto();
+            request.setDate(date);
+            request.setInterval("CANDLE_INTERVAL_1_MIN");
+            request.setAssetType(Arrays.asList("INDICATIVES"));
+            
+            // Запускаем загрузку в асинхронном режиме
+            tInvestService.saveCandlesAsync(request, taskId);
+            
+            System.out.println("[" + taskId + "] Загрузка свечей для индикативных инструментов запущена в фоновом режиме");
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при запуске загрузки свечей для индикативных инструментов: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 }

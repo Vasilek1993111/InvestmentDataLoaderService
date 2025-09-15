@@ -299,6 +299,12 @@ public class MarketDataService {
     // === МЕТОДЫ ДЛЯ РАБОТЫ СО СВЕЧАМИ ===
 
     public List<CandleDto> getCandles(String instrumentId, LocalDate date, String interval) {
+        // Проверяем на пустой или null FIGI
+        if (instrumentId == null || instrumentId.trim().isEmpty()) {
+            System.err.println("ERROR: Empty or null FIGI provided to getCandles");
+            return new ArrayList<>();
+        }
+        
         System.out.println("=== T-Invest API GetCandles DEBUG ===");
         System.out.println("Instrument ID: " + instrumentId);
         System.out.println("Date: " + date);
@@ -340,69 +346,101 @@ public class MarketDataService {
 
         // Выполняем запрос с задержкой для соблюдения лимитов API
         try {
-            Thread.sleep(100); // Задержка 100мс между запросами
+            Thread.sleep(200); // Увеличена задержка до 200мс для снижения нагрузки
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        try {
-            System.out.println("Calling T-Invest API GetCandles...");
-            GetCandlesResponse response = marketDataService.getCandles(request);
-            System.out.println("API Response received successfully");
-            System.out.println("Response details:");
-            System.out.println("  - Candles count: " + response.getCandlesList().size());
-            System.out.println("  - Response toString: " + response.toString());
+        // Повторные попытки при таймаутах
+        int maxRetries = 3;
+        int baseRetryDelay = 2000; // Базовая задержка 2 секунды
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                System.out.println("Calling T-Invest API GetCandles... (попытка " + attempt + "/" + maxRetries + ")");
+                long apiStartTime = System.currentTimeMillis();
+                GetCandlesResponse response = marketDataService.getCandles(request);
+                long apiEndTime = System.currentTimeMillis();
+                System.out.println("API Response received successfully in " + (apiEndTime - apiStartTime) + "ms");
+                System.out.println("Response details:");
+                System.out.println("  - Candles count: " + response.getCandlesList().size());
+                System.out.println("  - Response toString: " + response.toString());
+                
+                List<CandleDto> candles = new ArrayList<>();
+                for (int i = 0; i < response.getCandlesList().size(); i++) {
+                    var candle = response.getCandlesList().get(i);
+                    Instant candleTime = Instant.ofEpochSecond(candle.getTime().getSeconds());
+                    
+                    // Конвертируем цены из Quotation в BigDecimal
+                    BigDecimal open = BigDecimal.valueOf(candle.getOpen().getUnits())
+                            .add(BigDecimal.valueOf(candle.getOpen().getNano()).movePointLeft(9));
+                    BigDecimal close = BigDecimal.valueOf(candle.getClose().getUnits())
+                            .add(BigDecimal.valueOf(candle.getClose().getNano()).movePointLeft(9));
+                    BigDecimal high = BigDecimal.valueOf(candle.getHigh().getUnits())
+                            .add(BigDecimal.valueOf(candle.getHigh().getNano()).movePointLeft(9));
+                    BigDecimal low = BigDecimal.valueOf(candle.getLow().getUnits())
+                            .add(BigDecimal.valueOf(candle.getLow().getNano()).movePointLeft(9));
+                    
+                    System.out.println("Candle #" + (i + 1) + ":");
+                    System.out.println("  - Time: " + candleTime);
+                    System.out.println("  - Time Moscow: " + candleTime.atZone(ZoneId.of("Europe/Moscow")));
+                    System.out.println("  - Open: " + open);
+                    System.out.println("  - Close: " + close);
+                    System.out.println("  - High: " + high);
+                    System.out.println("  - Low: " + low);
+                    System.out.println("  - Volume: " + candle.getVolume());
+                    System.out.println("  - IsComplete: " + candle.getIsComplete());
+                    System.out.println("  - Candle toString: " + candle.toString());
+                    
+                    candles.add(new CandleDto(
+                        instrumentId,
+                        candle.getVolume(),
+                        high,
+                        low,
+                        candleTime,
+                        close,
+                        open,
+                        candle.getIsComplete()
+                    ));
+                }
+                
+                System.out.println("=== End T-Invest API GetCandles DEBUG ===");
+                return candles;
             
-            List<CandleDto> candles = new ArrayList<>();
-            for (int i = 0; i < response.getCandlesList().size(); i++) {
-                var candle = response.getCandlesList().get(i);
-                Instant candleTime = Instant.ofEpochSecond(candle.getTime().getSeconds());
+            } catch (Exception e) {
+                System.err.println("ERROR calling T-Invest API GetCandles (попытка " + attempt + "/" + maxRetries + "):");
+                System.err.println("Exception type: " + e.getClass().getSimpleName());
+                System.err.println("Exception message: " + e.getMessage());
                 
-                // Конвертируем цены из Quotation в BigDecimal
-                BigDecimal open = BigDecimal.valueOf(candle.getOpen().getUnits())
-                        .add(BigDecimal.valueOf(candle.getOpen().getNano()).movePointLeft(9));
-                BigDecimal close = BigDecimal.valueOf(candle.getClose().getUnits())
-                        .add(BigDecimal.valueOf(candle.getClose().getNano()).movePointLeft(9));
-                BigDecimal high = BigDecimal.valueOf(candle.getHigh().getUnits())
-                        .add(BigDecimal.valueOf(candle.getHigh().getNano()).movePointLeft(9));
-                BigDecimal low = BigDecimal.valueOf(candle.getLow().getUnits())
-                        .add(BigDecimal.valueOf(candle.getLow().getNano()).movePointLeft(9));
+                // Проверяем на таймаут
+                if (e.getMessage() != null && e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                    System.err.println("API request timed out for instrument: " + instrumentId);
+                } else if (e.getMessage() != null && e.getMessage().contains("UNAVAILABLE")) {
+                    System.err.println("API service unavailable for instrument: " + instrumentId);
+                } else {
+                    System.err.println("Stack trace:");
+                    e.printStackTrace();
+                }
                 
-                System.out.println("Candle #" + (i + 1) + ":");
-                System.out.println("  - Time: " + candleTime);
-                System.out.println("  - Time Moscow: " + candleTime.atZone(ZoneId.of("Europe/Moscow")));
-                System.out.println("  - Open: " + open);
-                System.out.println("  - Close: " + close);
-                System.out.println("  - High: " + high);
-                System.out.println("  - Low: " + low);
-                System.out.println("  - Volume: " + candle.getVolume());
-                System.out.println("  - IsComplete: " + candle.getIsComplete());
-                System.out.println("  - Candle toString: " + candle.toString());
-                
-                candles.add(new CandleDto(
-                    instrumentId,
-                    candle.getVolume(),
-                    high,
-                    low,
-                    candleTime,
-                    close,
-                    open,
-                    candle.getIsComplete()
-                ));
+                // Если это не последняя попытка, ждем и пробуем снова
+                if (attempt < maxRetries) {
+                    // Экспоненциальная задержка: 2с, 4с, 8с
+                    int retryDelay = baseRetryDelay * (int) Math.pow(2, attempt - 1);
+                    System.err.println("Повторная попытка через " + retryDelay + "мс...");
+                    try {
+                        Thread.sleep(retryDelay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                } else {
+                    System.err.println("Все попытки исчерпаны для инструмента: " + instrumentId);
+                }
             }
-            
-            System.out.println("=== End T-Invest API GetCandles DEBUG ===");
-            return candles;
-            
-        } catch (Exception e) {
-            System.err.println("ERROR calling T-Invest API GetCandles:");
-            System.err.println("Exception type: " + e.getClass().getSimpleName());
-            System.err.println("Exception message: " + e.getMessage());
-            System.err.println("Stack trace:");
-            e.printStackTrace();
-            System.out.println("=== End T-Invest API GetCandles DEBUG (ERROR) ===");
-            return new ArrayList<>();
         }
+        
+        System.out.println("=== End T-Invest API GetCandles DEBUG (ERROR) ===");
+        return new ArrayList<>();
     }
 
     public CompletableFuture<SaveResponseDto> saveCandles(CandleRequestDto request) {
@@ -433,13 +471,26 @@ public class MarketDataService {
                             // Получаем все FIGI из таблицы shares
                             List<ShareEntity> shares = shareRepo.findAll();
                             for (ShareEntity share : shares) {
-                                instrumentIds.add(share.getFigi());
+                                if (share.getFigi() != null && !share.getFigi().trim().isEmpty()) {
+                                    instrumentIds.add(share.getFigi());
+                                }
                             }
                         } else if ("FUTURES".equalsIgnoreCase(assetType)) {
                             // Получаем все FIGI из таблицы futures
                             List<FutureEntity> futures = futureRepo.findAll();
                             for (FutureEntity future : futures) {
-                                instrumentIds.add(future.getFigi());
+                                if (future.getFigi() != null && !future.getFigi().trim().isEmpty()) {
+                                    instrumentIds.add(future.getFigi());
+                                }
+                            }
+                        } else if ("INDICATIVES".equalsIgnoreCase(assetType)) {
+                            // Получаем все FIGI из таблицы indicatives
+                            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+                            for (IndicativeEntity indicative : indicatives) {
+                                // Исключаем пустые FIGI
+                                if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                                    instrumentIds.add(indicative.getFigi());
+                                }
                             }
                         }
                     }
@@ -448,13 +499,26 @@ public class MarketDataService {
                     // Получаем все FIGI из таблицы shares
                     List<ShareEntity> shares = shareRepo.findAll();
                     for (ShareEntity share : shares) {
-                        instrumentIds.add(share.getFigi());
+                        if (share.getFigi() != null && !share.getFigi().trim().isEmpty()) {
+                            instrumentIds.add(share.getFigi());
+                        }
                     }
                     
                     // Получаем все FIGI из таблицы futures
                     List<FutureEntity> futures = futureRepo.findAll();
                     for (FutureEntity future : futures) {
-                        instrumentIds.add(future.getFigi());
+                        if (future.getFigi() != null && !future.getFigi().trim().isEmpty()) {
+                            instrumentIds.add(future.getFigi());
+                        }
+                    }
+                    
+                    // Получаем все FIGI из таблицы indicatives
+                    List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+                    for (IndicativeEntity indicative : indicatives) {
+                        // Исключаем пустые FIGI
+                        if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                            instrumentIds.add(indicative.getFigi());
+                        }
                     }
                 }
             }
@@ -462,7 +526,7 @@ public class MarketDataService {
             if (instrumentIds.isEmpty()) {
                 return new SaveResponseDto(
                     false,
-                    "Нет инструментов для загрузки свечей. В базе данных нет акций или фьючерсов.",
+                    "Нет инструментов для загрузки свечей. В базе данных нет акций, фьючерсов или индикативных инструментов.",
                     0, 0, 0, new ArrayList<>()
                 );
             }
@@ -470,22 +534,60 @@ public class MarketDataService {
             List<CandleDto> collectedCandles = new ArrayList<>();
             int totalRequested = 0;
             
-            for (String instrumentId : instrumentIds) {
-                try {
-                    // Получаем свечи для инструмента
-                    List<CandleDto> candles = getCandles(instrumentId, date, interval);
-                    totalRequested += candles.size();
-                    collectedCandles.addAll(candles);
+            // Обрабатываем все инструменты пакетами для предотвращения зависания
+            int batchSize = 50; // Размер пакета
+            int totalInstruments = instrumentIds.size();
+            System.out.println("Обрабатываем " + totalInstruments + " инструментов пакетами по " + batchSize);
+            
+            for (int batchStart = 0; batchStart < totalInstruments; batchStart += batchSize) {
+                int batchEnd = Math.min(batchStart + batchSize, totalInstruments);
+                List<String> batch = instrumentIds.subList(batchStart, batchEnd);
+                
+                System.out.println("Обработка пакета " + (batchStart / batchSize + 1) + "/" + ((totalInstruments + batchSize - 1) / batchSize) + 
+                                 " (инструменты " + (batchStart + 1) + "-" + batchEnd + " из " + totalInstruments + ")");
+                
+                for (int i = 0; i < batch.size(); i++) {
+                    String instrumentId = batch.get(i);
                     
-                    // Задержка между запросами для разных инструментов
-                    Thread.sleep(200);
+                    // Пропускаем пустые или null FIGI
+                    if (instrumentId == null || instrumentId.trim().isEmpty()) {
+                        System.err.println("Skipping empty or null FIGI in batch processing");
+                        continue;
+                    }
                     
-                } catch (Exception e) {
-                    System.err.println("Error processing instrument " + instrumentId + ": " + e.getMessage());
+                    try {
+                        // Показываем прогресс каждые 10 инструментов
+                        if (i % 10 == 0) {
+                            System.out.println("Прогресс в пакете: " + (i + 1) + "/" + batch.size() + " инструментов обработано");
+                        }
+
+                        // Получаем свечи для инструмента
+                        List<CandleDto> candles = getCandles(instrumentId, date, interval);
+                        totalRequested += candles.size();
+                        collectedCandles.addAll(candles);
+                        
+                        // Увеличенная задержка между запросами для снижения нагрузки
+                        Thread.sleep(500);
+                        
+                    } catch (Exception e) {
+                        System.err.println("Error processing instrument " + instrumentId + ": " + e.getMessage());
+                    }
+                }
+                
+                // Увеличенная пауза между пакетами для снижения нагрузки
+                if (batchEnd < totalInstruments) {
+                    System.out.println("Пауза между пакетами...");
+                    try {
+                        Thread.sleep(5000); // 5 секунд между пакетами
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        System.err.println("Interrupted during batch pause");
+                        break;
+                    }
                 }
             }
             
-            // Simple save without batching
+            // Индивидуальное сохранение каждой свечи
             int savedCount = 0;
             int existingCount = 0;
             
@@ -550,34 +652,75 @@ public class MarketDataService {
                             if ("SHARES".equalsIgnoreCase(assetType)) {
                                 // Получаем все FIGI из таблицы shares
                                 List<ShareEntity> shares = shareRepo.findAll();
+                                int addedCount = 0;
                                 for (ShareEntity share : shares) {
-                                    instrumentIds.add(share.getFigi());
+                                    if (share.getFigi() != null && !share.getFigi().trim().isEmpty()) {
+                                        instrumentIds.add(share.getFigi());
+                                        addedCount++;
+                                    }
                                 }
-                                System.out.println("[" + taskId + "] Добавлено " + shares.size() + " акций");
+                                System.out.println("[" + taskId + "] Добавлено " + addedCount + " акций (из " + shares.size() + " в БД)");
                             } else if ("FUTURES".equalsIgnoreCase(assetType)) {
                                 // Получаем все FIGI из таблицы futures
                                 List<FutureEntity> futures = futureRepo.findAll();
+                                int addedCount = 0;
                                 for (FutureEntity future : futures) {
-                                    instrumentIds.add(future.getFigi());
+                                    if (future.getFigi() != null && !future.getFigi().trim().isEmpty()) {
+                                        instrumentIds.add(future.getFigi());
+                                        addedCount++;
+                                    }
                                 }
-                                System.out.println("[" + taskId + "] Добавлено " + futures.size() + " фьючерсов");
+                                System.out.println("[" + taskId + "] Добавлено " + addedCount + " фьючерсов (из " + futures.size() + " в БД)");
+                            } else if ("INDICATIVES".equalsIgnoreCase(assetType)) {
+                                // Получаем все FIGI из таблицы indicatives
+                                List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+                                int addedCount = 0;
+                                for (IndicativeEntity indicative : indicatives) {
+                                    // Исключаем пустые FIGI
+                                    if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                                        instrumentIds.add(indicative.getFigi());
+                                        addedCount++;
+                                    }
+                                }
+                                System.out.println("[" + taskId + "] Добавлено " + addedCount + " индикативных инструментов");
                             }
                         }
                     } else {
                         // Если типы активов не указаны, получаем все инструменты
                         // Получаем все FIGI из таблицы shares
                         List<ShareEntity> shares = shareRepo.findAll();
+                        int addedShares = 0;
                         for (ShareEntity share : shares) {
-                            instrumentIds.add(share.getFigi());
+                            if (share.getFigi() != null && !share.getFigi().trim().isEmpty()) {
+                                instrumentIds.add(share.getFigi());
+                                addedShares++;
+                            }
                         }
+                        System.out.println("[" + taskId + "] Добавлено " + addedShares + " акций (из " + shares.size() + " в БД)");
                         
                         // Получаем все FIGI из таблицы futures
                         List<FutureEntity> futures = futureRepo.findAll();
+                        int addedFutures = 0;
                         for (FutureEntity future : futures) {
-                            instrumentIds.add(future.getFigi());
+                            if (future.getFigi() != null && !future.getFigi().trim().isEmpty()) {
+                                instrumentIds.add(future.getFigi());
+                                addedFutures++;
+                            }
+                        }
+                        System.out.println("[" + taskId + "] Добавлено " + addedFutures + " фьючерсов (из " + futures.size() + " в БД)");
+                        
+                        // Получаем все FIGI из таблицы indicatives
+                        List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+                        int addedIndicatives = 0;
+                        for (IndicativeEntity indicative : indicatives) {
+                            // Исключаем пустые FIGI
+                            if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                                instrumentIds.add(indicative.getFigi());
+                                addedIndicatives++;
+                            }
                         }
                         
-                        System.out.println("[" + taskId + "] Добавлено " + shares.size() + " акций и " + futures.size() + " фьючерсов");
+                        System.out.println("[" + taskId + "] Добавлено " + shares.size() + " акций, " + futures.size() + " фьючерсов и " + addedIndicatives + " индикативных инструментов");
                     }
                 }
                 
@@ -586,47 +729,76 @@ public class MarketDataService {
                     return;
                 }
                 
-                System.out.println("[" + taskId + "] Найдено " + instrumentIds.size() + " инструментов для загрузки");
+                // Обрабатываем все инструменты пакетами для предотвращения зависания
+                int batchSize = 100; // Размер пакета в асинхронном режиме
+                int totalInstruments = instrumentIds.size();
+                System.out.println("[" + taskId + "] Обрабатываем " + totalInstruments + " инструментов пакетами по " + batchSize);
                 
                 int totalRequested = 0;
                 int savedCount = 0;
                 int existingCount = 0;
                 int processedInstruments = 0;
                 
-                for (String instrumentId : instrumentIds) {
-                    try {
-                        processedInstruments++;
-                        System.out.println("[" + taskId + "] Обработка инструмента " + processedInstruments + "/" + instrumentIds.size() + ": " + instrumentId);
-                        
-                        // Получаем свечи для инструмента и сохраняем по одной
-                        List<CandleDto> candles = getCandles(instrumentId, date, interval);
-                        totalRequested += candles.size();
-                        
-                        for (CandleDto candleDto : candles) {
-                            try {
-                                CandleEntity entity = new CandleEntity(
-                                    candleDto.figi(),
-                                    candleDto.volume(),
-                                    candleDto.high(),
-                                    candleDto.low(),
-                                    candleDto.time(),
-                                    candleDto.close(),
-                                    candleDto.open(),
-                                    candleDto.isComplete()
-                                );
-                                candleRepository.save(entity);
-                                savedCount++;
-                            } catch (Exception e) {
-                                // Assume duplicate if save fails
-                                existingCount++;
-                            }
+                for (int batchStart = 0; batchStart < totalInstruments; batchStart += batchSize) {
+                    int batchEnd = Math.min(batchStart + batchSize, totalInstruments);
+                    List<String> batch = instrumentIds.subList(batchStart, batchEnd);
+                    
+                    System.out.println("[" + taskId + "] Обработка пакета " + (batchStart / batchSize + 1) + "/" + ((totalInstruments + batchSize - 1) / batchSize) + 
+                                     " (инструменты " + (batchStart + 1) + "-" + batchEnd + " из " + totalInstruments + ")");
+                    
+                    for (String instrumentId : batch) {
+                        // Пропускаем пустые или null FIGI
+                        if (instrumentId == null || instrumentId.trim().isEmpty()) {
+                            System.err.println("[" + taskId + "] Skipping empty or null FIGI in batch processing");
+                            continue;
                         }
                         
-                        // Задержка между запросами для разных инструментов
-                        Thread.sleep(200);
-                        
-                    } catch (Exception e) {
-                        System.err.println("[" + taskId + "] Ошибка обработки инструмента " + instrumentId + ": " + e.getMessage());
+                        try {
+                            processedInstruments++;
+                            System.out.println("[" + taskId + "] Обработка инструмента " + processedInstruments + "/" + totalInstruments + ": " + instrumentId);
+                            
+                            // Получаем свечи для инструмента и сохраняем по одной
+                            List<CandleDto> candles = getCandles(instrumentId, date, interval);
+                            totalRequested += candles.size();
+                            
+                            for (CandleDto candleDto : candles) {
+                                try {
+                                    CandleEntity entity = new CandleEntity(
+                                        candleDto.figi(),
+                                        candleDto.volume(),
+                                        candleDto.high(),
+                                        candleDto.low(),
+                                        candleDto.time(),
+                                        candleDto.close(),
+                                        candleDto.open(),
+                                        candleDto.isComplete()
+                                    );
+                                    candleRepository.save(entity);
+                                    savedCount++;
+                                } catch (Exception e) {
+                                    // Assume duplicate if save fails
+                                    existingCount++;
+                                }
+                            }
+                            
+                            // Увеличенная задержка между запросами для снижения нагрузки
+                            Thread.sleep(500);
+                            
+                        } catch (Exception e) {
+                            System.err.println("[" + taskId + "] Ошибка обработки инструмента " + instrumentId + ": " + e.getMessage());
+                        }
+                    }
+                    
+                    // Увеличенная пауза между пакетами для снижения нагрузки
+                    if (batchEnd < totalInstruments) {
+                        System.out.println("[" + taskId + "] Пауза между пакетами...");
+                        try {
+                            Thread.sleep(10000); // 10 секунд между пакетами в асинхронном режиме
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            System.err.println("[" + taskId + "] Interrupted during batch pause");
+                            break;
+                        }
                     }
                 }
                 
@@ -688,7 +860,7 @@ public class MarketDataService {
 
         // Выполняем запрос с задержкой для соблюдения лимитов API
         try {
-            Thread.sleep(100); // Задержка 100мс между запросами
+            Thread.sleep(200); // Увеличена задержка до 200мс для снижения нагрузки
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -768,7 +940,7 @@ public class MarketDataService {
 
         // Выполняем запрос с задержкой для соблюдения лимитов API
         try {
-            Thread.sleep(100); // Задержка 100мс между запросами
+            Thread.sleep(200); // Увеличена задержка до 200мс для снижения нагрузки
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

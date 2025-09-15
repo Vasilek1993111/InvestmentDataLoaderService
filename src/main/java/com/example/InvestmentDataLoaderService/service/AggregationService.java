@@ -68,6 +68,55 @@ public class AggregationService {
             }
         });
     }
+
+    /**
+     * Асинхронный пересчет агрегированных данных для всех фьючерсов
+     */
+    @Async("aggregationTaskExecutor")
+    public CompletableFuture<AggregationResult> recalculateAllFuturesDataAsync() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return recalculateAllFuturesData();
+            } catch (Exception e) {
+                AggregationResult errorResult = new AggregationResult("ERROR", "futures");
+                errorResult.setSuccess(false);
+                errorResult.setErrorMessage(e.getMessage());
+                return errorResult;
+            }
+        });
+    }
+
+    /**
+     * Унифицированный пересчет по типам инструментов с параллельным выполнением
+     * Поддерживаемые типы: SHARES, FUTURES, INDICATIVES, ALL
+     */
+    public List<AggregationResult> recalculateByTypes(List<String> types) {
+        if (types == null || types.isEmpty()) {
+            types = Collections.singletonList("ALL");
+        }
+
+        // Нормализуем в верхний регистр
+        List<String> normalized = types.stream()
+            .map(t -> t == null ? "" : t.trim().toUpperCase())
+            .filter(t -> !t.isEmpty())
+            .collect(Collectors.toList());
+
+        boolean all = normalized.contains("ALL");
+
+        List<CompletableFuture<AggregationResult>> tasks = new ArrayList<>();
+
+        if (all || normalized.contains("SHARES")) {
+            tasks.add(CompletableFuture.supplyAsync(this::recalculateAllSharesData));
+        }
+        if (all || normalized.contains("FUTURES")) {
+            tasks.add(CompletableFuture.supplyAsync(this::recalculateAllFuturesData));
+        }
+        // INDICATIVES не поддерживаются в агрегации
+
+        return tasks.stream()
+            .map(CompletableFuture::join)
+            .collect(Collectors.toList());
+    }
     
     /**
      * Пересчет агрегированных данных для всех акций

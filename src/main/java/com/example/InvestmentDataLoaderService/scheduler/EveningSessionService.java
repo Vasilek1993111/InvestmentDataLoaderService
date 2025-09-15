@@ -5,9 +5,11 @@ import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.entity.CandleEntity;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceEveningSessionEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
+import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.repository.ClosePriceEveningSessionRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.CandleRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,15 +29,18 @@ public class EveningSessionService {
 
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
+    private final IndicativeRepository indicativeRepository;
     private final CandleRepository candleRepository;
     private final ClosePriceEveningSessionRepository closePriceEveningSessionRepository;
 
     public EveningSessionService(ShareRepository shareRepository, 
                                FutureRepository futureRepository,
+                               IndicativeRepository indicativeRepository,
                                CandleRepository candleRepository,
                                ClosePriceEveningSessionRepository closePriceEveningSessionRepository) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
+        this.indicativeRepository = indicativeRepository;
         this.candleRepository = candleRepository;
         this.closePriceEveningSessionRepository = closePriceEveningSessionRepository;
     }
@@ -85,10 +90,11 @@ public class EveningSessionService {
         try {
             System.out.println("[" + taskId + "] Начало обработки цен закрытия вечерней сессии за " + date);
             
-            // Получаем все акции и фьючерсы из БД
+            // Получаем все акции, фьючерсы и индикативные инструменты из БД
             List<ShareEntity> shares = shareRepository.findAll();
             List<FutureEntity> futures = futureRepository.findAll();
-            System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций и " + futures.size() + " фьючерсов для обработки");
+            List<IndicativeEntity> indicatives = indicativeRepository.findAll();
+            System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций, " + futures.size() + " фьючерсов и " + indicatives.size() + " индикативных инструментов для обработки");
             
             List<ClosePriceEveningSessionDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
@@ -200,8 +206,66 @@ public class EveningSessionService {
                 }
             }
             
+            // Обрабатываем индикативные инструменты
+            for (IndicativeEntity indicative : indicatives) {
+                // Пропускаем пустые или null FIGI
+                if (indicative.getFigi() == null || indicative.getFigi().trim().isEmpty()) {
+                    System.err.println("[" + taskId + "] Skipping empty or null FIGI for indicative: " + indicative.getTicker());
+                    continue;
+                }
+                
+                try {
+                    processedInstruments++;
+                    System.out.println("[" + taskId + "] Обработка индикативного инструмента " + processedInstruments + "/" + (shares.size() + futures.size() + indicatives.size()) + ": " + indicative.getTicker() + " (" + indicative.getFigi() + ")");
+                    
+                    // Проверяем, есть ли уже запись для этой даты и FIGI
+                    if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, indicative.getFigi())) {
+                        existingCount++;
+                        System.out.println("[" + taskId + "] Запись уже существует для " + indicative.getTicker() + " за " + date);
+                        continue;
+                    }
+                    
+                    // Ищем последнюю свечу за указанную дату
+                    BigDecimal lastClosePrice = findLastClosePriceForDate(indicative.getFigi(), date, taskId);
+                    
+                    if (lastClosePrice != null) {
+                        totalRequested++;
+                        
+                        // Создаем DTO для сохранения
+                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto(
+                            date,
+                            indicative.getFigi(),
+                            lastClosePrice,
+                            "indicative",
+                            indicative.getCurrency() != null ? indicative.getCurrency() : "USD",
+                            "MOEX"
+                        );
+                        
+                        // Сохраняем в БД
+                        ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
+                        entity.setFigi(dto.figi());
+                        entity.setPriceDate(dto.priceDate());
+                        entity.setClosePrice(dto.closePrice());
+                        entity.setInstrumentType(dto.instrumentType());
+                        entity.setCurrency(dto.currency());
+                        entity.setExchange(dto.exchange());
+                        
+                        closePriceEveningSessionRepository.save(entity);
+                        savedItems.add(dto);
+                        savedCount++;
+                        
+                        System.out.println("[" + taskId + "] Сохранена цена закрытия для " + indicative.getTicker() + ": " + lastClosePrice);
+                    } else {
+                        System.out.println("[" + taskId + "] Не найдена свеча для " + indicative.getTicker() + " за " + date);
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("[" + taskId + "] Ошибка обработки индикативного инструмента " + indicative.getTicker() + ": " + e.getMessage());
+                }
+            }
+            
             System.out.println("[" + taskId + "] Обработка завершена:");
-            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments + " (акций: " + shares.size() + ", фьючерсов: " + futures.size() + ")");
+            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments + " (акций: " + shares.size() + ", фьючерсов: " + futures.size() + ", индикативных: " + indicatives.size() + ")");
             System.out.println("[" + taskId + "] - Запрошено цен: " + totalRequested);
             System.out.println("[" + taskId + "] - Сохранено новых: " + savedCount);
             System.out.println("[" + taskId + "] - Пропущено существующих: " + existingCount);
