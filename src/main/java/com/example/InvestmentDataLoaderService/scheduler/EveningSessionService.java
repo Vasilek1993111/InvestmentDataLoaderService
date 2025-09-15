@@ -234,24 +234,26 @@ public class EveningSessionService {
      */
     private BigDecimal findLastClosePriceForDate(String figi, LocalDate date, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Поиск свечи для " + figi + " за дату: " + date);
-            
-            // Вычисляем следующий день для диапазона
-            LocalDate nextDate = date.plusDays(1);
-            
-            // Ищем все свечи за указанную дату и берем первую (самую позднюю)
-            List<CandleEntity> candles = candleRepository.findByFigiAndDateOrderByTimeDesc(figi, date, nextDate);
-            
+            System.out.println("[" + taskId + "] Поиск свечи для " + figi + " за дату (MSK): " + date);
+
+            // Формируем точные границы суток в часовом поясе Europe/Moscow
+            var mskZone = ZoneId.of("Europe/Moscow");
+            var startInstant = date.atStartOfDay(mskZone).toInstant();
+            var endInstant = date.plusDays(1).atStartOfDay(mskZone).toInstant();
+
+            // Ищем свечи по точному временному диапазону и берем последнюю по времени
+            List<CandleEntity> candles = candleRepository.findByFigiAndTimeBetween(figi, startInstant, endInstant);
+
             if (!candles.isEmpty()) {
-                CandleEntity lastCandle = candles.get(0);
-                System.out.println("[" + taskId + "] Найдена свеча для " + figi + " с ценой закрытия: " + lastCandle.getClose());
+                CandleEntity lastCandle = candles.get(candles.size() - 1);
+                System.out.println("[" + taskId + "] Найдена свеча (" + lastCandle.getTime() + ") для " + figi + " с ценой закрытия: " + lastCandle.getClose());
                 return lastCandle.getClose();
             } else {
-                System.out.println("[" + taskId + "] Свеча не найдена для " + figi + " за дату: " + date);
+                System.out.println("[" + taskId + "] Свечи не найдены для " + figi + " за дату: " + date);
             }
-            
+
             return null;
-            
+
         } catch (Exception e) {
             System.err.println("[" + taskId + "] Ошибка поиска последней цены закрытия для " + figi + ": " + e.getMessage());
             return null;

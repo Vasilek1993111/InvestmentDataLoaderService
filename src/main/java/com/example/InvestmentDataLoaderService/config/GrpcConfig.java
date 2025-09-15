@@ -15,11 +15,20 @@ import ru.tinkoff.piapi.contract.v1.UsersServiceGrpc;
 @Configuration
 public class GrpcConfig {
 
-    @Value("${tinkoff.api.token}")
-    private String token;
+    @Value("${tinkoff.api.token:}")
+    private String tokenProperty;
+
+    private String resolveToken() {
+        String env = System.getenv("T_INVEST_TOKEN");
+        if (env != null && !env.isBlank()) {
+            return env.trim();
+        }
+        return tokenProperty == null ? "" : tokenProperty.trim();
+    }
 
     @Bean
     public ManagedChannel investChannel() {
+        final String authToken = resolveToken();
         ClientInterceptor authInterceptor = new ClientInterceptor() {
             @Override
             public <ReqT, RespT> io.grpc.ClientCall<ReqT, RespT> interceptCall(
@@ -29,10 +38,12 @@ public class GrpcConfig {
                 return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
                     @Override
                     public void start(Listener<RespT> responseListener, Metadata headers) {
-                        headers.put(
-                                Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER),
-                                "Bearer " + token
-                        );
+                        if (authToken != null && !authToken.isBlank()) {
+                            headers.put(
+                                    Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER),
+                                    "Bearer " + authToken
+                            );
+                        }
                         super.start(responseListener, headers);
                     }
                 };
