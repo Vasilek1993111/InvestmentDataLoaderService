@@ -1,12 +1,12 @@
-package com.example.InvestmentDataLoaderService.service;
+package com.example.InvestmentDataLoaderService.scheduler;
 
-import com.example.InvestmentDataLoaderService.dto.ClosePriceEveningSessionDto;
+import com.example.InvestmentDataLoaderService.dto.OpenPriceDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.entity.CandleEntity;
-import com.example.InvestmentDataLoaderService.entity.ClosePriceEveningSessionEntity;
+import com.example.InvestmentDataLoaderService.entity.OpenPriceEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
-import com.example.InvestmentDataLoaderService.repository.ClosePriceEveningSessionRepository;
+import com.example.InvestmentDataLoaderService.repository.OpenPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.CandleRepository;
@@ -18,51 +18,52 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Service
-public class EveningSessionService {
+public class MorningSessionService {
 
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final CandleRepository candleRepository;
-    private final ClosePriceEveningSessionRepository closePriceEveningSessionRepository;
+    private final OpenPriceRepository openPriceRepository;
 
-    public EveningSessionService(ShareRepository shareRepository, 
+    public MorningSessionService(ShareRepository shareRepository, 
                                FutureRepository futureRepository,
                                CandleRepository candleRepository,
-                               ClosePriceEveningSessionRepository closePriceEveningSessionRepository) {
+                               OpenPriceRepository openPriceRepository) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.candleRepository = candleRepository;
-        this.closePriceEveningSessionRepository = closePriceEveningSessionRepository;
+        this.openPriceRepository = openPriceRepository;
     }
 
     /**
-     * Ежедневная загрузка цен закрытия вечерней сессии
-     * Запускается в 2:00 по московскому времени
+     * Ежедневная загрузка цен открытия утренней сессии
+     * Запускается в 2:01 по московскому времени
      */
-    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Moscow")
-    public void fetchAndStoreEveningSessionPrices() {
+    @Scheduled(cron = "0 1 2 * * *", zone = "Europe/Moscow")
+    public void fetchAndStoreMorningSessionPrices() {
         try {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
-            String taskId = "EVENING_" + UUID.randomUUID().toString().substring(0, 8);
+            String taskId = "MORNING_" + UUID.randomUUID().toString().substring(0, 8);
             
-            System.out.println("=== НАЧАЛО ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+            System.out.println("=== НАЧАЛО ЗАГРУЗКИ ЦЕН ОТКРЫТИЯ УТРЕННЕЙ СЕССИИ ===");
             System.out.println("[" + taskId + "] Дата: " + previousDay);
             System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Проверяем, является ли предыдущий день выходным
             if (isWeekend(previousDay)) {
-                String message = "Предыдущий день является выходным (" + previousDay + "). Вечерняя сессия не проводится в выходные дни.";
+                String message = "Предыдущий день является выходным (" + previousDay + "). В выходные дни (суббота и воскресенье) нет цен открытия.";
                 System.out.println("[" + taskId + "] " + message);
-                System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+                System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ОТКРЫТИЯ УТРЕННЕЙ СЕССИИ ===");
                 return;
             }
             
-            SaveResponseDto response = processEveningSessionPrices(previousDay, taskId);
+            SaveResponseDto response = processMorningSessionPrices(previousDay, taskId);
             
             System.out.println("[" + taskId + "] Загрузка завершена:");
             System.out.println("[" + taskId + "] - Успех: " + response.isSuccess());
@@ -70,27 +71,27 @@ public class EveningSessionService {
             System.out.println("[" + taskId + "] - Всего запрошено: " + response.getTotalRequested());
             System.out.println("[" + taskId + "] - Сохранено новых: " + response.getNewItemsSaved());
             System.out.println("[" + taskId + "] - Пропущено существующих: " + response.getExistingItemsSkipped());
-            System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+            System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ОТКРЫТИЯ УТРЕННЕЙ СЕССИИ ===");
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в загрузке цен закрытия вечерней сессии: " + e.getMessage());
+            System.err.println("Критическая ошибка в загрузке цен открытия утренней сессии: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     /**
-     * Обрабатывает цены закрытия вечерней сессии для указанной даты
+     * Обрабатывает цены открытия утренней сессии для указанной даты
      */
-    public SaveResponseDto processEveningSessionPrices(LocalDate date, String taskId) {
+    public SaveResponseDto processMorningSessionPrices(LocalDate date, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Начало обработки цен закрытия вечерней сессии за " + date);
+            System.out.println("[" + taskId + "] Начало обработки цен открытия утренней сессии за " + date);
             
             // Получаем все акции и фьючерсы из БД
             List<ShareEntity> shares = shareRepository.findAll();
             List<FutureEntity> futures = futureRepository.findAll();
             System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций и " + futures.size() + " фьючерсов для обработки");
             
-            List<ClosePriceEveningSessionDto> savedItems = new ArrayList<>();
+            List<OpenPriceDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
             int savedCount = 0;
             int existingCount = 0;
@@ -103,41 +104,40 @@ public class EveningSessionService {
                     System.out.println("[" + taskId + "] Обработка акции " + processedInstruments + "/" + (shares.size() + futures.size()) + ": " + share.getTicker() + " (" + share.getFigi() + ")");
                     
                     // Проверяем, есть ли уже запись для этой даты и FIGI
-                    if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, share.getFigi())) {
+                    if (openPriceRepository.existsByPriceDateAndFigi(date, share.getFigi())) {
                         existingCount++;
                         System.out.println("[" + taskId + "] Запись уже существует для " + share.getTicker() + " за " + date);
                         continue;
                     }
                     
-                    // Ищем последнюю свечу за указанную дату
-                    BigDecimal lastClosePrice = findLastClosePriceForDate(share.getFigi(), date, taskId);
+                    // Ищем первую свечу за указанную дату до 06:59:59
+                    BigDecimal firstOpenPrice = findFirstOpenPriceForDate(share.getFigi(), date, taskId, "share");
                     
-                    if (lastClosePrice != null) {
+                    if (firstOpenPrice != null) {
                         totalRequested++;
                         
                         // Создаем DTO для сохранения
-                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto();
+                        OpenPriceDto dto = new OpenPriceDto();
                         dto.setFigi(share.getFigi());
                         dto.setPriceDate(date);
-                        dto.setClosePrice(lastClosePrice);
+                        dto.setOpenPrice(firstOpenPrice);
                         dto.setInstrumentType("share");
                         dto.setCurrency("RUB");
                         dto.setExchange("moex_mrng_evng_e_wknd_dlr");
                         
                         // Сохраняем в БД
-                        ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
-                        entity.setFigi(dto.getFigi());
-                        entity.setPriceDate(dto.getPriceDate());
-                        entity.setClosePrice(dto.getClosePrice());
+                        OpenPriceEntity entity = new OpenPriceEntity();
+                        entity.setId(new com.example.InvestmentDataLoaderService.entity.OpenPriceKey(date, share.getFigi()));
                         entity.setInstrumentType(dto.getInstrumentType());
+                        entity.setOpenPrice(dto.getOpenPrice());
                         entity.setCurrency(dto.getCurrency());
                         entity.setExchange(dto.getExchange());
                         
-                        closePriceEveningSessionRepository.save(entity);
+                        openPriceRepository.save(entity);
                         savedItems.add(dto);
                         savedCount++;
                         
-                        System.out.println("[" + taskId + "] Сохранена цена закрытия для " + share.getTicker() + ": " + lastClosePrice);
+                        System.out.println("[" + taskId + "] Сохранена цена открытия для " + share.getTicker() + ": " + firstOpenPrice);
                     } else {
                         System.out.println("[" + taskId + "] Не найдена свеча для " + share.getTicker() + " за " + date);
                     }
@@ -154,41 +154,40 @@ public class EveningSessionService {
                     System.out.println("[" + taskId + "] Обработка фьючерса " + processedInstruments + "/" + (shares.size() + futures.size()) + ": " + future.getTicker() + " (" + future.getFigi() + ")");
                     
                     // Проверяем, есть ли уже запись для этой даты и FIGI
-                    if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, future.getFigi())) {
+                    if (openPriceRepository.existsByPriceDateAndFigi(date, future.getFigi())) {
                         existingCount++;
                         System.out.println("[" + taskId + "] Запись уже существует для " + future.getTicker() + " за " + date);
                         continue;
                     }
                     
-                    // Ищем последнюю свечу за указанную дату
-                    BigDecimal lastClosePrice = findLastClosePriceForDate(future.getFigi(), date, taskId);
+                    // Ищем первую свечу за указанную дату до 08:59:59
+                    BigDecimal firstOpenPrice = findFirstOpenPriceForDate(future.getFigi(), date, taskId, "future");
                     
-                    if (lastClosePrice != null) {
+                    if (firstOpenPrice != null) {
                         totalRequested++;
                         
                         // Создаем DTO для сохранения
-                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto();
+                        OpenPriceDto dto = new OpenPriceDto();
                         dto.setFigi(future.getFigi());
                         dto.setPriceDate(date);
-                        dto.setClosePrice(lastClosePrice);
+                        dto.setOpenPrice(firstOpenPrice);
                         dto.setInstrumentType("future");
                         dto.setCurrency("RUB");
                         dto.setExchange("FORTS_EVENING");
                         
                         // Сохраняем в БД
-                        ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
-                        entity.setFigi(dto.getFigi());
-                        entity.setPriceDate(dto.getPriceDate());
-                        entity.setClosePrice(dto.getClosePrice());
+                        OpenPriceEntity entity = new OpenPriceEntity();
+                        entity.setId(new com.example.InvestmentDataLoaderService.entity.OpenPriceKey(date, future.getFigi()));
                         entity.setInstrumentType(dto.getInstrumentType());
+                        entity.setOpenPrice(dto.getOpenPrice());
                         entity.setCurrency(dto.getCurrency());
                         entity.setExchange(dto.getExchange());
                         
-                        closePriceEveningSessionRepository.save(entity);
+                        openPriceRepository.save(entity);
                         savedItems.add(dto);
                         savedCount++;
                         
-                        System.out.println("[" + taskId + "] Сохранена цена закрытия для " + future.getTicker() + ": " + lastClosePrice);
+                        System.out.println("[" + taskId + "] Сохранена цена открытия для " + future.getTicker() + ": " + firstOpenPrice);
                     } else {
                         System.out.println("[" + taskId + "] Не найдена свеча для " + future.getTicker() + " за " + date);
                     }
@@ -206,7 +205,7 @@ public class EveningSessionService {
             
             return new SaveResponseDto(
                 true,
-                "Цены закрытия вечерней сессии загружены. Сохранено: " + savedCount + ", пропущено: " + existingCount,
+                "Цены открытия утренней сессии загружены. Сохранено: " + savedCount + ", пропущено: " + existingCount,
                 totalRequested,
                 savedCount,
                 existingCount,
@@ -214,11 +213,11 @@ public class EveningSessionService {
             );
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Критическая ошибка в обработке цен закрытия вечерней сессии: " + e.getMessage());
+            System.err.println("[" + taskId + "] Критическая ошибка в обработке цен открытия утренней сессии: " + e.getMessage());
             e.printStackTrace();
             return new SaveResponseDto(
                 false,
-                "Ошибка загрузки цен закрытия вечерней сессии: " + e.getMessage(),
+                "Ошибка загрузки цен открытия утренней сессии: " + e.getMessage(),
                 0,
                 0,
                 0,
@@ -228,30 +227,49 @@ public class EveningSessionService {
     }
 
     /**
-     * Находит последнюю цену закрытия для указанной даты и FIGI
+     * Находит первую цену открытия для указанной даты и FIGI
+     * Для акций: до 06:59:59 включительно
+     * Для фьючерсов: до 08:59:59 включительно
      */
-    private BigDecimal findLastClosePriceForDate(String figi, LocalDate date, String taskId) {
+    private BigDecimal findFirstOpenPriceForDate(String figi, LocalDate date, String taskId, String instrumentType) {
         try {
-            System.out.println("[" + taskId + "] Поиск свечи для " + figi + " за дату: " + date);
+            LocalTime cutoffTime = instrumentType.equals("share") ? 
+                LocalTime.of(6, 59, 59) : LocalTime.of(8, 59, 59);
+            
+            System.out.println("[" + taskId + "] Поиск первой свечи для " + figi + " (" + instrumentType + ") за дату: " + date + " до " + cutoffTime);
             
             // Вычисляем следующий день для диапазона
             LocalDate nextDate = date.plusDays(1);
             
-            // Ищем все свечи за указанную дату и берем первую (самую позднюю)
+            // Ищем все свечи за указанную дату и берем первую (самую раннюю)
             List<CandleEntity> candles = candleRepository.findByFigiAndDateOrderByTimeDesc(figi, date, nextDate);
             
             if (!candles.isEmpty()) {
-                CandleEntity lastCandle = candles.get(0);
-                System.out.println("[" + taskId + "] Найдена свеча для " + figi + " с ценой закрытия: " + lastCandle.getClose());
-                return lastCandle.getClose();
+                // Фильтруем свечи до cutoffTime и берем самую раннюю
+                CandleEntity firstCandle = null;
+                
+                for (CandleEntity candle : candles) {
+                    LocalTime candleTime = candle.getTime().atZone(ZoneId.of("Europe/Moscow")).toLocalTime();
+                    if (candleTime.isBefore(cutoffTime) || candleTime.equals(cutoffTime)) {
+                        firstCandle = candle;
+                        break; // Берем первую найденную свечу до cutoffTime
+                    }
+                }
+                
+                if (firstCandle != null) {
+                    System.out.println("[" + taskId + "] Найдена первая свеча для " + figi + " с ценой открытия: " + firstCandle.getOpen());
+                    return firstCandle.getOpen();
+                } else {
+                    System.out.println("[" + taskId + "] Не найдена свеча до " + cutoffTime + " для " + figi + " за дату: " + date);
+                }
             } else {
-                System.out.println("[" + taskId + "] Свеча не найдена для " + figi + " за дату: " + date);
+                System.out.println("[" + taskId + "] Свечи не найдены для " + figi + " за дату: " + date);
             }
             
             return null;
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка поиска последней цены закрытия для " + figi + ": " + e.getMessage());
+            System.err.println("[" + taskId + "] Ошибка поиска первой цены открытия для " + figi + ": " + e.getMessage());
             return null;
         }
     }
@@ -265,14 +283,14 @@ public class EveningSessionService {
     }
 
     /**
-     * Ручная загрузка цен закрытия вечерней сессии за конкретную дату
+     * Ручная загрузка цен открытия утренней сессии за конкретную дату
      */
-    public SaveResponseDto fetchAndStoreEveningSessionPricesForDate(LocalDate date) {
-        String taskId = "MANUAL_EVENING_" + UUID.randomUUID().toString().substring(0, 8);
+    public SaveResponseDto fetchAndStoreMorningSessionPricesForDate(LocalDate date) {
+        String taskId = "MANUAL_MORNING_" + UUID.randomUUID().toString().substring(0, 8);
         
         // Проверяем, является ли дата выходным днем
         if (isWeekend(date)) {
-            String message = "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date;
+            String message = "В выходные дни (суббота и воскресенье) нет цен открытия. Дата: " + date;
             System.out.println("[" + taskId + "] " + message);
             return new SaveResponseDto(
                 false,
@@ -284,6 +302,6 @@ public class EveningSessionService {
             );
         }
         
-        return processEveningSessionPrices(date, taskId);
+        return processMorningSessionPrices(date, taskId);
     }
 }

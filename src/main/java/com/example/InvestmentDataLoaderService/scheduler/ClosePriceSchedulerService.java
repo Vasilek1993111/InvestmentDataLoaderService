@@ -1,7 +1,8 @@
-package com.example.InvestmentDataLoaderService.service;
+package com.example.InvestmentDataLoaderService.scheduler;
 
 import com.example.InvestmentDataLoaderService.dto.ClosePriceRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
+import com.example.InvestmentDataLoaderService.service.TInvestService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;

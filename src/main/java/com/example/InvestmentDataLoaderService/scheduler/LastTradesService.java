@@ -1,4 +1,4 @@
-package com.example.InvestmentDataLoaderService.service;
+package com.example.InvestmentDataLoaderService.scheduler;
 
 import com.example.InvestmentDataLoaderService.dto.LastTradeDto;
 import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
@@ -10,6 +10,7 @@ import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.repository.LastPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import com.example.InvestmentDataLoaderService.service.TInvestService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 

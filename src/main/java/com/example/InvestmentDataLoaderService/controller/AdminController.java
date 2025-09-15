@@ -1,10 +1,10 @@
 package com.example.InvestmentDataLoaderService.controller;
 
-import com.example.InvestmentDataLoaderService.service.ClosePriceSchedulerService;
-import com.example.InvestmentDataLoaderService.service.CandleSchedulerService;
-import com.example.InvestmentDataLoaderService.service.EveningSessionService;
-import com.example.InvestmentDataLoaderService.service.MorningSessionService;
-import com.example.InvestmentDataLoaderService.service.LastTradesService;
+import com.example.InvestmentDataLoaderService.scheduler.ClosePriceSchedulerService;
+import com.example.InvestmentDataLoaderService.scheduler.CandleSchedulerService;
+import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
+import com.example.InvestmentDataLoaderService.scheduler.MorningSessionService;
+import com.example.InvestmentDataLoaderService.scheduler.LastTradesService;
 import com.example.InvestmentDataLoaderService.service.AggregationService;
 import com.example.InvestmentDataLoaderService.service.OptimizedAggregationService;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
