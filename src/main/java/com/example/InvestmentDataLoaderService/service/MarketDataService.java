@@ -151,8 +151,8 @@ public class MarketDataService {
         int existingCount = 0;
         
         for (ClosePriceDto closePriceDto : closePricesFromApi) {
-            LocalDate priceDate = LocalDate.parse(closePriceDto.getTradingDate());
-            ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.getFigi());
+            LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
+            ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
             
             // Проверяем, существует ли запись с такой датой и FIGI
             if (!closePriceRepo.existsById(key)) {
@@ -162,14 +162,14 @@ public class MarketDataService {
                 String exchange = "UNKNOWN";
                 
                 // Проверяем в таблице shares
-                ShareEntity share = shareRepo.findById(closePriceDto.getFigi()).orElse(null);
+                ShareEntity share = shareRepo.findById(closePriceDto.figi()).orElse(null);
                 if (share != null) {
                     instrumentType = "SHARE";
                     currency = share.getCurrency();
                     exchange = share.getExchange();
                 } else {
                     // Проверяем в таблице futures
-                    FutureEntity future = futureRepo.findById(closePriceDto.getFigi()).orElse(null);
+                    FutureEntity future = futureRepo.findById(closePriceDto.figi()).orElse(null);
                     if (future != null) {
                         instrumentType = "FUTURE";
                         currency = future.getCurrency();
@@ -180,9 +180,9 @@ public class MarketDataService {
                 // Создаем и сохраняем новую запись
                 ClosePriceEntity closePriceEntity = new ClosePriceEntity(
                     priceDate,
-                    closePriceDto.getFigi(),
+                    closePriceDto.figi(),
                     instrumentType,
-                    closePriceDto.getClosePrice(),
+                    closePriceDto.closePrice(),
                     currency,
                     exchange
                 );
@@ -192,7 +192,7 @@ public class MarketDataService {
                     savedPrices.add(closePriceDto);
                 } catch (Exception e) {
                     // Логируем ошибку, но продолжаем обработку других цен
-                    System.err.println("Error saving close price for " + closePriceDto.getFigi() + 
+                    System.err.println("Error saving close price for " + closePriceDto.figi() + 
                                      " on " + priceDate + ": " + e.getMessage());
                 }
             } else {
@@ -409,17 +409,17 @@ public class MarketDataService {
                     
                     // Сохраняем свечи в БД
                     for (CandleDto candleDto : candles) {
-                        CandleKey key = new CandleKey(candleDto.getFigi(), candleDto.getTime());
+                        CandleKey key = new CandleKey(candleDto.figi(), candleDto.time());
                         
                         if (!candleRepo.existsById(key)) {
                             CandleEntity candleEntity = new CandleEntity(
-                                candleDto.getFigi(),
-                                candleDto.getVolume(),
-                                candleDto.getHigh(),
-                                candleDto.getLow(),
-                                candleDto.getTime(),
-                                candleDto.getClose(),
-                                candleDto.getOpen(),
+                                candleDto.figi(),
+                                candleDto.volume(),
+                                candleDto.high(),
+                                candleDto.low(),
+                                candleDto.time(),
+                                candleDto.close(),
+                                candleDto.open(),
                                 candleDto.isComplete()
                             );
                             
@@ -428,8 +428,8 @@ public class MarketDataService {
                                 allCandles.add(candleDto);
                                 savedCount++;
                             } catch (Exception e) {
-                                System.err.println("Error saving candle for " + candleDto.getFigi() + 
-                                                 " at " + candleDto.getTime() + ": " + e.getMessage());
+                                System.err.println("Error saving candle for " + candleDto.figi() + 
+                                                 " at " + candleDto.time() + ": " + e.getMessage());
                             }
                         } else {
                             existingCount++;
@@ -554,17 +554,17 @@ public class MarketDataService {
                         
                         // Сохраняем свечи в БД
                         for (CandleDto candleDto : candles) {
-                            CandleKey key = new CandleKey(candleDto.getFigi(), candleDto.getTime());
+                            CandleKey key = new CandleKey(candleDto.figi(), candleDto.time());
                             
                             if (!candleRepo.existsById(key)) {
                                 CandleEntity candleEntity = new CandleEntity(
-                                    candleDto.getFigi(),
-                                    candleDto.getVolume(),
-                                    candleDto.getHigh(),
-                                    candleDto.getLow(),
-                                    candleDto.getTime(),
-                                    candleDto.getClose(),
-                                    candleDto.getOpen(),
+                                    candleDto.figi(),
+                                    candleDto.volume(),
+                                    candleDto.high(),
+                                    candleDto.low(),
+                                    candleDto.time(),
+                                    candleDto.close(),
+                                    candleDto.open(),
                                     candleDto.isComplete()
                                 );
                                 
@@ -572,8 +572,8 @@ public class MarketDataService {
                                     candleRepo.save(candleEntity);
                                     savedCount++;
                                 } catch (Exception e) {
-                                    System.err.println("[" + taskId + "] Ошибка сохранения свечи для " + candleDto.getFigi() + 
-                                                     " в " + candleDto.getTime() + ": " + e.getMessage());
+                                    System.err.println("[" + taskId + "] Ошибка сохранения свечи для " + candleDto.figi() + 
+                                                     " в " + candleDto.time() + ": " + e.getMessage());
                                 }
                             } else {
                                 existingCount++;

@@ -1,4 +1,4 @@
-package com.example.InvestmentDataLoaderService.service;
+package com.example.InvestmentDataLoaderService.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,10 +22,11 @@ public class TinkoffRestClient {
     private final String apiToken;
     private final String baseUrl;
 
-    public TinkoffRestClient(@Value("${tinkoff.api.token}") String apiToken) {
+    public TinkoffRestClient(@Value("${tinkoff.api.token:}") String apiToken) {
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
-        this.apiToken = apiToken;
+        // Приоритет: переменная окружения > значение из application.properties
+        this.apiToken = System.getenv("T_INVEST_TOKEN") != null ? System.getenv("T_INVEST_TOKEN") : apiToken;
         this.baseUrl = "https://invest-public-api.tinkoff.ru/rest";
     }
 

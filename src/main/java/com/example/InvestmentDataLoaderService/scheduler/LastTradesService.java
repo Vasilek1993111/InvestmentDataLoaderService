@@ -217,9 +217,9 @@ public class LastTradesService {
             List<LastTradesResponseDto> trades = new ArrayList<>();
             for (LastTradeDto trade : tradesFromApi) {
                 trades.add(new LastTradesResponseDto(
-                    trade.getFigi(),
-                    trade.getTime().atZone(ZoneId.of("Europe/Moscow")).toLocalDateTime(),
-                    trade.getPrice(),
+                    trade.figi(),
+                    trade.time().atZone(ZoneId.of("Europe/Moscow")).toLocalDateTime(),
+                    trade.price(),
                     currency,
                     exchange
                 ));
@@ -257,9 +257,9 @@ public class LastTradesService {
             List<LastTradesResponseDto> trades = new ArrayList<>();
             for (LastTradeDto trade : tradesFromApi) {
                 trades.add(new LastTradesResponseDto(
-                    trade.getFigi(),
-                    trade.getTime().atZone(ZoneId.of("Europe/Moscow")).toLocalDateTime(),
-                    trade.getPrice(),
+                    trade.figi(),
+                    trade.time().atZone(ZoneId.of("Europe/Moscow")).toLocalDateTime(),
+                    trade.price(),
                     currency,
                     exchange
                 ));

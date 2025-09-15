@@ -1,33 +1,16 @@
 package com.example.InvestmentDataLoaderService.dto;
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class LastTradesRequestDto {
     private List<String> figis;
     private String tradeSource;
-
-    public LastTradesRequestDto() {}
-
-    public LastTradesRequestDto(List<String> figis, String tradeSource) {
-        this.figis = figis;
-        this.tradeSource = tradeSource;
-    }
-
-    public List<String> getFigis() {
-        return figis;
-    }
-
-    public void setFigis(List<String> figis) {
-        this.figis = figis;
-    }
-
-    public String getTradeSource() {
-        return tradeSource;
-    }
-
-    public void setTradeSource(String tradeSource) {
-        this.tradeSource = tradeSource;
-    }
     
     /**
      * Проверяет, нужно ли загружать все инструменты

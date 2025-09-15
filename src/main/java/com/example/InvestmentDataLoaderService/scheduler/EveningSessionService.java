@@ -116,22 +116,23 @@ public class EveningSessionService {
                         totalRequested++;
                         
                         // Создаем DTO для сохранения
-                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto();
-                        dto.setFigi(share.getFigi());
-                        dto.setPriceDate(date);
-                        dto.setClosePrice(lastClosePrice);
-                        dto.setInstrumentType("share");
-                        dto.setCurrency("RUB");
-                        dto.setExchange("moex_mrng_evng_e_wknd_dlr");
+                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto(
+                            date,
+                            share.getFigi(),
+                            lastClosePrice,
+                            "share",
+                            "RUB",
+                            "moex_mrng_evng_e_wknd_dlr"
+                        );
                         
                         // Сохраняем в БД
                         ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
-                        entity.setFigi(dto.getFigi());
-                        entity.setPriceDate(dto.getPriceDate());
-                        entity.setClosePrice(dto.getClosePrice());
-                        entity.setInstrumentType(dto.getInstrumentType());
-                        entity.setCurrency(dto.getCurrency());
-                        entity.setExchange(dto.getExchange());
+                        entity.setFigi(dto.figi());
+                        entity.setPriceDate(dto.priceDate());
+                        entity.setClosePrice(dto.closePrice());
+                        entity.setInstrumentType(dto.instrumentType());
+                        entity.setCurrency(dto.currency());
+                        entity.setExchange(dto.exchange());
                         
                         closePriceEveningSessionRepository.save(entity);
                         savedItems.add(dto);
@@ -167,22 +168,23 @@ public class EveningSessionService {
                         totalRequested++;
                         
                         // Создаем DTO для сохранения
-                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto();
-                        dto.setFigi(future.getFigi());
-                        dto.setPriceDate(date);
-                        dto.setClosePrice(lastClosePrice);
-                        dto.setInstrumentType("future");
-                        dto.setCurrency("RUB");
-                        dto.setExchange("FORTS_EVENING");
+                        ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto(
+                            date,
+                            future.getFigi(),
+                            lastClosePrice,
+                            "future",
+                            "RUB",
+                            "FORTS_EVENING"
+                        );
                         
                         // Сохраняем в БД
                         ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
-                        entity.setFigi(dto.getFigi());
-                        entity.setPriceDate(dto.getPriceDate());
-                        entity.setClosePrice(dto.getClosePrice());
-                        entity.setInstrumentType(dto.getInstrumentType());
-                        entity.setCurrency(dto.getCurrency());
-                        entity.setExchange(dto.getExchange());
+                        entity.setFigi(dto.figi());
+                        entity.setPriceDate(dto.priceDate());
+                        entity.setClosePrice(dto.closePrice());
+                        entity.setInstrumentType(dto.instrumentType());
+                        entity.setCurrency(dto.currency());
+                        entity.setExchange(dto.exchange());
                         
                         closePriceEveningSessionRepository.save(entity);
                         savedItems.add(dto);

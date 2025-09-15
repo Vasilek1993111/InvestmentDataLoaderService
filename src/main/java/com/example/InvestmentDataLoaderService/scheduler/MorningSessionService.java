@@ -117,21 +117,22 @@ public class MorningSessionService {
                         totalRequested++;
                         
                         // Создаем DTO для сохранения
-                        OpenPriceDto dto = new OpenPriceDto();
-                        dto.setFigi(share.getFigi());
-                        dto.setPriceDate(date);
-                        dto.setOpenPrice(firstOpenPrice);
-                        dto.setInstrumentType("share");
-                        dto.setCurrency("RUB");
-                        dto.setExchange("moex_mrng_evng_e_wknd_dlr");
+                        OpenPriceDto dto = new OpenPriceDto(
+                            share.getFigi(),
+                            date,
+                            firstOpenPrice,
+                            "share",
+                            "RUB",
+                            "moex_mrng_evng_e_wknd_dlr"
+                        );
                         
                         // Сохраняем в БД
                         OpenPriceEntity entity = new OpenPriceEntity();
                         entity.setId(new com.example.InvestmentDataLoaderService.entity.OpenPriceKey(date, share.getFigi()));
-                        entity.setInstrumentType(dto.getInstrumentType());
-                        entity.setOpenPrice(dto.getOpenPrice());
-                        entity.setCurrency(dto.getCurrency());
-                        entity.setExchange(dto.getExchange());
+                        entity.setInstrumentType(dto.instrumentType());
+                        entity.setOpenPrice(dto.openPrice());
+                        entity.setCurrency(dto.currency());
+                        entity.setExchange(dto.exchange());
                         
                         openPriceRepository.save(entity);
                         savedItems.add(dto);
@@ -167,21 +168,22 @@ public class MorningSessionService {
                         totalRequested++;
                         
                         // Создаем DTO для сохранения
-                        OpenPriceDto dto = new OpenPriceDto();
-                        dto.setFigi(future.getFigi());
-                        dto.setPriceDate(date);
-                        dto.setOpenPrice(firstOpenPrice);
-                        dto.setInstrumentType("future");
-                        dto.setCurrency("RUB");
-                        dto.setExchange("FORTS_EVENING");
+                        OpenPriceDto dto = new OpenPriceDto(
+                            future.getFigi(),
+                            date,
+                            firstOpenPrice,
+                            "future",
+                            "RUB",
+                            "FORTS_EVENING"
+                        );
                         
                         // Сохраняем в БД
                         OpenPriceEntity entity = new OpenPriceEntity();
                         entity.setId(new com.example.InvestmentDataLoaderService.entity.OpenPriceKey(date, future.getFigi()));
-                        entity.setInstrumentType(dto.getInstrumentType());
-                        entity.setOpenPrice(dto.getOpenPrice());
-                        entity.setCurrency(dto.getCurrency());
-                        entity.setExchange(dto.getExchange());
+                        entity.setInstrumentType(dto.instrumentType());
+                        entity.setOpenPrice(dto.openPrice());
+                        entity.setCurrency(dto.currency());
+                        entity.setExchange(dto.exchange());
                         
                         openPriceRepository.save(entity);
                         savedItems.add(dto);

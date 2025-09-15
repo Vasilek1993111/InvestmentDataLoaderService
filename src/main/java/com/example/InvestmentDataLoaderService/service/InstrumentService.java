@@ -7,6 +7,8 @@ import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+import com.example.InvestmentDataLoaderService.client.TinkoffRestClient;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
@@ -37,6 +39,8 @@ public class InstrumentService {
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С АКЦИЯМИ ===
 
+    @Cacheable(cacheNames = com.example.InvestmentDataLoaderService.config.CacheConfig.SHARES_CACHE,
+            key = "T(java.util.Objects).toString(#status,'') + '|' + T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#figi,'')")
     public List<ShareDto> getShares(String status, String exchange, String currency, String ticker, String figi) {
         // Определяем статус инструмента для запроса к API
         InstrumentStatus instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
@@ -80,7 +84,7 @@ public class InstrumentService {
         }
         
         // Сортируем по тикеру
-        shares.sort(Comparator.comparing(ShareDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+        shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
         return shares;
     }
 
@@ -93,14 +97,14 @@ public class InstrumentService {
         
         for (ShareDto shareDto : sharesFromApi) {
             // Проверяем, существует ли акция в БД
-            if (!shareRepo.existsById(shareDto.getFigi())) {
+            if (!shareRepo.existsById(shareDto.figi())) {
                 // Создаем и сохраняем новую акцию
                 ShareEntity shareEntity = new ShareEntity(
-                    shareDto.getFigi(),
-                    shareDto.getTicker(),
-                    shareDto.getName(),
-                    shareDto.getCurrency(),
-                    shareDto.getExchange()
+                    shareDto.figi(),
+                    shareDto.ticker(),
+                    shareDto.name(),
+                    shareDto.currency(),
+                    shareDto.exchange()
                 );
                 
                 try {
@@ -108,7 +112,7 @@ public class InstrumentService {
                     savedShares.add(shareDto);
                 } catch (Exception e) {
                     // Логируем ошибку, но продолжаем обработку других акций
-                    System.err.println("Error saving share " + shareDto.getFigi() + ": " + e.getMessage());
+                    System.err.println("Error saving share " + shareDto.figi() + ": " + e.getMessage());
                 }
             } else {
                 existingCount++;
@@ -141,6 +145,8 @@ public class InstrumentService {
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ФЬЮЧЕРСАМИ ===
 
+    @Cacheable(cacheNames = com.example.InvestmentDataLoaderService.config.CacheConfig.FUTURES_CACHE,
+            key = "T(java.util.Objects).toString(#status,'') + '|' + T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#assetType,'')")
     public List<FutureDto> getFutures(String status, String exchange, String currency, String ticker, String assetType) {
         // Определяем статус инструмента для запроса к API
         InstrumentStatus instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
@@ -184,7 +190,7 @@ public class InstrumentService {
         }
         
         // Сортируем по тикеру
-        futures.sort(Comparator.comparing(FutureDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+        futures.sort(Comparator.comparing(FutureDto::ticker, String.CASE_INSENSITIVE_ORDER));
         return futures;
     }
 
@@ -197,16 +203,16 @@ public class InstrumentService {
         
         for (FutureDto futureDto : futuresFromApi) {
             // Проверяем, существует ли фьючерс в БД
-            if (!futureRepo.existsById(futureDto.getFigi())) {
+            if (!futureRepo.existsById(futureDto.figi())) {
                 // Создаем и сохраняем новый фьючерс
                 FutureEntity futureEntity = new FutureEntity(
-                    futureDto.getFigi(),
-                    futureDto.getTicker(),
-                    futureDto.getAssetType(),
-                    futureDto.getBasicAsset(),
-                    futureDto.getCurrency(),
-                    futureDto.getExchange(),
-                    futureDto.getStockTicker()
+                    futureDto.figi(),
+                    futureDto.ticker(),
+                    futureDto.assetType(),
+                    futureDto.basicAsset(),
+                    futureDto.currency(),
+                    futureDto.exchange(),
+                    futureDto.stockTicker()
                 );
                 
                 try {
@@ -214,7 +220,7 @@ public class InstrumentService {
                     savedFutures.add(futureDto);
                 } catch (Exception e) {
                     // Логируем ошибку, но продолжаем обработку других фьючерсов
-                    System.err.println("Error saving future " + futureDto.getFigi() + ": " + e.getMessage());
+                    System.err.println("Error saving future " + futureDto.figi() + ": " + e.getMessage());
                 }
             } else {
                 existingCount++;
@@ -247,6 +253,8 @@ public class InstrumentService {
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ИНДИКАТИВНЫМИ ИНСТРУМЕНТАМИ ===
 
+    @Cacheable(cacheNames = com.example.InvestmentDataLoaderService.config.CacheConfig.INDICATIVES_CACHE,
+            key = "T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#figi,'')")
     public List<IndicativeDto> getIndicatives(String exchange, String currency, String ticker, String figi) {
         try {
             // Используем REST API для получения индикативных инструментов
@@ -287,7 +295,7 @@ public class InstrumentService {
             }
             
             // Сортируем по тикеру
-            indicatives.sort(Comparator.comparing(IndicativeDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+            indicatives.sort(Comparator.comparing(IndicativeDto::ticker, String.CASE_INSENSITIVE_ORDER));
             return indicatives;
             
         } catch (Exception e) {
@@ -326,7 +334,7 @@ public class InstrumentService {
             }
             
             // Сортируем по тикеру
-            indicatives.sort(Comparator.comparing(IndicativeDto::getTicker, String.CASE_INSENSITIVE_ORDER));
+            indicatives.sort(Comparator.comparing(IndicativeDto::ticker, String.CASE_INSENSITIVE_ORDER));
             return indicatives;
         }
     }
@@ -381,7 +389,7 @@ public class InstrumentService {
             
             // Возвращаем первый найденный инструмент с таким тикером
             return indicatives.stream()
-                .filter(indicative -> indicative.getTicker().equalsIgnoreCase(ticker))
+                .filter(indicative -> indicative.ticker().equalsIgnoreCase(ticker))
                 .findFirst()
                 .orElse(null);
                 
@@ -405,18 +413,18 @@ public class InstrumentService {
         
         for (IndicativeDto indicativeDto : indicativesFromApi) {
             // Проверяем, существует ли индикативный инструмент в БД
-            if (!indicativeRepo.existsById(indicativeDto.getFigi())) {
+            if (!indicativeRepo.existsById(indicativeDto.figi())) {
                 // Создаем и сохраняем новый индикативный инструмент
                 IndicativeEntity indicativeEntity = new IndicativeEntity(
-                    indicativeDto.getFigi(),
-                    indicativeDto.getTicker(),
-                    indicativeDto.getName(),
-                    indicativeDto.getCurrency(),
-                    indicativeDto.getExchange(),
-                    indicativeDto.getClassCode(),
-                    indicativeDto.getUid(),
-                    indicativeDto.getSellAvailableFlag(),
-                    indicativeDto.getBuyAvailableFlag()
+                    indicativeDto.figi(),
+                    indicativeDto.ticker(),
+                    indicativeDto.name(),
+                    indicativeDto.currency(),
+                    indicativeDto.exchange(),
+                    indicativeDto.classCode(),
+                    indicativeDto.uid(),
+                    indicativeDto.sellAvailableFlag(),
+                    indicativeDto.buyAvailableFlag()
                 );
                 
                 try {
@@ -424,7 +432,7 @@ public class InstrumentService {
                     savedIndicatives.add(indicativeDto);
                 } catch (Exception e) {
                     // Логируем ошибку, но продолжаем обработку других инструментов
-                    System.err.println("Error saving indicative " + indicativeDto.getFigi() + ": " + e.getMessage());
+                    System.err.println("Error saving indicative " + indicativeDto.figi() + ": " + e.getMessage());
                 }
             } else {
                 existingCount++;
