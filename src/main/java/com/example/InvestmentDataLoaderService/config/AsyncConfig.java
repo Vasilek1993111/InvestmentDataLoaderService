@@ -29,4 +29,20 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * Executor для высокопараллельной записи свечей по одной
+     */
+    @Bean("candleTaskExecutor")
+    public Executor candleTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(Math.max(4, Runtime.getRuntime().availableProcessors()));
+        executor.setMaxPoolSize(Math.max(8, Runtime.getRuntime().availableProcessors() * 2));
+        executor.setQueueCapacity(20000);
+        executor.setThreadNamePrefix("CandleWrite-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(120);
+        executor.initialize();
+        return executor;
+    }
 }

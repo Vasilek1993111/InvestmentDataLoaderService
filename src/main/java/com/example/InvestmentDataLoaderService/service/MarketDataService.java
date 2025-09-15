@@ -1,16 +1,17 @@
 package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
-import com.example.InvestmentDataLoaderService.entity.CandleEntity;
-import com.example.InvestmentDataLoaderService.entity.CandleKey;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceEntity;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceKey;
+import com.example.InvestmentDataLoaderService.entity.CandleEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
-import com.example.InvestmentDataLoaderService.repository.CandleRepository;
+import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.repository.ClosePriceRepository;
+import com.example.InvestmentDataLoaderService.repository.CandleRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.google.protobuf.Timestamp;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
@@ -33,42 +34,37 @@ public class MarketDataService {
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
     private final ClosePriceRepository closePriceRepo;
-    private final CandleRepository candleRepo;
+    private final CandleRepository candleRepository;
+    private final IndicativeRepository indicativeRepo;
 
     public MarketDataService(MarketDataServiceBlockingStub marketDataService,
                            ShareRepository shareRepo,
                            FutureRepository futureRepo,
                            ClosePriceRepository closePriceRepo,
-                           CandleRepository candleRepo) {
+                           CandleRepository candleRepository,
+                           IndicativeRepository indicativeRepo) {
         this.marketDataService = marketDataService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
         this.closePriceRepo = closePriceRepo;
-        this.candleRepo = candleRepo;
+        this.candleRepository = candleRepository;
+        this.indicativeRepo = indicativeRepo;
     }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ЦЕНАМИ ЗАКРЫТИЯ ===
 
+
     public List<ClosePriceDto> getClosePrices(List<String> instrumentIds, String status) {
         GetClosePricesRequest.Builder builder = GetClosePricesRequest.newBuilder();
         
-        // Если instrumentIds не переданы, получаем все инструменты из БД
+        System.out.println("=== ЗАПРОС ЦЕН ЗАКРЫТИЯ ===");
+        System.out.println("Количество инструментов: " + (instrumentIds != null ? instrumentIds.size() : 0));
+        
+        // Если instrumentIds не переданы, возвращаем пустой список
+        // (логика загрузки всех инструментов перенесена в saveClosePrices)
         if (instrumentIds == null || instrumentIds.isEmpty()) {
-            List<String> allInstrumentIds = new ArrayList<>();
-            
-            // Получаем все FIGI из таблицы shares
-            List<ShareEntity> shares = shareRepo.findAll();
-            for (ShareEntity share : shares) {
-                allInstrumentIds.add(share.getFigi());
-            }
-            
-            // Получаем все FIGI из таблицы futures
-            List<FutureEntity> futures = futureRepo.findAll();
-            for (FutureEntity future : futures) {
-                allInstrumentIds.add(future.getFigi());
-            }
-            
-            instrumentIds = allInstrumentIds;
+            System.out.println("instrumentIds не переданы, возвращаем пустой список");
+            return new ArrayList<>();
         }
         
         // Если после получения из БД список все еще пуст, возвращаем пустой результат
@@ -112,7 +108,7 @@ public class MarketDataService {
     public SaveResponseDto saveClosePrices(ClosePriceRequestDto request) {
         List<String> instrumentIds = request.getInstruments();
         
-        // Если инструменты не указаны, получаем только RUB инструменты из БД
+        // Если инструменты не указаны, получаем RUB инструменты (shares, futures) и все indicatives из БД
         if (instrumentIds == null || instrumentIds.isEmpty()) {
             List<String> allInstrumentIds = new ArrayList<>();
             
@@ -132,6 +128,15 @@ public class MarketDataService {
                 }
             }
             
+            // Получаем все индикативные инструменты из таблицы indicatives (без фильтра по валюте)
+            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+            for (IndicativeEntity indicative : indicatives) {
+                // Исключаем пустые FIGI
+                if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                    allInstrumentIds.add(indicative.getFigi());
+                }
+            }
+            
             instrumentIds = allInstrumentIds;
         }
         
@@ -139,13 +144,71 @@ public class MarketDataService {
         if (instrumentIds.isEmpty()) {
             return new SaveResponseDto(
                 false,
-                "Нет инструментов в рублях для загрузки цен закрытия. В базе данных нет акций или фьючерсов с валютой RUB.",
+                "Нет инструментов для загрузки цен закрытия. В базе данных нет акций в рублях, фьючерсов в рублях или индикативных инструментов.",
                 0, 0, 0, new ArrayList<>()
             );
         }
 
-        // Получаем цены закрытия из API
-        List<ClosePriceDto> closePricesFromApi = getClosePrices(instrumentIds, null);
+        // Получаем цены закрытия из API по частям (shares+futures, затем indicatives)
+        List<ClosePriceDto> closePricesFromApi = new ArrayList<>();
+        
+        try {
+            // Сначала получаем цены для shares и futures
+            List<String> sharesAndFuturesIds = new ArrayList<>();
+            List<ShareEntity> shares = shareRepo.findAll();
+            for (ShareEntity share : shares) {
+                if ("RUB".equalsIgnoreCase(share.getCurrency())) {
+                    sharesAndFuturesIds.add(share.getFigi());
+                }
+            }
+            List<FutureEntity> futures = futureRepo.findAll();
+            for (FutureEntity future : futures) {
+                if ("RUB".equalsIgnoreCase(future.getCurrency())) {
+                    sharesAndFuturesIds.add(future.getFigi());
+                }
+            }
+            
+            if (!sharesAndFuturesIds.isEmpty()) {
+                System.out.println("Запрашиваем цены закрытия для " + sharesAndFuturesIds.size() + " shares и futures");
+                List<ClosePriceDto> sharesFuturesPrices = getClosePrices(sharesAndFuturesIds, null);
+                closePricesFromApi.addAll(sharesFuturesPrices);
+                System.out.println("Получено цен для shares и futures: " + sharesFuturesPrices.size());
+            }
+            
+            // Затем пытаемся получить цены для indicatives (если API поддерживает)
+            List<String> indicativesIds = new ArrayList<>();
+            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+            for (IndicativeEntity indicative : indicatives) {
+                // Исключаем пустые FIGI
+                if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                    indicativesIds.add(indicative.getFigi());
+                }
+            }
+            
+            if (!indicativesIds.isEmpty()) {
+                try {
+                    System.out.println("Запрашиваем цены закрытия для " + indicativesIds.size() + " indicatives");
+                    List<ClosePriceDto> indicativesPrices = getClosePrices(indicativesIds, null);
+                    closePricesFromApi.addAll(indicativesPrices);
+                    System.out.println("Получено цен для indicatives: " + indicativesPrices.size());
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении цен закрытия для indicatives: " + e.getMessage());
+                    System.err.println("Продолжаем без indicatives...");
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при получении цен закрытия из API: " + e.getMessage());
+            System.err.println("Количество инструментов в запросе: " + instrumentIds.size());
+            
+            // Возвращаем ошибку с подробной информацией
+            return new SaveResponseDto(
+                false,
+                "Ошибка при получении цен закрытия из API: " + e.getMessage() + 
+                ". Количество инструментов: " + instrumentIds.size(),
+                0, 0, 0, new ArrayList<>()
+            );
+        }
         
         List<ClosePriceDto> savedPrices = new ArrayList<>();
         int existingCount = 0;
@@ -174,6 +237,14 @@ public class MarketDataService {
                         instrumentType = "FUTURE";
                         currency = future.getCurrency();
                         exchange = future.getExchange();
+                    } else {
+                        // Проверяем в таблице indicatives
+                        IndicativeEntity indicative = indicativeRepo.findById(closePriceDto.figi()).orElse(null);
+                        if (indicative != null) {
+                            instrumentType = "INDICATIVE";
+                            currency = indicative.getCurrency();
+                            exchange = indicative.getExchange();
+                        }
                     }
                 }
                 
@@ -396,45 +467,15 @@ public class MarketDataService {
                 );
             }
             
-            List<CandleDto> allCandles = new ArrayList<>();
+            List<CandleDto> collectedCandles = new ArrayList<>();
             int totalRequested = 0;
-            int savedCount = 0;
-            int existingCount = 0;
             
             for (String instrumentId : instrumentIds) {
                 try {
                     // Получаем свечи для инструмента
                     List<CandleDto> candles = getCandles(instrumentId, date, interval);
                     totalRequested += candles.size();
-                    
-                    // Сохраняем свечи в БД
-                    for (CandleDto candleDto : candles) {
-                        CandleKey key = new CandleKey(candleDto.figi(), candleDto.time());
-                        
-                        if (!candleRepo.existsById(key)) {
-                            CandleEntity candleEntity = new CandleEntity(
-                                candleDto.figi(),
-                                candleDto.volume(),
-                                candleDto.high(),
-                                candleDto.low(),
-                                candleDto.time(),
-                                candleDto.close(),
-                                candleDto.open(),
-                                candleDto.isComplete()
-                            );
-                            
-                            try {
-                                candleRepo.save(candleEntity);
-                                allCandles.add(candleDto);
-                                savedCount++;
-                            } catch (Exception e) {
-                                System.err.println("Error saving candle for " + candleDto.figi() + 
-                                                 " at " + candleDto.time() + ": " + e.getMessage());
-                            }
-                        } else {
-                            existingCount++;
-                        }
-                    }
+                    collectedCandles.addAll(candles);
                     
                     // Задержка между запросами для разных инструментов
                     Thread.sleep(200);
@@ -444,29 +485,38 @@ public class MarketDataService {
                 }
             }
             
-            // Формируем ответ
-            boolean success = totalRequested > 0;
-            String message;
+            // Simple save without batching
+            int savedCount = 0;
+            int existingCount = 0;
             
-            if (savedCount == 0) {
-                if (totalRequested == 0) {
-                    message = "Свечи не найдены. По заданным параметрам данные не найдены.";
-                } else {
-                    message = "Новых свечей не обнаружено. Все найденные свечи уже существуют в базе данных.";
+            for (CandleDto candleDto : collectedCandles) {
+                try {
+                    CandleEntity entity = new CandleEntity(
+                        candleDto.figi(),
+                        candleDto.volume(),
+                        candleDto.high(),
+                        candleDto.low(),
+                        candleDto.time(),
+                        candleDto.close(),
+                        candleDto.open(),
+                        candleDto.isComplete()
+                    );
+                    candleRepository.save(entity);
+                    savedCount++;
+                } catch (Exception e) {
+                    // Assume duplicate if save fails
+                    existingCount++;
                 }
-            } else {
-                message = String.format("Успешно загружено %d новых свечей из %d найденных.", 
-                                      savedCount, totalRequested);
             }
             
-            return new SaveResponseDto(
-                success,
-                message,
-                totalRequested,
-                savedCount,
-                existingCount,
-                allCandles
-            );
+            boolean success = savedCount > 0;
+            String message = success
+                ? String.format("Успешно загружено %d новых свечей из %d найденных.", savedCount, totalRequested)
+                : (totalRequested == existingCount
+                    ? "Новых свечей не обнаружено. Все найденные свечи уже существуют в базе данных."
+                    : "Свечи не сохранены.");
+            
+            return new SaveResponseDto(success, message, totalRequested, savedCount, existingCount, collectedCandles);
         });
     }
 
@@ -548,16 +598,13 @@ public class MarketDataService {
                         processedInstruments++;
                         System.out.println("[" + taskId + "] Обработка инструмента " + processedInstruments + "/" + instrumentIds.size() + ": " + instrumentId);
                         
-                        // Получаем свечи для инструмента
+                        // Получаем свечи для инструмента и сохраняем по одной
                         List<CandleDto> candles = getCandles(instrumentId, date, interval);
                         totalRequested += candles.size();
                         
-                        // Сохраняем свечи в БД
                         for (CandleDto candleDto : candles) {
-                            CandleKey key = new CandleKey(candleDto.figi(), candleDto.time());
-                            
-                            if (!candleRepo.existsById(key)) {
-                                CandleEntity candleEntity = new CandleEntity(
+                            try {
+                                CandleEntity entity = new CandleEntity(
                                     candleDto.figi(),
                                     candleDto.volume(),
                                     candleDto.high(),
@@ -567,15 +614,10 @@ public class MarketDataService {
                                     candleDto.open(),
                                     candleDto.isComplete()
                                 );
-                                
-                                try {
-                                    candleRepo.save(candleEntity);
-                                    savedCount++;
-                                } catch (Exception e) {
-                                    System.err.println("[" + taskId + "] Ошибка сохранения свечи для " + candleDto.figi() + 
-                                                     " в " + candleDto.time() + ": " + e.getMessage());
-                                }
-                            } else {
+                                candleRepository.save(entity);
+                                savedCount++;
+                            } catch (Exception e) {
+                                // Assume duplicate if save fails
                                 existingCount++;
                             }
                         }
@@ -737,7 +779,6 @@ public class MarketDataService {
             System.out.println("API Response received successfully");
             System.out.println("Response details:");
             System.out.println("  - Trades count: " + response.getTradesList().size());
-            System.out.println("  - Response toString: " + response.toString());
             
             List<LastTradeDto> trades = new ArrayList<>();
             for (int i = 0; i < response.getTradesList().size(); i++) {

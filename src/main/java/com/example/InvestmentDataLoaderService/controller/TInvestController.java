@@ -113,6 +113,7 @@ public class TInvestController {
         return ResponseEntity.ok(response);
     }
 
+
     @GetMapping("/trading-schedules")
     public ResponseEntity<List<TradingScheduleDto>> schedules(
             @RequestParam(required = false) String exchange,

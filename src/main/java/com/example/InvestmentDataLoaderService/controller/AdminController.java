@@ -6,7 +6,6 @@ import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.MorningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.LastTradesService;
 import com.example.InvestmentDataLoaderService.service.AggregationService;
-import com.example.InvestmentDataLoaderService.service.OptimizedAggregationService;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.SharesAggregatedDataRepository;
 import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
@@ -33,7 +32,6 @@ public class AdminController {
     private final MorningSessionService morningSessionService;
     private final LastTradesService lastTradesService;
     private final AggregationService aggregationService;
-    private final OptimizedAggregationService optimizedAggregationService;
     private final ShareRepository shareRepository;
     private final SharesAggregatedDataRepository sharesAggregatedDataRepository;
 
@@ -43,7 +41,6 @@ public class AdminController {
                           MorningSessionService morningSessionService,
                           LastTradesService lastTradesService,
                           AggregationService aggregationService,
-                          OptimizedAggregationService optimizedAggregationService,
                           ShareRepository shareRepository,
                           SharesAggregatedDataRepository sharesAggregatedDataRepository) {
         this.closePriceScheduler = closePriceScheduler;
@@ -52,7 +49,6 @@ public class AdminController {
         this.morningSessionService = morningSessionService;
         this.lastTradesService = lastTradesService;
         this.aggregationService = aggregationService;
-        this.optimizedAggregationService = optimizedAggregationService;
         this.shareRepository = shareRepository;
         this.sharesAggregatedDataRepository = sharesAggregatedDataRepository;
     }
@@ -163,15 +159,15 @@ public class AdminController {
         }
     }
 
-    // === ОПТИМИЗИРОВАННЫЕ ЭНДПОИНТЫ ДЛЯ АГРЕГАЦИИ ===
+    // === ЭНДПОИНТЫ ДЛЯ АГРЕГАЦИИ ===
 
     /**
-     * Синхронный пересчет агрегированных данных для акций (старая версия)
+     * Синхронный пересчет агрегированных данных для акций
      */
     @PostMapping("/recalculate-shares-aggregation")
     public ResponseEntity<AggregationResult> recalculateSharesAggregation() {
         try {
-            AggregationResult result = optimizedAggregationService.recalculateAllSharesData();
+            AggregationResult result = aggregationService.recalculateAllSharesData();
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             AggregationResult errorResult = new AggregationResult("ERROR", "shares");
@@ -181,21 +177,6 @@ public class AdminController {
         }
     }
 
-    /**
-     * Оптимизированный синхронный пересчет агрегированных данных для акций
-     */
-    @PostMapping("/recalculate-shares-aggregation-optimized")
-    public ResponseEntity<AggregationResult> recalculateSharesAggregationOptimized() {
-        try {
-            AggregationResult result = optimizedAggregationService.recalculateAllSharesDataOptimized();
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            AggregationResult errorResult = new AggregationResult("ERROR", "shares");
-            errorResult.setSuccess(false);
-            errorResult.setErrorMessage(e.getMessage());
-            return ResponseEntity.status(500).body(errorResult);
-        }
-    }
 
     /**
      * Асинхронный пересчет агрегированных данных для акций
@@ -205,7 +186,7 @@ public class AdminController {
     public ResponseEntity<String> recalculateSharesAggregationAsync() {
         try {
             // Запускаем асинхронную задачу
-            optimizedAggregationService.recalculateAllSharesDataAsync();
+            aggregationService.recalculateAllSharesDataAsync();
             
             // Возвращаем информацию о запущенной задаче
             return ResponseEntity.ok("Агрегация запущена в фоновом режиме. " +

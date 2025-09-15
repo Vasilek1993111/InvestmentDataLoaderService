@@ -136,4 +136,5 @@ public class TInvestService {
     public List<LastTradeDto> getLastTradesForLastHour(String instrumentId, String tradeSource) {
         return marketDataService.getLastTradesForLastHour(instrumentId, tradeSource);
     }
+
 }
