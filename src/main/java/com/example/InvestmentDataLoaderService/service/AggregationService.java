@@ -1,6 +1,7 @@
 package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.AggregationResult;
+import com.example.InvestmentDataLoaderService.dto.SessionAnalyticsDto;
 import com.example.InvestmentDataLoaderService.entity.SharesAggregatedDataEntity;
 import com.example.InvestmentDataLoaderService.entity.FuturesAggregatedDataEntity;
 import com.example.InvestmentDataLoaderService.entity.CandleEntity;
@@ -10,6 +11,7 @@ import com.example.InvestmentDataLoaderService.repository.SharesAggregatedDataRe
 import com.example.InvestmentDataLoaderService.repository.FuturesAggregatedDataRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,17 +39,20 @@ public class AggregationService {
     private final FuturesAggregatedDataRepository futuresAggregatedDataRepository;
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
+    private final JdbcTemplate jdbcTemplate;
     
     public AggregationService(CandleRepository candleRepository,
                              SharesAggregatedDataRepository sharesAggregatedDataRepository,
                              FuturesAggregatedDataRepository futuresAggregatedDataRepository,
                              ShareRepository shareRepository,
-                             FutureRepository futureRepository) {
+                             FutureRepository futureRepository,
+                             JdbcTemplate jdbcTemplate) {
         this.candleRepository = candleRepository;
         this.sharesAggregatedDataRepository = sharesAggregatedDataRepository;
         this.futuresAggregatedDataRepository = futuresAggregatedDataRepository;
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
     
     
@@ -542,6 +547,220 @@ public class AggregationService {
         return averageVolume;
     }
     
+    // ==================== СЕССИОННАЯ АНАЛИТИКА ====================
+
+    /**
+     * Получение аналитики по торговым сессиям за период
+     */
+    public List<SessionAnalyticsDto> getSessionAnalytics(String figi, LocalDate startDate, LocalDate endDate) {
+        try {
+            String sql = "SELECT * FROM invest.get_session_analytics_by_period(?, ?, ?)";
+            
+            return jdbcTemplate.query(sql, (rs, rowNum) -> new SessionAnalyticsDto(
+                rs.getString("figi"),
+                rs.getDate("trade_date").toLocalDate(),
+                rs.getLong("total_volume"),
+                rs.getLong("total_candles"),
+                rs.getBigDecimal("avg_volume_per_candle"),
+                rs.getLong("morning_session_volume"),
+                rs.getLong("morning_session_candles"),
+                rs.getBigDecimal("morning_avg_volume_per_candle"),
+                rs.getLong("main_session_volume"),
+                rs.getLong("main_session_candles"),
+                rs.getBigDecimal("main_avg_volume_per_candle"),
+                rs.getLong("evening_session_volume"),
+                rs.getLong("evening_session_candles"),
+                rs.getBigDecimal("evening_avg_volume_per_candle"),
+                rs.getLong("weekend_session_volume"),
+                rs.getLong("weekend_session_candles"),
+                rs.getBigDecimal("weekend_avg_volume_per_candle")
+            ), figi, startDate, endDate);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения сессионной аналитики: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Получение общей аналитики по торговым сессиям (за все время)
+     */
+    public List<SessionAnalyticsDto> getOverallSessionAnalytics(String figi) {
+        try {
+            String sql = "SELECT * FROM invest.get_session_analytics(?)";
+            
+            return jdbcTemplate.query(sql, (rs, rowNum) -> new SessionAnalyticsDto(
+                rs.getString("figi"),
+                null, // trade_date = null для общей аналитики
+                rs.getLong("total_volume"),
+                rs.getLong("total_candles"),
+                rs.getBigDecimal("avg_volume_per_candle"),
+                rs.getLong("morning_session_volume"),
+                rs.getLong("morning_session_candles"),
+                rs.getBigDecimal("morning_avg_volume_per_candle"),
+                rs.getLong("main_session_volume"),
+                rs.getLong("main_session_candles"),
+                rs.getBigDecimal("main_avg_volume_per_candle"),
+                rs.getLong("evening_session_volume"),
+                rs.getLong("evening_session_candles"),
+                rs.getBigDecimal("evening_avg_volume_per_candle"),
+                rs.getLong("weekend_session_volume"),
+                rs.getLong("weekend_session_candles"),
+                rs.getBigDecimal("weekend_avg_volume_per_candle")
+            ), figi);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения общей сессионной аналитики: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Получение аналитики по торговым сессиям за сегодня
+     */
+    public List<SessionAnalyticsDto> getTodaySessionAnalytics(String figi) {
+        try {
+            String sql = "SELECT * FROM invest.get_today_session_analytics(?)";
+            
+            return jdbcTemplate.query(sql, (rs, rowNum) -> new SessionAnalyticsDto(
+                rs.getString("figi"),
+                rs.getDate("trade_date").toLocalDate(),
+                rs.getLong("total_volume"),
+                rs.getLong("total_candles"),
+                rs.getBigDecimal("avg_volume_per_candle"),
+                rs.getLong("morning_session_volume"),
+                rs.getLong("morning_session_candles"),
+                rs.getBigDecimal("morning_avg_volume_per_candle"),
+                rs.getLong("main_session_volume"),
+                rs.getLong("main_session_candles"),
+                rs.getBigDecimal("main_avg_volume_per_candle"),
+                rs.getLong("evening_session_volume"),
+                rs.getLong("evening_session_candles"),
+                rs.getBigDecimal("evening_avg_volume_per_candle"),
+                rs.getLong("weekend_session_volume"),
+                rs.getLong("weekend_session_candles"),
+                rs.getBigDecimal("weekend_avg_volume_per_candle")
+            ), figi);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения дневной сессионной аналитики: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Получение сводной статистики по сессиям за период
+     */
+    public Map<String, Object> getSessionAnalyticsSummary(String figi, LocalDate startDate, LocalDate endDate) {
+        Map<String, Object> summary = new HashMap<>();
+        
+        try {
+            List<SessionAnalyticsDto> analytics = getSessionAnalytics(figi, startDate, endDate);
+            
+            if (analytics.isEmpty()) {
+                summary.put("message", "Нет данных за указанный период");
+                return summary;
+            }
+            
+            // Общая статистика
+            long totalVolume = analytics.stream().mapToLong(SessionAnalyticsDto::totalVolume).sum();
+            long totalCandles = analytics.stream().mapToLong(SessionAnalyticsDto::totalCandles).sum();
+            BigDecimal avgVolumePerCandle = totalCandles > 0 ? 
+                BigDecimal.valueOf(totalVolume).divide(BigDecimal.valueOf(totalCandles), 2, RoundingMode.HALF_UP) : 
+                BigDecimal.ZERO;
+            
+            // Статистика по сессиям
+            long morningVolume = analytics.stream().mapToLong(SessionAnalyticsDto::morningSessionVolume).sum();
+            long morningCandles = analytics.stream().mapToLong(SessionAnalyticsDto::morningSessionCandles).sum();
+            BigDecimal morningAvgVolumePerCandle = morningCandles > 0 ? 
+                BigDecimal.valueOf(morningVolume).divide(BigDecimal.valueOf(morningCandles), 2, RoundingMode.HALF_UP) : 
+                BigDecimal.ZERO;
+            
+            long mainVolume = analytics.stream().mapToLong(SessionAnalyticsDto::mainSessionVolume).sum();
+            long mainCandles = analytics.stream().mapToLong(SessionAnalyticsDto::mainSessionCandles).sum();
+            BigDecimal mainAvgVolumePerCandle = mainCandles > 0 ? 
+                BigDecimal.valueOf(mainVolume).divide(BigDecimal.valueOf(mainCandles), 2, RoundingMode.HALF_UP) : 
+                BigDecimal.ZERO;
+            
+            long eveningVolume = analytics.stream().mapToLong(SessionAnalyticsDto::eveningSessionVolume).sum();
+            long eveningCandles = analytics.stream().mapToLong(SessionAnalyticsDto::eveningSessionCandles).sum();
+            BigDecimal eveningAvgVolumePerCandle = eveningCandles > 0 ? 
+                BigDecimal.valueOf(eveningVolume).divide(BigDecimal.valueOf(eveningCandles), 2, RoundingMode.HALF_UP) : 
+                BigDecimal.ZERO;
+            
+            long weekendVolume = analytics.stream().mapToLong(SessionAnalyticsDto::weekendSessionVolume).sum();
+            long weekendCandles = analytics.stream().mapToLong(SessionAnalyticsDto::weekendSessionCandles).sum();
+            BigDecimal weekendAvgVolumePerCandle = weekendCandles > 0 ? 
+                BigDecimal.valueOf(weekendVolume).divide(BigDecimal.valueOf(weekendCandles), 2, RoundingMode.HALF_UP) : 
+                BigDecimal.ZERO;
+            
+            // Формируем результат
+            summary.put("period", Map.of(
+                "start_date", startDate != null ? startDate.toString() : "не указано",
+                "end_date", endDate != null ? endDate.toString() : "не указано",
+                "figi", figi != null ? figi : "все инструменты"
+            ));
+            
+            summary.put("total", Map.of(
+                "volume", totalVolume,
+                "candles", totalCandles,
+                "avg_volume_per_candle", avgVolumePerCandle
+            ));
+            
+            summary.put("sessions", Map.of(
+                "morning", Map.of(
+                    "volume", morningVolume,
+                    "candles", morningCandles,
+                    "avg_volume_per_candle", morningAvgVolumePerCandle,
+                    "percentage_of_total", totalVolume > 0 ? 
+                        BigDecimal.valueOf(morningVolume).multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(totalVolume), 2, RoundingMode.HALF_UP) : 
+                        BigDecimal.ZERO
+                ),
+                "main", Map.of(
+                    "volume", mainVolume,
+                    "candles", mainCandles,
+                    "avg_volume_per_candle", mainAvgVolumePerCandle,
+                    "percentage_of_total", totalVolume > 0 ? 
+                        BigDecimal.valueOf(mainVolume).multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(totalVolume), 2, RoundingMode.HALF_UP) : 
+                        BigDecimal.ZERO
+                ),
+                "evening", Map.of(
+                    "volume", eveningVolume,
+                    "candles", eveningCandles,
+                    "avg_volume_per_candle", eveningAvgVolumePerCandle,
+                    "percentage_of_total", totalVolume > 0 ? 
+                        BigDecimal.valueOf(eveningVolume).multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(totalVolume), 2, RoundingMode.HALF_UP) : 
+                        BigDecimal.ZERO
+                ),
+                "weekend", Map.of(
+                    "volume", weekendVolume,
+                    "candles", weekendCandles,
+                    "avg_volume_per_candle", weekendAvgVolumePerCandle,
+                    "percentage_of_total", totalVolume > 0 ? 
+                        BigDecimal.valueOf(weekendVolume).multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(totalVolume), 2, RoundingMode.HALF_UP) : 
+                        BigDecimal.ZERO
+                )
+            ));
+            
+            summary.put("instruments_count", analytics.size());
+            summary.put("generated_at", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения сводной сессионной аналитики: " + e.getMessage());
+            e.printStackTrace();
+            summary.put("error", e.getMessage());
+        }
+        
+        return summary;
+    }
+
     /**
      * Внутренний класс для группировки свечей по дням
      */

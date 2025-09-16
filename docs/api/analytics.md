@@ -150,3 +150,197 @@ curl -X POST "http://localhost:8087/api/analytics/recalculate-aggregation" -H "C
   "timestamp": "2024-01-15T10:30:00"
 }
 ```
+
+## GET /api/analytics/session-analytics/overall
+Получение общей аналитики по торговым сессиям за все время.
+
+Параметры запроса:
+- `figi` — FIGI инструмента (опционально)
+
+```bash
+curl "http://localhost:8087/api/analytics/session-analytics/overall?figi=BBG004730N88"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "figi": "BBG004730N88",
+      "trade_date": null,
+      "total_volume": 15000000,
+      "total_candles": 12000,
+      "avg_volume_per_candle": 1250.00,
+      "morning_session_volume": 1500000,
+      "morning_session_candles": 1200,
+      "morning_avg_volume_per_candle": 1250.00,
+      "main_session_volume": 12000000,
+      "main_session_candles": 9600,
+      "main_avg_volume_per_candle": 1250.00,
+      "evening_session_volume": 1500000,
+      "evening_session_candles": 1200,
+      "evening_avg_volume_per_candle": 1250.00,
+      "weekend_session_volume": 0,
+      "weekend_session_candles": 0,
+      "weekend_avg_volume_per_candle": 0.00
+    }
+  ],
+  "count": 1,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+## POST /api/analytics/session-analytics
+Получение аналитики по торговым сессиям за период.
+
+Параметры запроса:
+- `figi` — FIGI инструмента (опционально)
+- `start_date` — дата начала периода (опционально)
+- `end_date` — дата окончания периода (опционально)
+
+```bash
+curl -X POST "http://localhost:8087/api/analytics/session-analytics" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "figi": "BBG004730N88",
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-15"
+  }'
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "figi": "BBG004730N88",
+      "trade_date": "2024-01-15",
+      "total_volume": 1500000,
+      "total_candles": 1200,
+      "avg_volume_per_candle": 1250.00,
+      "morning_session_volume": 150000,
+      "morning_session_candles": 120,
+      "morning_avg_volume_per_candle": 1250.00,
+      "main_session_volume": 1200000,
+      "main_session_candles": 960,
+      "main_avg_volume_per_candle": 1250.00,
+      "evening_session_volume": 150000,
+      "evening_session_candles": 120,
+      "evening_avg_volume_per_candle": 1250.00,
+      "weekend_session_volume": 0,
+      "weekend_session_candles": 0,
+      "weekend_avg_volume_per_candle": 0.00
+    }
+  ],
+  "count": 1,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+## GET /api/analytics/session-analytics/today
+Получение аналитики по торговым сессиям за сегодня.
+
+Параметры запроса:
+- `figi` — FIGI инструмента (опционально)
+
+```bash
+curl "http://localhost:8087/api/analytics/session-analytics/today?figi=BBG004730N88"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "figi": "BBG004730N88",
+      "trade_date": "2024-01-15",
+      "total_volume": 75000,
+      "total_candles": 60,
+      "avg_volume_per_candle": 1250.00,
+      "morning_session_volume": 7500,
+      "morning_session_candles": 6,
+      "morning_avg_volume_per_candle": 1250.00,
+      "main_session_volume": 60000,
+      "main_session_candles": 48,
+      "main_avg_volume_per_candle": 1250.00,
+      "evening_session_volume": 7500,
+      "evening_session_candles": 6,
+      "evening_avg_volume_per_candle": 1250.00,
+      "weekend_session_volume": 0,
+      "weekend_session_candles": 0,
+      "weekend_avg_volume_per_candle": 0.00
+    }
+  ],
+  "count": 1,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+## POST /api/analytics/session-analytics/summary
+Получение сводной статистики по сессиям за период.
+
+Параметры запроса:
+- `figi` — FIGI инструмента (опционально)
+- `start_date` — дата начала периода (опционально)
+- `end_date` — дата окончания периода (опционально)
+
+```bash
+curl -X POST "http://localhost:8087/api/analytics/session-analytics/summary" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "figi": "BBG004730N88",
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-15"
+  }'
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "data": {
+    "period": {
+      "start_date": "2024-01-01",
+      "end_date": "2024-01-15",
+      "figi": "BBG004730N88"
+    },
+    "total": {
+      "volume": 1500000,
+      "candles": 1200,
+      "avg_volume_per_candle": 1250.00
+    },
+    "sessions": {
+      "morning": {
+        "volume": 150000,
+        "candles": 120,
+        "avg_volume_per_candle": 1250.00,
+        "percentage_of_total": 10.00
+      },
+      "main": {
+        "volume": 1200000,
+        "candles": 960,
+        "avg_volume_per_candle": 1250.00,
+        "percentage_of_total": 80.00
+      },
+      "evening": {
+        "volume": 150000,
+        "candles": 120,
+        "avg_volume_per_candle": 1250.00,
+        "percentage_of_total": 10.00
+      },
+      "weekend": {
+        "volume": 0,
+        "candles": 0,
+        "avg_volume_per_candle": 0.00,
+        "percentage_of_total": 0.00
+      }
+    },
+    "instruments_count": 1,
+    "generated_at": "2024-01-15T10:30:00"
+  },
+  "timestamp": "2024-01-15T10:30:00"
+}
+```

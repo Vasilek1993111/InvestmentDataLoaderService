@@ -2,6 +2,8 @@ package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.AggregationResult;
 import com.example.InvestmentDataLoaderService.dto.AggregationRequestDto;
+import com.example.InvestmentDataLoaderService.dto.SessionAnalyticsDto;
+import com.example.InvestmentDataLoaderService.dto.SessionAnalyticsRequestDto;
 import com.example.InvestmentDataLoaderService.scheduler.VolumeAggregationSchedulerService;
 import com.example.InvestmentDataLoaderService.service.AggregationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -256,6 +258,121 @@ public class AnalyticsController {
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения информации о расписании: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // ==================== СЕССИОННАЯ АНАЛИТИКА ====================
+
+    /**
+     * Получение аналитики по торговым сессиям за период
+     */
+    @PostMapping("/session-analytics")
+    public ResponseEntity<Map<String, Object>> getSessionAnalytics(@RequestBody SessionAnalyticsRequestDto request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<SessionAnalyticsDto> analytics = aggregationService.getSessionAnalytics(
+                request.figi(), 
+                request.startDate(), 
+                request.endDate()
+            );
+            
+            response.put("success", true);
+            response.put("data", analytics);
+            response.put("count", analytics.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения сессионной аналитики: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    /**
+     * Получение общей аналитики по торговым сессиям (за все время)
+     */
+    @GetMapping("/session-analytics/overall")
+    public ResponseEntity<Map<String, Object>> getOverallSessionAnalytics(
+            @RequestParam(required = false) String figi) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<SessionAnalyticsDto> analytics = aggregationService.getOverallSessionAnalytics(figi);
+            
+            response.put("success", true);
+            response.put("data", analytics);
+            response.put("count", analytics.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения общей сессионной аналитики: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    /**
+     * Получение аналитики по торговым сессиям за сегодня
+     */
+    @GetMapping("/session-analytics/today")
+    public ResponseEntity<Map<String, Object>> getTodaySessionAnalytics(
+            @RequestParam(required = false) String figi) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<SessionAnalyticsDto> analytics = aggregationService.getTodaySessionAnalytics(figi);
+            
+            response.put("success", true);
+            response.put("data", analytics);
+            response.put("count", analytics.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения дневной сессионной аналитики: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    /**
+     * Получение сводной статистики по сессиям за период
+     */
+    @PostMapping("/session-analytics/summary")
+    public ResponseEntity<Map<String, Object>> getSessionAnalyticsSummary(@RequestBody SessionAnalyticsRequestDto request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            Map<String, Object> summary = aggregationService.getSessionAnalyticsSummary(
+                request.figi(), 
+                request.startDate(), 
+                request.endDate()
+            );
+            
+            response.put("success", true);
+            response.put("data", summary);
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения сводной сессионной аналитики: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now());
             
             return ResponseEntity.status(500).body(response);
