@@ -1,28 +1,4 @@
 services:
-  # PostgreSQL база данных
-  postgres:
-    image: postgres:17-alpine
-    container_name: postgres-investment
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123password123
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
-    networks:
-      - investment-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
   # Spring Boot приложение
   investment-service:
     build:
@@ -30,8 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: investment-data-loader-service
     environment:
-      # Подключение к PostgreSQL в контейнере
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      # Подключение к внешней PostgreSQL БД
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5434/postgres
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 123password123
       
@@ -45,11 +21,6 @@ services:
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8083:8083"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - investment-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
@@ -57,10 +28,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
-volumes:
-  postgres_data:
-
-networks:
-  investment-network:
-    driver: bridge
