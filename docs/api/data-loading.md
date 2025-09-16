@@ -1,0 +1,171 @@
+# API — Загрузка данных (`/api/data-loading`)
+
+## POST /api/data-loading/candles
+Асинхронная загрузка свечей. Тело запроса опционально.
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"],
+  "date": "2024-01-15",
+  "interval": "CANDLE_INTERVAL_1_MIN",
+  "assetType": ["SHARES", "FUTURES"]
+}
+```
+Примеры:
+```bash
+# Все инструменты из БД, вчерашняя дата по умолчанию
+curl -X POST "http://localhost:8087/api/data-loading/candles" -H "Content-Type: application/json" -d '{}'
+
+# Конкретные инструменты и дата
+curl -X POST "http://localhost:8087/api/data-loading/candles" -H "Content-Type: application/json" -d '{
+  "instruments": ["BBG004730N88"],
+  "date": "2024-01-15",
+  "interval": "CANDLE_INTERVAL_5_MIN"
+}'
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Загрузка свечей запущена в фоновом режиме",
+  "taskId": "1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77",
+  "startTime": "2024-01-15T10:30:00"
+}
+```
+
+## POST /api/data-loading/candles/{date}
+Запуск загрузки свечей за дату (все типы).
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/candles/2024-01-15"
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка свечей запущена для 2024-01-15", "date": "2024-01-15" }
+```
+
+## POST /api/data-loading/candles/shares/{date}
+Загрузка свечей только для акций за дату.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/candles/shares/2024-01-15"
+```
+Ответ (пример):
+```json
+{ "success": true, "type": "shares", "message": "Загрузка свечей акций запущена для 2024-01-15" }
+```
+
+## POST /api/data-loading/candles/futures/{date}
+Загрузка свечей только для фьючерсов за дату.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/candles/futures/2024-01-15"
+```
+Ответ (пример):
+```json
+{ "success": true, "type": "futures", "message": "Загрузка свечей фьючерсов запущена для 2024-01-15" }
+```
+
+## POST /api/data-loading/candles/indicatives/{date}
+Загрузка свечей только для индикативов за дату.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/candles/indicatives/2024-01-15"
+```
+Ответ (пример):
+```json
+{ "success": true, "type": "indicatives", "message": "Загрузка свечей индикативов запущена для 2024-01-15" }
+```
+
+## POST /api/data-loading/close-prices
+Загрузка цен закрытия за сегодня.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/close-prices"
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка цен закрытия запущена для сегодня" }
+```
+
+## POST /api/data-loading/close-prices/save
+Сохранение цен закрытия по указанным инструментам (или всем RUB из БД).
+
+Тело запроса (пример):
+```json
+{ "instruments": ["BBG004730N88", "BBG004730ZJ9"] }
+```
+Пример запроса:
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/close-prices/save" -H "Content-Type: application/json" -d '{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"]
+}'
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 15 новых цен закрытия из 20 найденных.",
+  "totalRequested": 20,
+  "newItemsSaved": 15,
+  "existingItemsSkipped": 5,
+  "savedItems": [ { "figi": "BBG004730N88", "tradingDate": "2024-01-15", "closePrice": 250.75 } ]
+}
+```
+
+## POST /api/data-loading/evening-session-prices
+Загрузка цен вечерней сессии за сегодня.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/evening-session-prices"
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка цен вечерней сессии запущена для сегодня" }
+```
+
+## POST /api/data-loading/evening-session-prices/{date}
+Загрузка цен вечерней сессии за дату.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/evening-session-prices/2024-01-15"
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка цен вечерней сессии запущена для 2024-01-15", "date": "2024-01-15" }
+```
+
+## POST /api/data-loading/morning-session-prices
+Загрузка цен утренней сессии за сегодня.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/morning-session-prices"
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка цен утренней сессии запущена для сегодня" }
+```
+
+## POST /api/data-loading/morning-session-prices/{date}
+Загрузка цен утренней сессии за дату.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/morning-session-prices/2024-01-15"
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка цен утренней сессии запущена для 2024-01-15", "date": "2024-01-15" }
+```
+
+## POST /api/data-loading/last-trades
+Асинхронная загрузка обезличенных сделок за последний час.
+```bash
+curl -X POST "http://localhost:8087/api/data-loading/last-trades" -H "Content-Type: application/json" -d '{
+  "figis": ["ALL_SHARES"],
+  "tradeSource": "TRADE_SOURCE_ALL"
+}'
+```
+Ответ (пример):
+```json
+{ "success": true, "message": "Загрузка обезличенных сделок запущена в фоновом режиме" }
+```
+
+## GET /api/data-loading/status/{taskId}
+Получение статуса задачи загрузки.
+```bash
+curl "http://localhost:8087/api/data-loading/status/1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77"
+```
+Ответ (пример):
+```json
+{ "success": true, "taskId": "1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77", "status": "processing", "message": "Задача выполняется" }
+```
