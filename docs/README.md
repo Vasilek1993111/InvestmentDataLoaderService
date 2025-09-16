@@ -2,7 +2,7 @@
 
 Сервис для загрузки и агрегации инвестиционных данных (акции, фьючерсы, индикативы) с использованием Tinkoff Invest API и PostgreSQL.
 
-- Базовый порт (локально): 8087
+- Базовый порт (локально): 8083
 - Базовый порт (Docker): 8083
 - База данных: PostgreSQL (по умолчанию `localhost:5434/postgres`)
 - Таймзона приложения: Europe/Moscow
@@ -31,12 +31,13 @@ docker-compose up -d
 
 4) Проверка здоровья API:
 ```bash
-curl http://localhost:8087/api/system/health
+curl http://localhost:8083/api/system/health
 ```
 
 ## Структура документации
 - Конфигурация: `docs/configuration.md`
 - Развертывание: `docs/deployment.md`
+- Разработка с Docker: `docs/docker-development.md`
 - Планировщики: `docs/schedulers.md`
 - База данных: `docs/database.md`
 - API:

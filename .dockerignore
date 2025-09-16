@@ -1,60 +1,32 @@
-# Игнорируем файлы, которые не нужны в Docker контексте
+# Исключаем ненужные файлы из Docker контекста
 target/
-!target/*.jar
-*.jar
-*.war
-*.ear
-*.class
+.git/
+*.md
+docs/
+init-scripts/
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.iml
+# НЕ исключаем .env - он нужен для загрузки переменных
+# .env
+.env.local
+.env.development
+.env.test
+.env.production
 
 # Maven
-.mvn/wrapper/maven-wrapper.jar
-.mvn/wrapper/maven-wrapper.properties
+.mvn/
+mvnw
+mvnw.cmd
 
-# IDE файлы
-.idea/
-*.iml
-*.ipr
-*.iws
-.vscode/
-.settings/
-.project
-.classpath
-
-# OS файлы
-.DS_Store
-Thumbs.db
-
-# Git
-.git/
-.gitignore
-
-# Docker файлы
-Dockerfile*
-docker-compose*
-.dockerignore
-
-# Логи
-*.log
-logs/
-
-# Временные файлы
-*.tmp
-*.temp
+# IDE
 *.swp
 *.swo
+*~
 
-# Node.js (если есть frontend)
-node_modules/
-npm-debug.log*
-
-# Тестовые файлы
-src/test/
-
-# Документация
-README.md
-*.md
-
-# Переменные окружения
-.env
-.env.local
-.env.*.local
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini

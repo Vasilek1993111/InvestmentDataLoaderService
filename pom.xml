@@ -88,7 +88,20 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Убрали dotenv-java: используем стандартные переменные окружения Spring -->
+        <!-- Spring Boot DevTools для hot reload -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- dotenv-java для загрузки .env файлов -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
         
         <!-- Spring Boot Test Starter -->
         <dependency>

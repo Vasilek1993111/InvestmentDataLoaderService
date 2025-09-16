@@ -222,12 +222,12 @@ public class VolumeAggregationSchedulerService {
                     SUM(main_session_volume) as today_main_volume,
                     SUM(evening_session_volume) as today_evening_volume,
                     SUM(weekend_session_volume) as today_weekend_volume,
-                    SUM(total_daily_volume) as today_total_volume,
+                    SUM(total_volume) as today_total_volume,
                     AVG(morning_session_volume) as avg_today_morning_volume,
                     AVG(main_session_volume) as avg_today_main_volume,
                     AVG(evening_session_volume) as avg_today_evening_volume,
                     AVG(weekend_session_volume) as avg_today_weekend_volume,
-                    AVG(total_daily_volume) as avg_today_daily_volume,
+                    AVG(total_volume) as avg_today_daily_volume,
                     MAX(last_updated) as last_updated
                 FROM invest.today_volume_aggregation
                 """;

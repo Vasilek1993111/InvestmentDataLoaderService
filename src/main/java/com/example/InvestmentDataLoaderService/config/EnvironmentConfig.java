@@ -1,17 +1,16 @@
 package com.example.InvestmentDataLoaderService.config;
 
+import io.github.cdimascio.dotenv.Dotenv;
+import io.github.cdimascio.dotenv.DotenvException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 
 import jakarta.annotation.PostConstruct;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.util.Map;
 
 /**
  * Конфигурация для загрузки переменных окружения из .env файла.
- * Обеспечивает безопасное хранение чувствительных данных.
+ * Использует dotenv-java для надежной загрузки переменных.
  */
 @Slf4j
 @Configuration
@@ -23,50 +22,56 @@ public class EnvironmentConfig {
      */
     @PostConstruct
     public void loadEnvironmentVariables() {
-        File envFile = new File(".env");
-        
-        if (!envFile.exists()) {
-            log.info(".env файл не найден. Используются системные переменные окружения.");
-            return;
-        }
-        
-        try (BufferedReader reader = new BufferedReader(new FileReader(envFile))) {
-            String line;
+        try {
+            // Загружаем .env файл
+            Dotenv dotenv = Dotenv.configure()
+                    .directory("./")  // Ищем .env в корне проекта
+                    .ignoreIfMalformed()
+                    .ignoreIfMissing()
+                    .load();
+            
+            // Получаем все переменные из .env
+            Map<String, String> envVars = dotenv.entries().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            entry -> entry.getKey(),
+                            entry -> entry.getValue()
+                    ));
+            
+            if (envVars.isEmpty()) {
+                log.info(".env файл не найден или пуст. Используются системные переменные окружения.");
+                return;
+            }
+            
             int loadedCount = 0;
             
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
+            // Устанавливаем переменные только если они еще не установлены в системе
+            for (Map.Entry<String, String> entry : envVars.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
                 
-                // Пропускаем пустые строки и комментарии
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
-                
-                // Парсим строку формата KEY=VALUE
-                int equalIndex = line.indexOf('=');
-                if (equalIndex > 0) {
-                    String key = line.substring(0, equalIndex).trim();
-                    String value = line.substring(equalIndex + 1).trim();
-                    
-                    // Убираем кавычки если есть
-                    if ((value.startsWith("\"") && value.endsWith("\"")) ||
-                        (value.startsWith("'") && value.endsWith("'"))) {
-                        value = value.substring(1, value.length() - 1);
-                    }
-                    
-                    // Устанавливаем переменную только если она еще не установлена
-                    if (System.getenv(key) == null) {
-                        System.setProperty(key, value);
-                        loadedCount++;
-                        log.debug("Загружена переменная окружения: {}", key);
-                    }
+                // Проверяем, не установлена ли уже переменная в системе
+                if (System.getenv(key) == null && System.getProperty(key) == null) {
+                    System.setProperty(key, value);
+                    loadedCount++;
+                    log.debug("Загружена переменная окружения: {} = {}", key, 
+                            key.contains("PASSWORD") || key.contains("TOKEN") ? "***" : value);
                 }
             }
             
             log.info("Успешно загружено {} переменных окружения из .env файла", loadedCount);
             
-        } catch (IOException e) {
-            log.warn("Ошибка при чтении .env файла: {}. Используются системные переменные окружения.", e.getMessage());
+            // Логируем основные переменные (без чувствительных данных)
+            String token = dotenv.get("T_INVEST_TOKEN");
+            if (token != null && !token.isEmpty()) {
+                log.info("T_INVEST_TOKEN загружен из .env файла");
+            } else {
+                log.warn("T_INVEST_TOKEN не найден в .env файле. Убедитесь, что токен установлен.");
+            }
+            
+        } catch (DotenvException e) {
+            log.warn("Ошибка при загрузке .env файла: {}. Используются системные переменные окружения.", e.getMessage());
+        } catch (Exception e) {
+            log.error("Неожиданная ошибка при загрузке переменных окружения: {}", e.getMessage(), e);
         }
     }
 }

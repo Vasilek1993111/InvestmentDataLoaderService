@@ -12,7 +12,7 @@
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/shares?status=INSTRUMENT_STATUS_BASE&exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB"
+curl "http://localhost:8083/api/instruments/shares?status=INSTRUMENT_STATUS_BASE&exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB"
 ```
 
 Ответ (пример):
@@ -33,7 +33,7 @@ curl "http://localhost:8087/api/instruments/shares?status=INSTRUMENT_STATUS_BASE
 ## POST /api/instruments/shares
 Сохранение акций в базу данных по фильтрам.
 ```bash
-curl -X POST "http://localhost:8087/api/instruments/shares" \
+curl -X POST "http://localhost:8083/api/instruments/shares" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "INSTRUMENT_STATUS_BASE",
@@ -65,7 +65,7 @@ curl -X POST "http://localhost:8087/api/instruments/shares" \
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/futures?status=INSTRUMENT_STATUS_BASE&exchange=FORTS_EVENING&currency=RUB&assetType=TYPE_CURRENCY"
+curl "http://localhost:8083/api/instruments/futures?status=INSTRUMENT_STATUS_BASE&exchange=FORTS_EVENING&currency=RUB&assetType=TYPE_CURRENCY"
 ```
 
 Ответ (пример):
@@ -85,7 +85,7 @@ curl "http://localhost:8087/api/instruments/futures?status=INSTRUMENT_STATUS_BAS
 ## POST /api/instruments/futures
 Сохранение фьючерсов по фильтрам.
 ```bash
-curl -X POST "http://localhost:8087/api/instruments/futures" \
+curl -X POST "http://localhost:8083/api/instruments/futures" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "INSTRUMENT_STATUS_BASE",
@@ -117,7 +117,7 @@ curl -X POST "http://localhost:8087/api/instruments/futures" \
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/indicatives?exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB"
+curl "http://localhost:8083/api/instruments/indicatives?exchange=moex_mrng_evng_e_wknd_dlr&currency=RUB"
 ```
 
 Ответ (пример):
@@ -140,7 +140,7 @@ curl "http://localhost:8087/api/instruments/indicatives?exchange=moex_mrng_evng_
 ## POST /api/instruments/indicatives
 Сохранение индикативных инструментов по фильтрам.
 ```bash
-curl -X POST "http://localhost:8087/api/instruments/indicatives" \
+curl -X POST "http://localhost:8083/api/instruments/indicatives" \
   -H "Content-Type: application/json" \
   -d '{
     "exchange": "moex_mrng_evng_e_wknd_dlr",
@@ -166,7 +166,7 @@ curl -X POST "http://localhost:8087/api/instruments/indicatives" \
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/indicatives/BBG00QPYJ5X0"
+curl "http://localhost:8083/api/instruments/indicatives/BBG00QPYJ5X0"
 ```
 
 Ответ (пример):
@@ -189,7 +189,7 @@ curl "http://localhost:8087/api/instruments/indicatives/BBG00QPYJ5X0"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/indicatives/ticker/IMOEX"
+curl "http://localhost:8083/api/instruments/indicatives/ticker/IMOEX"
 ```
 
 Ответ (пример):
@@ -214,7 +214,7 @@ curl "http://localhost:8087/api/instruments/indicatives/ticker/IMOEX"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/count"
+curl "http://localhost:8083/api/instruments/count"
 ```
 
 Ответ (пример):
@@ -227,7 +227,7 @@ curl "http://localhost:8087/api/instruments/count"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/stats"
+curl "http://localhost:8083/api/instruments/stats"
 ```
 
 Ответ (пример):
@@ -247,7 +247,7 @@ curl "http://localhost:8087/api/instruments/stats"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/search?query=SBER"
+curl "http://localhost:8083/api/instruments/search?query=SBER"
 ```
 
 Ответ (пример):
@@ -260,7 +260,7 @@ curl "http://localhost:8087/api/instruments/search?query=SBER"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/instruments/by-exchange/MOEX"
+curl "http://localhost:8083/api/instruments/by-exchange/MOEX"
 ```
 
 Ответ (пример):

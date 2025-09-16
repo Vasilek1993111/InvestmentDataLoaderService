@@ -13,10 +13,10 @@
 Примеры:
 ```bash
 # Все инструменты из БД, вчерашняя дата по умолчанию
-curl -X POST "http://localhost:8087/api/data-loading/candles" -H "Content-Type: application/json" -d '{}'
+curl -X POST "http://localhost:8083/api/data-loading/candles" -H "Content-Type: application/json" -d '{}'
 
 # Конкретные инструменты и дата
-curl -X POST "http://localhost:8087/api/data-loading/candles" -H "Content-Type: application/json" -d '{
+curl -X POST "http://localhost:8083/api/data-loading/candles" -H "Content-Type: application/json" -d '{
   "instruments": ["BBG004730N88"],
   "date": "2024-01-15",
   "interval": "CANDLE_INTERVAL_5_MIN"
@@ -35,7 +35,7 @@ curl -X POST "http://localhost:8087/api/data-loading/candles" -H "Content-Type: 
 ## POST /api/data-loading/candles/{date}
 Запуск загрузки свечей за дату (все типы).
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/candles/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/2024-01-15"
 ```
 Ответ (пример):
 ```json
@@ -45,7 +45,7 @@ curl -X POST "http://localhost:8087/api/data-loading/candles/2024-01-15"
 ## POST /api/data-loading/candles/shares/{date}
 Загрузка свечей только для акций за дату.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/candles/shares/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/shares/2024-01-15"
 ```
 Ответ (пример):
 ```json
@@ -55,7 +55,7 @@ curl -X POST "http://localhost:8087/api/data-loading/candles/shares/2024-01-15"
 ## POST /api/data-loading/candles/futures/{date}
 Загрузка свечей только для фьючерсов за дату.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/candles/futures/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/futures/2024-01-15"
 ```
 Ответ (пример):
 ```json
@@ -65,7 +65,7 @@ curl -X POST "http://localhost:8087/api/data-loading/candles/futures/2024-01-15"
 ## POST /api/data-loading/candles/indicatives/{date}
 Загрузка свечей только для индикативов за дату.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/candles/indicatives/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/indicatives/2024-01-15"
 ```
 Ответ (пример):
 ```json
@@ -75,7 +75,7 @@ curl -X POST "http://localhost:8087/api/data-loading/candles/indicatives/2024-01
 ## POST /api/data-loading/close-prices
 Загрузка цен закрытия за сегодня.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/close-prices"
+curl -X POST "http://localhost:8083/api/data-loading/close-prices"
 ```
 Ответ (пример):
 ```json
@@ -91,7 +91,7 @@ curl -X POST "http://localhost:8087/api/data-loading/close-prices"
 ```
 Пример запроса:
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/close-prices/save" -H "Content-Type: application/json" -d '{
+curl -X POST "http://localhost:8083/api/data-loading/close-prices/save" -H "Content-Type: application/json" -d '{
   "instruments": ["BBG004730N88", "BBG004730ZJ9"]
 }'
 ```
@@ -110,7 +110,7 @@ curl -X POST "http://localhost:8087/api/data-loading/close-prices/save" -H "Cont
 ## POST /api/data-loading/evening-session-prices
 Загрузка цен вечерней сессии за сегодня.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/evening-session-prices"
+curl -X POST "http://localhost:8083/api/data-loading/evening-session-prices"
 ```
 Ответ (пример):
 ```json
@@ -120,7 +120,7 @@ curl -X POST "http://localhost:8087/api/data-loading/evening-session-prices"
 ## POST /api/data-loading/evening-session-prices/{date}
 Загрузка цен вечерней сессии за дату.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/evening-session-prices/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/evening-session-prices/2024-01-15"
 ```
 Ответ (пример):
 ```json
@@ -130,7 +130,7 @@ curl -X POST "http://localhost:8087/api/data-loading/evening-session-prices/2024
 ## POST /api/data-loading/morning-session-prices
 Загрузка цен утренней сессии за сегодня.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/morning-session-prices"
+curl -X POST "http://localhost:8083/api/data-loading/morning-session-prices"
 ```
 Ответ (пример):
 ```json
@@ -140,7 +140,7 @@ curl -X POST "http://localhost:8087/api/data-loading/morning-session-prices"
 ## POST /api/data-loading/morning-session-prices/{date}
 Загрузка цен утренней сессии за дату.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/morning-session-prices/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/morning-session-prices/2024-01-15"
 ```
 Ответ (пример):
 ```json
@@ -150,7 +150,7 @@ curl -X POST "http://localhost:8087/api/data-loading/morning-session-prices/2024
 ## POST /api/data-loading/last-trades
 Асинхронная загрузка обезличенных сделок за последний час.
 ```bash
-curl -X POST "http://localhost:8087/api/data-loading/last-trades" -H "Content-Type: application/json" -d '{
+curl -X POST "http://localhost:8083/api/data-loading/last-trades" -H "Content-Type: application/json" -d '{
   "figis": ["ALL_SHARES"],
   "tradeSource": "TRADE_SOURCE_ALL"
 }'
@@ -163,7 +163,7 @@ curl -X POST "http://localhost:8087/api/data-loading/last-trades" -H "Content-Ty
 ## GET /api/data-loading/status/{taskId}
 Получение статуса задачи загрузки.
 ```bash
-curl "http://localhost:8087/api/data-loading/status/1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77"
+curl "http://localhost:8083/api/data-loading/status/1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77"
 ```
 Ответ (пример):
 ```json

@@ -25,5 +25,36 @@ public class LastPriceEntity {
         this.exchange = exchange;
     }
     // getters/setters
+    public LastPriceKey getId() {
+        return id;
+    }
+
+    public void setId(LastPriceKey id) {
+        this.id = id;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getExchange() {
+        return exchange;
+    }
+
+    public void setExchange(String exchange) {
+        this.exchange = exchange;
+    }
 }
 

@@ -43,5 +43,9 @@ EXPOSE 8083
 # Настраиваем JVM для контейнера
 ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
+# DevTools настройки для hot reload
+ENV SPRING_DEVTOOLS_RESTART_ENABLED=true
+ENV SPRING_DEVTOOLS_LIVERELOAD_ENABLED=true
+
 # Команда запуска с диагностикой
-ENTRYPOINT ["sh", "-c", "echo 'Starting application with JAVA_OPTS: $JAVA_OPTS' && echo 'Database URL: $SPRING_DATASOURCE_URL' && java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "echo 'Starting application with JAVA_OPTS: $JAVA_OPTS' && echo 'Database URL: $SPRING_DATASOURCE_URL' && echo 'DevTools enabled: $SPRING_DEVTOOLS_RESTART_ENABLED' && java $JAVA_OPTS -jar app.jar"]

@@ -13,7 +13,7 @@ import java.util.Map;
  * Контроллер для управления материализованным представлением агрегации объемов
  */
 @RestController
-@RequestMapping("/api/analytics/volume-aggregation")
+@RequestMapping("/api/volume-aggregation")
 public class VolumeAggregationController {
     
     @Autowired

@@ -19,8 +19,19 @@ services:
       
       # Дополнительные настройки для Docker
       SPRING_PROFILES_ACTIVE: docker
+      
+      # DevTools настройки для hot reload
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
     ports:
       - "8083:8083"
+    volumes:
+      # Volume mapping для hot reload
+      - ./src:/app/src
+      - ./target:/app/target
+      - ./src/main/resources:/app/src/main/resources
+      # Копируем .env файл для загрузки переменных
+      - ./.env:/app/.env:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]

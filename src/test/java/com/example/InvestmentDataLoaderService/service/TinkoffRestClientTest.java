@@ -2,7 +2,6 @@ package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.client.TinkoffRestClient;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

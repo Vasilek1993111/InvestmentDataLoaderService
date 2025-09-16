@@ -5,7 +5,7 @@
 ## Основные настройки
 
 - Имя приложения: `spring.application.name=investment-data-loader-service`
-- Порт (локально): `server.port=8087`
+- Порт (локально): `server.port=8083`
 - Порт (Docker): `server.port=8083`
 - Таймзона: `app.timezone=Europe/Moscow`
 

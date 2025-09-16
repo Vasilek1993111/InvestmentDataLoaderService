@@ -3,7 +3,7 @@
 ## GET /api/system/health
 Статус здоровья системы и основных компонентов (БД, материализованные представления, шедулеры, API).
 ```bash
-curl "http://localhost:8087/api/system/health"
+curl "http://localhost:8083/api/system/health"
 ```
 Ответ (пример):
 ```json
@@ -23,7 +23,7 @@ curl "http://localhost:8087/api/system/health"
 ## GET /api/system/diagnostics
 Детальная диагностика (версия Java, ОС, память, расписания, состояние матвью).
 ```bash
-curl "http://localhost:8087/api/system/diagnostics"
+curl "http://localhost:8083/api/system/diagnostics"
 ```
 Ответ (пример):
 ```json
@@ -53,7 +53,7 @@ curl "http://localhost:8087/api/system/diagnostics"
 ## GET /api/system/volume-aggregation/check
 Проверка существования материализованных представлений.
 ```bash
-curl "http://localhost:8087/api/system/volume-aggregation/check"
+curl "http://localhost:8083/api/system/volume-aggregation/check"
 ```
 Ответ (пример):
 ```json
@@ -63,7 +63,7 @@ curl "http://localhost:8087/api/system/volume-aggregation/check"
 ## GET /api/system/volume-aggregation/schedule-info
 Информация о расписаниях обновлений матвью.
 ```bash
-curl "http://localhost:8087/api/system/volume-aggregation/schedule-info"
+curl "http://localhost:8083/api/system/volume-aggregation/schedule-info"
 ```
 Ответ (пример):
 ```json
@@ -82,7 +82,7 @@ curl "http://localhost:8087/api/system/volume-aggregation/schedule-info"
 ## GET /api/system/stats
 Сводная статистика по ресурсам JVM и агрегированным данным (если доступно).
 ```bash
-curl "http://localhost:8087/api/system/stats"
+curl "http://localhost:8083/api/system/stats"
 ```
 Ответ (пример):
 ```json
@@ -110,7 +110,7 @@ curl "http://localhost:8087/api/system/stats"
 ## GET /api/system/info
 Информация о версии приложения, JVM и ОС.
 ```bash
-curl "http://localhost:8087/api/system/info"
+curl "http://localhost:8083/api/system/info"
 ```
 Ответ (пример):
 ```json
@@ -129,7 +129,7 @@ curl "http://localhost:8087/api/system/info"
 ## GET /api/system/external-services
 Проверка доступности внешних сервисов (заготовка для расширения).
 ```bash
-curl "http://localhost:8087/api/system/external-services"
+curl "http://localhost:8083/api/system/external-services"
 ```
 Ответ (пример):
 ```json

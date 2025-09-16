@@ -17,7 +17,7 @@ docker-compose up -d
 ```
 
 Порты:
-- Приложение: `8083` (в Docker), `8087` (локально)
+- Приложение: `8083` (в Docker), `8083` (локально)
 - PostgreSQL (по умолчанию): `5434`
 
 ## Переменные окружения (пример)
@@ -33,6 +33,6 @@ export T_INVEST_TOKEN=<your_token>
 
 ## Проверка после запуска
 ```bash
-curl http://localhost:8087/api/system/health
+curl http://localhost:8083/api/system/health
 ```
 Ожидаемый ответ: статус `healthy`.

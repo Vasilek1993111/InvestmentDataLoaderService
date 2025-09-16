@@ -3,7 +3,7 @@
 ## GET /api/trading/accounts
 Список торговых счетов.
 ```bash
-curl "http://localhost:8087/api/trading/accounts"
+curl "http://localhost:8083/api/trading/accounts"
 ```
 Ответ (пример):
 ```json
@@ -22,13 +22,13 @@ curl "http://localhost:8087/api/trading/accounts"
 Примеры:
 ```bash
 # Все инструменты из БД
-curl "http://localhost:8087/api/trading/close-prices"
+curl "http://localhost:8083/api/trading/close-prices"
 
 # Конкретные FIGI
-curl "http://localhost:8087/api/trading/close-prices?instrumentId=BBG004730N88&instrumentId=BBG004730ZJ9"
+curl "http://localhost:8083/api/trading/close-prices?instrumentId=BBG004730N88&instrumentId=BBG004730ZJ9"
 
 # С фильтром по статусу
-curl "http://localhost:8087/api/trading/close-prices?instrumentStatus=INSTRUMENT_STATUS_BASE"
+curl "http://localhost:8083/api/trading/close-prices?instrumentStatus=INSTRUMENT_STATUS_BASE"
 ```
 
 Ответ (пример):
@@ -45,7 +45,7 @@ curl "http://localhost:8087/api/trading/close-prices?instrumentStatus=INSTRUMENT
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/trading/schedules?exchange=MOEX&from=2024-01-01T00:00:00Z&to=2024-01-10T00:00:00Z"
+curl "http://localhost:8083/api/trading/schedules?exchange=MOEX&from=2024-01-01T00:00:00Z&to=2024-01-10T00:00:00Z"
 ```
 Ответ (пример):
 ```json
@@ -65,7 +65,7 @@ curl "http://localhost:8087/api/trading/schedules?exchange=MOEX&from=2024-01-01T
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/trading/statuses?instrumentId=BBG004730N88&instrumentId=BBG004730ZJ9"
+curl "http://localhost:8083/api/trading/statuses?instrumentId=BBG004730N88&instrumentId=BBG004730ZJ9"
 ```
 Ответ (пример):
 ```json
@@ -79,7 +79,7 @@ curl "http://localhost:8087/api/trading/statuses?instrumentId=BBG004730N88&instr
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/trading/trading-days?exchange=MOEX&from=2024-01-01T00:00:00Z&to=2024-01-10T00:00:00Z"
+curl "http://localhost:8083/api/trading/trading-days?exchange=MOEX&from=2024-01-01T00:00:00Z&to=2024-01-10T00:00:00Z"
 ```
 Ответ (пример):
 ```json
@@ -100,7 +100,7 @@ curl "http://localhost:8087/api/trading/trading-days?exchange=MOEX&from=2024-01-
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/trading/stats?exchange=MOEX&from=2024-01-01T00:00:00Z&to=2024-01-31T00:00:00Z"
+curl "http://localhost:8083/api/trading/stats?exchange=MOEX&from=2024-01-01T00:00:00Z&to=2024-01-31T00:00:00Z"
 ```
 Ответ (пример):
 ```json
@@ -119,7 +119,7 @@ curl "http://localhost:8087/api/trading/stats?exchange=MOEX&from=2024-01-01T00:0
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/trading/search?query=SBER&type=orders"
+curl "http://localhost:8083/api/trading/search?query=SBER&type=orders"
 ```
 Ответ (пример):
 ```json

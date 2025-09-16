@@ -5,7 +5,7 @@
 
 Пример:
 ```bash
-curl -X POST "http://localhost:8087/api/analytics/volume-aggregation/refresh-today"
+curl -X POST "http://localhost:8083/api/analytics/volume-aggregation/refresh-today"
 ```
 Ответ (пример):
 ```json
@@ -17,7 +17,7 @@ curl -X POST "http://localhost:8087/api/analytics/volume-aggregation/refresh-tod
 
 Пример:
 ```bash
-curl -X POST "http://localhost:8087/api/analytics/volume-aggregation/refresh-full"
+curl -X POST "http://localhost:8083/api/analytics/volume-aggregation/refresh-full"
 ```
 Ответ (пример):
 ```json
@@ -29,7 +29,7 @@ curl -X POST "http://localhost:8087/api/analytics/volume-aggregation/refresh-ful
 
 Пример:
 ```bash
-curl -X POST "http://localhost:8087/api/analytics/volume-aggregation/refresh"
+curl -X POST "http://localhost:8083/api/analytics/volume-aggregation/refresh"
 ```
 Ответ (пример):
 ```json
@@ -41,7 +41,7 @@ curl -X POST "http://localhost:8087/api/analytics/volume-aggregation/refresh"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/analytics/volume-aggregation/stats-today"
+curl "http://localhost:8083/api/analytics/volume-aggregation/stats-today"
 ```
 Ответ (пример):
 ```json
@@ -53,7 +53,7 @@ curl "http://localhost:8087/api/analytics/volume-aggregation/stats-today"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/analytics/volume-aggregation/stats"
+curl "http://localhost:8083/api/analytics/volume-aggregation/stats"
 ```
 Ответ (пример):
 ```json
@@ -65,7 +65,7 @@ curl "http://localhost:8087/api/analytics/volume-aggregation/stats"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/analytics/volume-aggregation/detailed-stats"
+curl "http://localhost:8083/api/analytics/volume-aggregation/detailed-stats"
 ```
 Ответ (пример):
 ```json
@@ -97,7 +97,7 @@ curl "http://localhost:8087/api/analytics/volume-aggregation/detailed-stats"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/analytics/volume-aggregation/check"
+curl "http://localhost:8083/api/analytics/volume-aggregation/check"
 ```
 Ответ (пример):
 ```json
@@ -109,7 +109,7 @@ curl "http://localhost:8087/api/analytics/volume-aggregation/check"
 
 Пример:
 ```bash
-curl "http://localhost:8087/api/analytics/volume-aggregation/schedule-info"
+curl "http://localhost:8083/api/analytics/volume-aggregation/schedule-info"
 ```
 Ответ (пример):
 ```json
@@ -134,7 +134,7 @@ curl "http://localhost:8087/api/analytics/volume-aggregation/schedule-info"
 ```
 Пример:
 ```bash
-curl -X POST "http://localhost:8087/api/analytics/recalculate-aggregation" -H "Content-Type: application/json" -d '{
+curl -X POST "http://localhost:8083/api/analytics/recalculate-aggregation" -H "Content-Type: application/json" -d '{
   "types": ["SHARES", "FUTURES"]
 }'
 ```
@@ -158,7 +158,7 @@ curl -X POST "http://localhost:8087/api/analytics/recalculate-aggregation" -H "C
 - `figi` — FIGI инструмента (опционально)
 
 ```bash
-curl "http://localhost:8087/api/analytics/session-analytics/overall?figi=BBG004730N88"
+curl "http://localhost:8083/api/analytics/session-analytics/overall?figi=BBG004730N88"
 ```
 
 Ответ (пример):
@@ -200,7 +200,7 @@ curl "http://localhost:8087/api/analytics/session-analytics/overall?figi=BBG0047
 - `end_date` — дата окончания периода (опционально)
 
 ```bash
-curl -X POST "http://localhost:8087/api/analytics/session-analytics" \
+curl -X POST "http://localhost:8083/api/analytics/session-analytics" \
   -H "Content-Type: application/json" \
   -d '{
     "figi": "BBG004730N88",
@@ -246,7 +246,7 @@ curl -X POST "http://localhost:8087/api/analytics/session-analytics" \
 - `figi` — FIGI инструмента (опционально)
 
 ```bash
-curl "http://localhost:8087/api/analytics/session-analytics/today?figi=BBG004730N88"
+curl "http://localhost:8083/api/analytics/session-analytics/today?figi=BBG004730N88"
 ```
 
 Ответ (пример):
@@ -288,7 +288,7 @@ curl "http://localhost:8087/api/analytics/session-analytics/today?figi=BBG004730
 - `end_date` — дата окончания периода (опционально)
 
 ```bash
-curl -X POST "http://localhost:8087/api/analytics/session-analytics/summary" \
+curl -X POST "http://localhost:8083/api/analytics/session-analytics/summary" \
   -H "Content-Type: application/json" \
   -d '{
     "figi": "BBG004730N88",
