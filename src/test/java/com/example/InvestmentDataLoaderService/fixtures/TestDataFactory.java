@@ -121,7 +121,7 @@ public class TestDataFactory {
     }
 
     public static SaveResponseDto createSaveResponseDto(boolean success, String message, int totalRequested, int newItemsSaved, int existingItemsSkipped, List<?> savedItems) {
-        return new SaveResponseDto(success, message, totalRequested, newItemsSaved, existingItemsSkipped, savedItems);
+        return new SaveResponseDto(success, message, totalRequested, newItemsSaved, existingItemsSkipped, 0, 0, savedItems);
     }
 
     public static SaveResponseDto createSuccessfulSaveResponse(List<?> savedItems) {
@@ -131,6 +131,8 @@ public class TestDataFactory {
             savedItems.size(),
             savedItems.size(),
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             savedItems
         );
     }
@@ -142,6 +144,8 @@ public class TestDataFactory {
             0,
             0,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList()
         );
     }

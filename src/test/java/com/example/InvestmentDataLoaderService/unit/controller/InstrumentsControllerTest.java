@@ -91,6 +91,8 @@ class InstrumentsControllerTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testShare)
         );
     }
@@ -325,6 +327,8 @@ class InstrumentsControllerTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testFuture)
         );
 
@@ -439,6 +443,8 @@ class InstrumentsControllerTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testIndicative)
         );
 

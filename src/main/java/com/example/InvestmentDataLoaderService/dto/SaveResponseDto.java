@@ -14,5 +14,7 @@ public class SaveResponseDto {
     private int totalRequested;
     private int newItemsSaved;
     private int existingItemsSkipped;
+    private int invalidItemsFiltered;
+    private int missingFromApi; // Цены, которые не были получены из API
     private List<?> savedItems;
 }

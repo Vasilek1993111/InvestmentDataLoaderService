@@ -58,6 +58,96 @@ public class MarketDataService {
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ЦЕНАМИ ЗАКРЫТИЯ ===
 
     /**
+     * Получение цен закрытия для всех акций из БД через T-INVEST API
+     */
+    public List<ClosePriceDto> getClosePricesForAllShares() {
+        List<String> shareFigis = new ArrayList<>();
+        
+        // Получаем только акции в рублях из таблицы shares
+        List<ShareEntity> shares = shareRepo.findAll();
+        for (ShareEntity share : shares) {
+            if ("RUB".equalsIgnoreCase(share.getCurrency())) {
+                shareFigis.add(share.getFigi());
+            }
+        }
+        
+        if (shareFigis.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<ClosePriceDto> allPrices = getClosePrices(shareFigis, null);
+        return filterValidPrices(allPrices);
+    }
+
+    /**
+     * Получение цен закрытия для всех фьючерсов из БД через T-INVEST API
+     */
+    public List<ClosePriceDto> getClosePricesForAllFutures() {
+        List<String> futureFigis = new ArrayList<>();
+        
+        // Получаем только фьючерсы в рублях из таблицы futures
+        List<FutureEntity> futures = futureRepo.findAll();
+        for (FutureEntity future : futures) {
+            if ("RUB".equalsIgnoreCase(future.getCurrency())) {
+                futureFigis.add(future.getFigi());
+            }
+        }
+        
+        if (futureFigis.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<ClosePriceDto> allPrices = getClosePrices(futureFigis, null);
+        return filterValidPrices(allPrices);
+    }
+
+    /**
+     * Фильтрация валидных цен закрытия (исключает цены с датой 1970-01-01)
+     */
+    private List<ClosePriceDto> filterValidPrices(List<ClosePriceDto> prices) {
+        List<ClosePriceDto> validPrices = new ArrayList<>();
+        int invalidPricesCount = 0;
+        
+        for (ClosePriceDto price : prices) {
+            if ("1970-01-01".equals(price.tradingDate())) {
+                invalidPricesCount++;
+                System.out.println("Фильтруем неверную цену с датой 1970-01-01 для FIGI: " + price.figi());
+            } else {
+                validPrices.add(price);
+            }
+        }
+        
+        if (invalidPricesCount > 0) {
+            System.out.println("Отфильтровано " + invalidPricesCount + " неверных цен с датой 1970-01-01");
+        }
+        
+        return validPrices;
+    }
+
+    /**
+     * Фильтрация валидных цен закрытия с детальной статистикой
+     */
+    private ClosePriceProcessingResult filterValidPricesWithStats(List<ClosePriceDto> prices) {
+        List<ClosePriceDto> validPrices = new ArrayList<>();
+        int invalidPricesCount = 0;
+        
+        for (ClosePriceDto price : prices) {
+            if ("1970-01-01".equals(price.tradingDate())) {
+                invalidPricesCount++;
+                System.out.println("Фильтруем неверную цену с датой 1970-01-01 для FIGI: " + price.figi());
+            } else {
+                validPrices.add(price);
+            }
+        }
+        
+        if (invalidPricesCount > 0) {
+            System.out.println("Отфильтровано " + invalidPricesCount + " неверных цен с датой 1970-01-01");
+        }
+        
+        return new ClosePriceProcessingResult(validPrices, invalidPricesCount, prices.size());
+    }
+
+    /**
      * Вспомогательный метод: определяет список FIGI для загрузки цен закрытия по запросу
      */
     public List<String> resolveInstrumentIdsForClosePrices(ClosePriceRequestDto request) {
@@ -147,13 +237,16 @@ public class MarketDataService {
             
             list.add(new ClosePriceDto(p.getFigi(), date, price, eveningSessionPrice));
         }
-        return list;
+        
+        // Фильтруем неверные цены с датой 1970-01-01
+        return filterValidPrices(list);
     }
 
     public SaveResponseDto saveClosePrices(ClosePriceRequestDto request) {
         List<String> instrumentIds = request.getInstruments();
         
-        // Если инструменты не указаны, получаем RUB инструменты (shares, futures) и все indicatives из БД
+        // Если инструменты не указаны, получаем только RUB инструменты (shares, futures) из БД
+        // Исключаем indicatives из загрузки цен закрытия
         if (instrumentIds == null || instrumentIds.isEmpty()) {
             List<String> allInstrumentIds = new ArrayList<>();
             
@@ -173,14 +266,8 @@ public class MarketDataService {
                 }
             }
             
-            // Получаем все индикативные инструменты из таблицы indicatives (без фильтра по валюте)
-            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
-            for (IndicativeEntity indicative : indicatives) {
-                // Исключаем пустые FIGI
-                if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
-                    allInstrumentIds.add(indicative.getFigi());
-                }
-            }
+            // Исключаем indicatives из загрузки цен закрытия
+            // (закомментировано - indicatives не загружаются для цен закрытия)
             
             instrumentIds = allInstrumentIds;
         }
@@ -189,12 +276,12 @@ public class MarketDataService {
         if (instrumentIds.isEmpty()) {
             return new SaveResponseDto(
                 false,
-                "Нет инструментов для загрузки цен закрытия. В базе данных нет акций в рублях, фьючерсов в рублях или индикативных инструментов.",
-                0, 0, 0, new ArrayList<>()
+                "Нет инструментов для загрузки цен закрытия. В базе данных нет акций в рублях или фьючерсов в рублях.",
+                0, 0, 0, 0, 0, new ArrayList<>()
             );
         }
 
-        // Получаем цены закрытия из API по частям (shares+futures, затем indicatives)
+        // Получаем цены закрытия из API по частям (только shares+futures)
         List<ClosePriceDto> closePricesFromApi = new ArrayList<>();
         int requestedInstrumentsCount = instrumentIds.size();
         
@@ -305,87 +392,8 @@ public class MarketDataService {
                 }
             }
 
-            // Затем пытаемся получить цены для indicatives (если API поддерживает)
-            List<String> indicativesIds = new ArrayList<>();
-            List<String> indicativesFigis = new ArrayList<>();
-            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
-            for (IndicativeEntity indicative : indicatives) {
-                // Предпочитаем UID для запросов к API, если он есть; иначе используем FIGI
-                String uid = indicative.getUid();
-                String figi = indicative.getFigi();
-                if (uid != null && !uid.trim().isEmpty()) {
-                    indicativesIds.add(uid);
-                } else if (figi != null && !figi.trim().isEmpty()) {
-                    indicativesIds.add(figi);
-                }
-                if (figi != null && !figi.trim().isEmpty()) {
-                    indicativesFigis.add(figi);
-                }
-            }
-
-            if (!indicativesIds.isEmpty()) {
-                try {
-                    System.out.println("Запрашиваем цены закрытия для " + indicativesIds.size() + " indicatives батчами по " + batchSize);
-                    for (int i = 0; i < indicativesIds.size(); i += batchSize) {
-                        int toIndex = Math.min(i + batchSize, indicativesIds.size());
-                        List<String> batch = indicativesIds.subList(i, toIndex);
-                        List<ClosePriceDto> indicativesPrices = getClosePrices(batch, null);
-                        closePricesFromApi.addAll(indicativesPrices);
-                        System.out.println("Получено цен для батча indicatives (" + batch.size() + "): " + indicativesPrices.size());
-                        try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
-                    }
-                } catch (Exception e) {
-                    System.err.println("Ошибка при получении цен закрытия для indicatives: " + e.getMessage());
-                    System.err.println("Продолжаем без indicatives...");
-                }
-
-                // Fallback: для индикативов без цен закрытия пробуем взять закрытие из свечей за предыдущий день
-                try {
-                    LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
-                    Set<String> havePrices = new HashSet<>();
-                    for (ClosePriceDto p : closePricesFromApi) {
-                        havePrices.add(p.figi());
-                    }
-
-                    int fallbackTried = 0;
-                    int fallbackSaved = 0;
-                    for (int idx = 0; idx < indicativesFigis.size(); idx++) {
-                        String figi = indicativesFigis.get(idx);
-                        if (figi == null || figi.trim().isEmpty()) {
-                            continue;
-                        }
-                        if (havePrices.contains(figi)) {
-                            continue;
-                        }
-                        // Получаем свечи за день и берём последнюю как цену закрытия.
-                        // Для индикативов пробуем сначала uid, если доступен; иначе figi
-                        String instrumentIdForCandles = figi;
-                        try {
-                            IndicativeEntity entity = indicativeRepo.findById(figi).orElse(null);
-                            if (entity != null && entity.getUid() != null && !entity.getUid().trim().isEmpty()) {
-                                instrumentIdForCandles = entity.getUid();
-                            }
-                        } catch (Exception ignored) {}
-                        List<CandleDto> candles = getCandles(instrumentIdForCandles, previousDay, "CANDLE_INTERVAL_1_MIN");
-                        fallbackTried++;
-                        if (!candles.isEmpty()) {
-                            CandleDto lastCandle = candles.get(candles.size() - 1);
-                            ClosePriceDto fallbackPrice = new ClosePriceDto(
-                                    figi,
-                                    previousDay.toString(),
-                                    lastCandle.close(),
-                                    null
-                            );
-                            closePricesFromApi.add(fallbackPrice);
-                            fallbackSaved++;
-                        }
-                        try { Thread.sleep(100); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
-                    }
-                    System.out.println("Fallback по свечам для indicatives: попыток=" + fallbackTried + ", получено цен=" + fallbackSaved);
-                } catch (Exception fe) {
-                    System.err.println("Ошибка в fallback по свечам для indicatives: " + fe.getMessage());
-                }
-            }
+            // Исключаем indicatives из загрузки цен закрытия
+            // (закомментировано - indicatives не загружаются для цен закрытия)
 
             // Закрываем ветку else (полная загрузка)
         }
@@ -399,17 +407,31 @@ public class MarketDataService {
                 false,
                 "Ошибка при получении цен закрытия из API: " + e.getMessage() + 
                 ". Количество инструментов: " + instrumentIds.size(),
-                0, 0, 0, new ArrayList<>()
+                0, 0, 0, 0, 0, new ArrayList<>()
             );
         }
+        
+        // Фильтруем неверные цены и получаем статистику
+        ClosePriceProcessingResult processingResult = filterValidPricesWithStats(closePricesFromApi);
+        List<ClosePriceDto> closePrices = processingResult.getValidPrices();
+        int invalidPricesFiltered = processingResult.getInvalidPricesFiltered();
         
         List<ClosePriceDto> savedPrices = new ArrayList<>();
         int existingCount = 0;
         
         int failedSavesCount = 0;
-        for (ClosePriceDto closePriceDto : closePricesFromApi) {
+        
+        System.out.println("=== НАЧАЛО ОБРАБОТКИ ЦЕН ЗАКРЫТИЯ ===");
+        System.out.println("Всего получено цен из API: " + closePricesFromApi.size());
+        System.out.println("Отфильтровано неверных цен (1970-01-01): " + invalidPricesFiltered);
+        System.out.println("Валидных цен для обработки: " + closePrices.size());
+        System.out.println("Запрашивалось инструментов: " + requestedInstrumentsCount);
+        
+        for (ClosePriceDto closePriceDto : closePrices) {
             LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
             ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
+            
+            System.out.println("Обрабатываем: " + closePriceDto.figi() + " на дату: " + priceDate + " цена: " + closePriceDto.closePrice());
 
             // Определяем тип инструмента и получаем дополнительную информацию
             String instrumentType = "UNKNOWN";
@@ -440,9 +462,11 @@ public class MarketDataService {
                 }
             }
 
-            // Если запись уже существует — считаем как существующую и не пытаемся сохранять
+            // Если запись уже существует в основной таблице — считаем как существующую и не пытаемся сохранять
             try {
-                if (closePriceRepo.existsById(key)) {
+                boolean existsInMain = closePriceRepo.existsById(key);
+                
+                if (existsInMain) {
                     existingCount++;
                     continue;
                 }
@@ -451,7 +475,7 @@ public class MarketDataService {
                 System.err.println("existsById check failed for key (" + priceDate + ", " + closePriceDto.figi() + ") : " + e.getMessage());
             }
 
-            // Создаем и пытаемся сохранить новую запись
+            // Создаем и сохраняем новую запись в invest.close_prices
             ClosePriceEntity closePriceEntity = new ClosePriceEntity(
                 priceDate,
                 closePriceDto.figi(),
@@ -464,23 +488,38 @@ public class MarketDataService {
             try {
                 closePriceRepo.save(closePriceEntity);
                 savedPrices.add(closePriceDto);
+                System.out.println("Successfully saved to close_prices: " + closePriceDto.figi() + " on " + priceDate);
             } catch (DataIntegrityViolationException dive) {
-                failedSavesCount++;
-                System.err.println("DataIntegrityViolation saving close price for " + closePriceDto.figi() +
+                System.err.println("DataIntegrityViolation saving to close_prices for " + closePriceDto.figi() +
                         " on " + priceDate + ": " + dive.getMessage());
+                failedSavesCount++;
             } catch (Exception e) {
-                // Если не удалось сохранить по другой причине, проверим, существует ли запись
-                boolean exists = false;
-                try { exists = closePriceRepo.existsById(key); } catch (Exception ignored) {}
-                if (exists) {
-                    existingCount++;
-                } else {
-                    System.err.println("Error saving close price for " + closePriceDto.figi() +
-                            " on " + priceDate + ": " + e.getMessage());
-                    failedSavesCount++;
-                }
+                System.err.println("Error saving to close_prices for " + closePriceDto.figi() +
+                        " on " + priceDate + ": " + e.getMessage());
+                failedSavesCount++;
             }
         }
+        
+        System.out.println("=== ЗАВЕРШЕНИЕ ОБРАБОТКИ ЦЕН ЗАКРЫТИЯ ===");
+        System.out.println("Запрошено инструментов: " + requestedInstrumentsCount);
+        System.out.println("Получено цен из API: " + closePricesFromApi.size());
+        System.out.println("Отфильтровано неверных цен: " + invalidPricesFiltered);
+        System.out.println("Валидных цен для обработки: " + closePrices.size());
+        System.out.println("Сохранено успешно: " + savedPrices.size());
+        System.out.println("Уже существовало: " + existingCount);
+        System.out.println("Ошибок сохранения: " + failedSavesCount);
+        
+        // Подсчитываем "потерянные" цены
+        int missingPrices = requestedInstrumentsCount - closePricesFromApi.size();
+        int processedPrices = closePrices.size();
+        int unprocessedPrices = closePricesFromApi.size() - processedPrices;
+        
+        System.out.println("=== ДЕТАЛЬНАЯ СТАТИСТИКА ===");
+        System.out.println("Цены не получены из API: " + missingPrices);
+        System.out.println("Цены отфильтрованы как неверные: " + invalidPricesFiltered);
+        System.out.println("Цены обработаны: " + processedPrices);
+        System.out.println("Цены не обработаны: " + unprocessedPrices);
+        System.out.println("Проверка: " + requestedInstrumentsCount + " = " + closePricesFromApi.size() + " + " + missingPrices);
         
         // Подсчитываем полученные цены и сохраненные
         int receivedPricesCount = closePricesFromApi.size();
@@ -512,6 +551,8 @@ public class MarketDataService {
             requestedInstrumentsCount,
             savedPrices.size(),
             existingCount,
+            invalidPricesFiltered,
+            missingPrices, // Цены, которые не были получены из API
             savedPrices
         );
     }
@@ -747,7 +788,7 @@ public class MarketDataService {
                 return new SaveResponseDto(
                     false,
                     "Нет инструментов для загрузки свечей. В базе данных нет акций, фьючерсов или индикативных инструментов.",
-                    0, 0, 0, new ArrayList<>()
+                    0, 0, 0, 0, 0, new ArrayList<>()
                 );
             }
             
@@ -838,7 +879,7 @@ public class MarketDataService {
                     ? "Новых свечей не обнаружено. Все найденные свечи уже существуют в базе данных."
                     : "Свечи не сохранены.");
             
-            return new SaveResponseDto(success, message, totalRequested, savedCount, existingCount, collectedCandles);
+            return new SaveResponseDto(success, message, totalRequested, savedCount, existingCount, 0, 0, collectedCandles);
         });
     }
 

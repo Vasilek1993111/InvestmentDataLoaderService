@@ -276,6 +276,8 @@ public class EveningSessionService {
                 totalRequested,
                 savedCount,
                 existingCount,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 savedItems
             );
             
@@ -288,6 +290,8 @@ public class EveningSessionService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }
@@ -348,6 +352,8 @@ public class EveningSessionService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }

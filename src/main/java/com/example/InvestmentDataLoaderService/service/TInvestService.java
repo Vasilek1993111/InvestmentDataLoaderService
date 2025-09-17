@@ -141,6 +141,14 @@ public class TInvestService {
         return marketDataService.saveClosePrices(request);
     }
 
+    public List<ClosePriceDto> getClosePricesForAllShares() {
+        return marketDataService.getClosePricesForAllShares();
+    }
+
+    public List<ClosePriceDto> getClosePricesForAllFutures() {
+        return marketDataService.getClosePricesForAllFutures();
+    }
+
     public List<CandleDto> getCandles(String instrumentId, java.time.LocalDate date, String interval) {
         return marketDataService.getCandles(instrumentId, date, interval);
     }

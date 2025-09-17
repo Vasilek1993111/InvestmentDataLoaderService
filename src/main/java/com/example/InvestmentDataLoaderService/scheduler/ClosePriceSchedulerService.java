@@ -22,12 +22,12 @@ public class ClosePriceSchedulerService {
         try {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
             
-            System.out.println("Starting scheduled close prices fetch for " + previousDay + " (shares, futures, indicatives)");
+            System.out.println("Starting scheduled close prices fetch for " + previousDay + " (shares, futures only)");
             
-            // Создаем пустой запрос для загрузки RUB инструментов (акции, фьючерсы) и всех indicatives
+            // Создаем пустой запрос для загрузки только RUB инструментов (акции, фьючерсы)
             ClosePriceRequestDto request = new ClosePriceRequestDto();
             
-            // Вызываем метод saveClosePrices, который автоматически отберет RUB инструменты и все indicatives
+            // Вызываем метод saveClosePrices, который автоматически отберет только RUB инструменты (исключая indicatives)
             SaveResponseDto response = tInvestService.saveClosePrices(request);
             
             if (response.isSuccess()) {
@@ -53,9 +53,9 @@ public class ClosePriceSchedulerService {
      */
     public void fetchAndUpdateClosePricesForDate(LocalDate date) {
         try {
-            System.out.println("Starting manual close prices fetch for date: " + date + " (shares, futures, indicatives)");
+            System.out.println("Starting manual close prices fetch for date: " + date + " (shares, futures only)");
             
-            // Создаем пустой запрос для загрузки RUB инструментов (акции, фьючерсы) и всех indicatives
+            // Создаем пустой запрос для загрузки только RUB инструментов (акции, фьючерсы)
             ClosePriceRequestDto request = new ClosePriceRequestDto();
             
             // Вызываем метод saveClosePrices

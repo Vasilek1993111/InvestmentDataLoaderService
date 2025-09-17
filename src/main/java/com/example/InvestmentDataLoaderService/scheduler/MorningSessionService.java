@@ -274,6 +274,8 @@ public class MorningSessionService {
                 totalRequested,
                 savedCount,
                 existingCount,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 savedItems
             );
             
@@ -286,6 +288,8 @@ public class MorningSessionService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }
@@ -363,6 +367,8 @@ public class MorningSessionService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }

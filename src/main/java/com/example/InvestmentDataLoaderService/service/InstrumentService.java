@@ -143,6 +143,8 @@ public class InstrumentService {
             sharesFromApi.size(),
             savedShares.size(),
             existingCount,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             savedShares
         );
     }
@@ -228,7 +230,7 @@ public class InstrumentService {
         try {
             ShareEntity existingEntity = shareRepo.findById(shareDto.figi()).orElse(null);
             if (existingEntity == null) {
-                return new SaveResponseDto(false, "Акция с FIGI " + shareDto.figi() + " не найдена", 0, 0, 0, List.of());
+                return new SaveResponseDto(false, "Акция с FIGI " + shareDto.figi() + " не найдена", 0, 0, 0, 0, 0, List.of());
             }
             
             // Обновляем поля
@@ -241,9 +243,9 @@ public class InstrumentService {
             
             shareRepo.save(existingEntity);
             
-            return new SaveResponseDto(true, "Акция успешно обновлена", 1, 1, 0, List.of(shareDto));
+            return new SaveResponseDto(true, "Акция успешно обновлена", 1, 1, 0, 0, 0, List.of(shareDto));
         } catch (Exception e) {
-            return new SaveResponseDto(false, "Ошибка обновления акции: " + e.getMessage(), 0, 0, 0, List.of());
+            return new SaveResponseDto(false, "Ошибка обновления акции: " + e.getMessage(), 0, 0, 0, 0, 0, List.of());
         }
     }
 
@@ -349,6 +351,8 @@ public class InstrumentService {
             futuresFromApi.size(),
             savedFutures.size(),
             existingCount,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             savedFutures
         );
     }
@@ -637,6 +641,8 @@ public class InstrumentService {
             indicativesFromApi.size(),
             savedIndicatives.size(),
             existingCount,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             savedIndicatives
         );
     }

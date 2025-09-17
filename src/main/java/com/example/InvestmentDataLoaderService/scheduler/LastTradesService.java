@@ -174,6 +174,8 @@ public class LastTradesService {
                 totalRequested,
                 savedCount,
                 existingCount,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 savedItems
             );
             
@@ -186,6 +188,8 @@ public class LastTradesService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }
@@ -341,6 +345,8 @@ public class LastTradesService {
                 totalRequested,
                 savedCount,
                 existingCount,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 savedItems
             );
             
@@ -353,6 +359,8 @@ public class LastTradesService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }
@@ -374,6 +382,8 @@ public class LastTradesService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }
@@ -489,6 +499,8 @@ public class LastTradesService {
                 totalRequested,
                 savedCount,
                 existingCount,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 savedItems
             );
             
@@ -501,6 +513,8 @@ public class LastTradesService {
                 0,
                 0,
                 0,
+                0, // invalidItemsFiltered
+                0, // missingFromApi
                 new ArrayList<>()
             );
         }

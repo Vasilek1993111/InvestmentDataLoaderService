@@ -1,6 +1,7 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.exception.DataLoadException;
 import com.example.InvestmentDataLoaderService.service.TInvestService;
 import com.example.InvestmentDataLoaderService.scheduler.CandleSchedulerService;
 import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Контроллер для загрузки и управления данными
@@ -194,10 +196,28 @@ public class DataLoadingController {
      * Синхронная загрузка цен закрытия за сегодня по всем инструментам
      */
     @PostMapping("/close-prices")
-    public ResponseEntity<SaveResponseDto> loadClosePricesToday() {
-        ClosePriceRequestDto request = new ClosePriceRequestDto();
-        SaveResponseDto response = service.saveClosePrices(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Map<String, Object>> loadClosePricesToday() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            ClosePriceRequestDto request = new ClosePriceRequestDto();
+            SaveResponseDto saveResponse = service.saveClosePrices(request);
+            
+            response.put("success", saveResponse.isSuccess());
+            response.put("message", saveResponse.getMessage());
+            response.put("totalRequested", saveResponse.getTotalRequested());
+            response.put("newItemsSaved", saveResponse.getNewItemsSaved());
+            response.put("existingItemsSkipped", saveResponse.getExistingItemsSkipped());
+            response.put("invalidItemsFiltered", saveResponse.getInvalidItemsFiltered());
+            response.put("missingFromApi", saveResponse.getMissingFromApi());
+            response.put("savedItems", saveResponse.getSavedItems());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка загрузки цен закрытия за сегодня: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -205,12 +225,75 @@ public class DataLoadingController {
      */
     @PostMapping("/close-prices/save")
     public ResponseEntity<SaveResponseDto> saveClosePrices(@RequestBody(required = false) ClosePriceRequestDto request) {
-        // Если request null, создаем пустой объект
-        if (request == null) {
-            request = new ClosePriceRequestDto();
+        try {
+            // Если request null, создаем пустой объект
+            if (request == null) {
+                request = new ClosePriceRequestDto();
+            }
+            SaveResponseDto response = service.saveClosePrices(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка сохранения цен закрытия: " + e.getMessage(), e);
         }
-        SaveResponseDto response = service.saveClosePrices(request);
-        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение цен закрытия для всех акций из T-INVEST API
+     */
+    @GetMapping("/close-prices/shares")
+    public ResponseEntity<Map<String, Object>> getClosePricesForShares() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<ClosePriceDto> allClosePrices = service.getClosePricesForAllShares();
+            
+            // Фильтруем неверные цены (с датой 1970-01-01)
+            List<ClosePriceDto> validClosePrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .collect(Collectors.toList());
+            
+            response.put("success", true);
+            response.put("message", "Цены закрытия для акций получены успешно");
+            response.put("data", validClosePrices);
+            response.put("count", validClosePrices.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка получения цен закрытия для акций: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Получение цен закрытия для всех фьючерсов из T-INVEST API
+     */
+    @GetMapping("/close-prices/futures")
+    public ResponseEntity<Map<String, Object>> getClosePricesForFutures() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<ClosePriceDto> allClosePrices = service.getClosePricesForAllFutures();
+            
+            // Фильтруем неверные цены (с датой 1970-01-01)
+            List<ClosePriceDto> validClosePrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .collect(Collectors.toList());
+            
+            response.put("success", true);
+            response.put("message", "Цены закрытия для фьючерсов получены успешно");
+            response.put("data", validClosePrices);
+            response.put("count", validClosePrices.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка получения цен закрытия для фьючерсов: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -221,9 +304,14 @@ public class DataLoadingController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            List<ClosePriceDto> closePrices = service.getClosePrices(List.of(figi), null);
+            List<ClosePriceDto> allClosePrices = service.getClosePrices(List.of(figi), null);
             
-            if (closePrices.isEmpty()) {
+            // Фильтруем неверные цены (с датой 1970-01-01)
+            List<ClosePriceDto> validClosePrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .collect(Collectors.toList());
+            
+            if (validClosePrices.isEmpty()) {
                 response.put("success", false);
                 response.put("message", "Цена закрытия не найдена для инструмента: " + figi);
                 response.put("figi", figi);
@@ -231,7 +319,7 @@ public class DataLoadingController {
                 return ResponseEntity.ok(response);
             }
             
-            ClosePriceDto closePrice = closePrices.get(0);
+            ClosePriceDto closePrice = validClosePrices.get(0);
             response.put("success", true);
             response.put("message", "Цена закрытия получена успешно");
             response.put("data", closePrice);
@@ -249,40 +337,6 @@ public class DataLoadingController {
         }
     }
 
-    /**
-     * Получение цен закрытия по нескольким инструментам из T-INVEST API
-     */
-    @PostMapping("/close-prices/get")
-    public ResponseEntity<Map<String, Object>> getClosePricesByFigis(@RequestBody ClosePriceRequestDto request) {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            if (request.getInstruments() == null || request.getInstruments().isEmpty()) {
-                response.put("success", false);
-                response.put("message", "Список инструментов не может быть пустым");
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
-            
-            List<ClosePriceDto> closePrices = service.getClosePrices(request.getInstruments(), null);
-            
-            response.put("success", true);
-            response.put("message", "Получено цен закрытия: " + closePrices.size() + " из " + request.getInstruments().size() + " запрошенных");
-            response.put("data", closePrices);
-            response.put("requestedCount", request.getInstruments().size());
-            response.put("receivedCount", closePrices.size());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка получения цен закрытия: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
 
     // ==================== СЕССИОННЫЕ ЦЕНЫ ====================
 

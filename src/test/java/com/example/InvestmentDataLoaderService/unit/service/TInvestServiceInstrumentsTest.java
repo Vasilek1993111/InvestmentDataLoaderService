@@ -86,6 +86,8 @@ class TInvestServiceInstrumentsTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testShare)
         );
     }
@@ -249,6 +251,8 @@ class TInvestServiceInstrumentsTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testFuture)
         );
 
@@ -286,6 +290,8 @@ class TInvestServiceInstrumentsTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testFuture)
         );
 
@@ -402,6 +408,8 @@ class TInvestServiceInstrumentsTest {
             1,
             1,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList(testIndicative)
         );
 
@@ -513,6 +521,8 @@ class TInvestServiceInstrumentsTest {
             0,
             0,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList()
         );
 
@@ -535,6 +545,8 @@ class TInvestServiceInstrumentsTest {
             0,
             0,
             0,
+            0, // invalidItemsFiltered
+            0, // missingFromApi
             Arrays.asList()
         );
 

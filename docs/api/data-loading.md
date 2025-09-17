@@ -73,7 +73,7 @@ curl -X POST "http://localhost:8083/api/data-loading/candles/indicatives/2024-01
 ```
 
 ## POST /api/data-loading/close-prices
-Загрузка цен закрытия за сегодня.
+Загрузка и сохранение цен закрытия за сегодня (только акции и фьючерсы, без indicatives).
 ```bash
 curl -X POST "http://localhost:8083/api/data-loading/close-prices"
 ```
@@ -83,7 +83,7 @@ curl -X POST "http://localhost:8083/api/data-loading/close-prices"
 ```
 
 ## POST /api/data-loading/close-prices/save
-Сохранение цен закрытия по указанным инструментам (или всем RUB из БД).
+Сохранение цен закрытия по указанным инструментам (только акции и фьючерсы, без indicatives).
 
 Тело запроса (пример):
 ```json
@@ -107,8 +107,74 @@ curl -X POST "http://localhost:8083/api/data-loading/close-prices/save" -H "Cont
 }
 ```
 
+**Примечание:** Цены закрытия сохраняются в таблице `invest.close_prices`. Эндпоинт загружает только акции и фьючерсы, исключая indicatives.
+
+## GET /api/data-loading/close-prices/shares
+Получение цен закрытия для всех акций из T-INVEST API (без сохранения в БД). Загружает только акции в рублях из БД.
+
+Пример запроса:
+```bash
+curl "http://localhost:8083/api/data-loading/close-prices/shares"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Цены закрытия для акций получены успешно",
+  "data": [
+    {
+      "figi": "BBG004730N88",
+      "tradingDate": "2024-01-15",
+      "closePrice": 250.75,
+      "eveningSessionPrice": 251.00
+    },
+    {
+      "figi": "BBG004730ZJ9",
+      "tradingDate": "2024-01-15",
+      "closePrice": 180.50,
+      "eveningSessionPrice": 181.00
+    }
+  ],
+  "count": 2,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+## GET /api/data-loading/close-prices/futures
+Получение цен закрытия для всех фьючерсов из T-INVEST API (без сохранения в БД). Загружает только фьючерсы в рублях из БД.
+
+Пример запроса:
+```bash
+curl "http://localhost:8083/api/data-loading/close-prices/futures"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Цены закрытия для фьючерсов получены успешно",
+  "data": [
+    {
+      "figi": "FUTSILV-3.24",
+      "tradingDate": "2024-01-15",
+      "closePrice": 75000.00,
+      "eveningSessionPrice": 75100.00
+    },
+    {
+      "figi": "FUTGOLD-3.24",
+      "tradingDate": "2024-01-15",
+      "closePrice": 250000.00,
+      "eveningSessionPrice": 250500.00
+    }
+  ],
+  "count": 2,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
 ## GET /api/data-loading/close-prices/{figi}
-Получение цены закрытия по конкретному инструменту из T-INVEST API (без сохранения в БД).
+Получение цены закрытия по конкретному инструменту из T-INVEST API (без сохранения в БД). Работает только с акциями и фьючерсами.
 
 Пример запроса:
 ```bash
@@ -134,52 +200,6 @@ curl "http://localhost:8083/api/data-loading/close-prices/BBG0063FKTD1"
   "success": false,
   "message": "Цена закрытия не найдена для инструмента: BBG0063FKTD1",
   "figi": "BBG0063FKTD1",
-  "timestamp": "2024-01-15T10:30:00"
-}
-```
-
-## POST /api/data-loading/close-prices/get
-Получение цен закрытия по нескольким инструментам из T-INVEST API (без сохранения в БД).
-
-Тело запроса:
-```json
-{
-  "instruments": ["BBG0063FKTD1", "BBG004S685M2", "BBG004S68JR9"]
-}
-```
-Пример запроса:
-```bash
-curl -X POST "http://localhost:8083/api/data-loading/close-prices/get" -H "Content-Type: application/json" -d '{
-  "instruments": ["BBG0063FKTD1", "BBG004S685M2", "BBG004S68JR9"]
-}'
-```
-Ответ (пример):
-```json
-{
-  "success": true,
-  "message": "Получено цен закрытия: 3 из 3 запрошенных",
-  "data": [
-    {
-      "figi": "BBG0063FKTD1",
-      "tradingDate": "2024-01-15",
-      "closePrice": 1250.50,
-      "eveningSessionPrice": null
-    },
-    {
-      "figi": "BBG004S685M2",
-      "tradingDate": "2024-01-15", 
-      "closePrice": 890.25,
-      "eveningSessionPrice": null
-    },
-    {
-      "figi": "BBG004S68JR9",
-      "tradingDate": "2024-01-15",
-      "closePrice": 2100.75,
-      "eveningSessionPrice": null
-    }
-  ],
-  "requestedCount": 3,
-  "receivedCount": 3,
   "timestamp": "2024-01-15T10:30:00"
 }
 ```

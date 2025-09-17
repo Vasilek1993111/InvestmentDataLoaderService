@@ -68,7 +68,7 @@ class InstrumentsComponentTest {
         );
         List<ShareDto> sharesFromApi = Arrays.asList(testShare);
         SaveResponseDto saveResponse = new SaveResponseDto(
-            true, "Успешно загружено 1 новых акций", 1, 1, 0, Arrays.asList(testShare)
+            true, "Успешно загружено 1 новых акций", 1, 1, 0, 0, 0, Arrays.asList(testShare)
         );
 
         when(instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null))
@@ -122,7 +122,7 @@ class InstrumentsComponentTest {
         );
         List<FutureDto> futuresFromApi = Arrays.asList(testFuture);
         SaveResponseDto saveResponse = new SaveResponseDto(
-            true, "Успешно загружено 1 новых фьючерсов", 1, 1, 0, Arrays.asList(testFuture)
+            true, "Успешно загружено 1 новых фьючерсов", 1, 1, 0, 0, 0, Arrays.asList(testFuture)
         );
 
         when(instrumentService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES"))
@@ -178,7 +178,7 @@ class InstrumentsComponentTest {
         );
         List<IndicativeDto> indicativesFromApi = Arrays.asList(testIndicative);
         SaveResponseDto saveResponse = new SaveResponseDto(
-            true, "Успешно загружено 1 новых индикативных инструментов", 1, 1, 0, Arrays.asList(testIndicative)
+            true, "Успешно загружено 1 новых индикативных инструментов", 1, 1, 0, 0, 0, Arrays.asList(testIndicative)
         );
 
         when(instrumentService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9"))
@@ -299,7 +299,7 @@ class InstrumentsComponentTest {
         );
         List<ShareDto> sharesFromApi = Arrays.asList(testShare);
         SaveResponseDto saveResponse = new SaveResponseDto(
-            true, "Успешно загружено 1 новых акций", 1, 1, 0, Arrays.asList(testShare)
+            true, "Успешно загружено 1 новых акций", 1, 1, 0, 0, 0, Arrays.asList(testShare)
         );
 
         when(instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null))
