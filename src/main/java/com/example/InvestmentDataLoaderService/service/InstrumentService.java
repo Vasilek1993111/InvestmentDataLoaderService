@@ -90,7 +90,7 @@ public class InstrumentService {
 
     public SaveResponseDto saveShares(ShareFilterDto filter) {
         // Получаем акции из API (используем существующий метод)
-        List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), null);
+        List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getFigi());
         
         List<ShareDto> savedShares = new ArrayList<>();
         int existingCount = 0;
@@ -98,13 +98,17 @@ public class InstrumentService {
         for (ShareDto shareDto : sharesFromApi) {
             // Проверяем, существует ли акция в БД
             if (!shareRepo.existsById(shareDto.figi())) {
-                // Создаем и сохраняем новую акцию
+                // Создаем и сохраняем новую акцию с новыми полями
                 ShareEntity shareEntity = new ShareEntity(
                     shareDto.figi(),
                     shareDto.ticker(),
                     shareDto.name(),
                     shareDto.currency(),
-                    shareDto.exchange()
+                    shareDto.exchange(),
+                    shareDto.sector(),
+                    shareDto.tradingStatus(),
+                    null, // createdAt будет установлен автоматически
+                    null  // updatedAt будет установлен автоматически
                 );
                 
                 try {
@@ -141,6 +145,106 @@ public class InstrumentService {
             existingCount,
             savedShares
         );
+    }
+
+    /**
+     * Получение акций из базы данных с фильтрацией
+     */
+    public List<ShareDto> getSharesFromDatabase(ShareFilterDto filter) {
+        List<ShareEntity> entities = shareRepo.findAll();
+        List<ShareDto> result = new ArrayList<>();
+        
+        for (ShareEntity entity : entities) {
+            // Применяем фильтры
+            boolean matchesExchange = (filter.getExchange() == null || filter.getExchange().isEmpty() || 
+                                     entity.getExchange() != null && entity.getExchange().equalsIgnoreCase(filter.getExchange()));
+            boolean matchesCurrency = (filter.getCurrency() == null || filter.getCurrency().isEmpty() || 
+                                     entity.getCurrency() != null && entity.getCurrency().equalsIgnoreCase(filter.getCurrency()));
+            boolean matchesTicker = (filter.getTicker() == null || filter.getTicker().isEmpty() || 
+                                   entity.getTicker() != null && entity.getTicker().equalsIgnoreCase(filter.getTicker()));
+            boolean matchesFigi = (filter.getFigi() == null || filter.getFigi().isEmpty() || 
+                                 entity.getFigi() != null && entity.getFigi().equalsIgnoreCase(filter.getFigi()));
+            boolean matchesSector = (filter.getSector() == null || filter.getSector().isEmpty() || 
+                                   entity.getSector() != null && entity.getSector().equalsIgnoreCase(filter.getSector()));
+            boolean matchesTradingStatus = (filter.getTradingStatus() == null || filter.getTradingStatus().isEmpty() || 
+                                          entity.getTradingStatus() != null && entity.getTradingStatus().equalsIgnoreCase(filter.getTradingStatus()));
+            
+            if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi && matchesSector && matchesTradingStatus) {
+                result.add(new ShareDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getName(),
+                    entity.getCurrency(),
+                    entity.getExchange(),
+                    entity.getSector(),
+                    entity.getTradingStatus()
+                ));
+            }
+        }
+        
+        // Сортируем по тикеру
+        result.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
+        return result;
+    }
+
+    /**
+     * Получение акции по FIGI из базы данных
+     */
+    public ShareDto getShareByFigi(String figi) {
+        return shareRepo.findById(figi)
+                .map(entity -> new ShareDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getName(),
+                    entity.getCurrency(),
+                    entity.getExchange(),
+                    entity.getSector(),
+                    entity.getTradingStatus()
+                ))
+                .orElse(null);
+    }
+
+    /**
+     * Получение акции по тикеру из базы данных
+     */
+    public ShareDto getShareByTicker(String ticker) {
+        return shareRepo.findByTickerIgnoreCase(ticker)
+                .map(entity -> new ShareDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getName(),
+                    entity.getCurrency(),
+                    entity.getExchange(),
+                    entity.getSector(),
+                    entity.getTradingStatus()
+                ))
+                .orElse(null);
+    }
+
+    /**
+     * Обновление акции в базе данных
+     */
+    public SaveResponseDto updateShare(ShareDto shareDto) {
+        try {
+            ShareEntity existingEntity = shareRepo.findById(shareDto.figi()).orElse(null);
+            if (existingEntity == null) {
+                return new SaveResponseDto(false, "Акция с FIGI " + shareDto.figi() + " не найдена", 0, 0, 0, List.of());
+            }
+            
+            // Обновляем поля
+            existingEntity.setTicker(shareDto.ticker());
+            existingEntity.setName(shareDto.name());
+            existingEntity.setCurrency(shareDto.currency());
+            existingEntity.setExchange(shareDto.exchange());
+            existingEntity.setSector(shareDto.sector());
+            existingEntity.setTradingStatus(shareDto.tradingStatus());
+            
+            shareRepo.save(existingEntity);
+            
+            return new SaveResponseDto(true, "Акция успешно обновлена", 1, 1, 0, List.of(shareDto));
+        } catch (Exception e) {
+            return new SaveResponseDto(false, "Ошибка обновления акции: " + e.getMessage(), 0, 0, 0, List.of());
+        }
     }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ФЬЮЧЕРСАМИ ===
@@ -183,8 +287,7 @@ public class InstrumentService {
                     instrument.getAssetType(),
                     instrument.getBasicAsset(),
                     instrument.getCurrency(),
-                    instrument.getExchange(),
-                    null // stockTicker будет null, так как его нет в API фьючерсов
+                    instrument.getExchange()
                 ));
             }
         }
@@ -211,8 +314,7 @@ public class InstrumentService {
                     futureDto.assetType(),
                     futureDto.basicAsset(),
                     futureDto.currency(),
-                    futureDto.exchange(),
-                    futureDto.stockTicker()
+                    futureDto.exchange()
                 );
                 
                 try {
@@ -251,6 +353,38 @@ public class InstrumentService {
         );
     }
 
+    /**
+     * Получение фьючерса по FIGI из базы данных
+     */
+    public FutureDto getFutureByFigi(String figi) {
+        return futureRepo.findById(figi)
+                .map(entity -> new FutureDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getAssetType(),
+                    entity.getBasicAsset(),
+                    entity.getCurrency(),
+                    entity.getExchange()
+                ))
+                .orElse(null);
+    }
+
+    /**
+     * Получение фьючерса по тикеру из базы данных
+     */
+    public FutureDto getFutureByTicker(String ticker) {
+        return futureRepo.findByTickerIgnoreCase(ticker)
+                .map(entity -> new FutureDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getAssetType(),
+                    entity.getBasicAsset(),
+                    entity.getCurrency(),
+                    entity.getExchange()
+                ))
+                .orElse(null);
+    }
+
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ИНДИКАТИВНЫМИ ИНСТРУМЕНТАМИ ===
 
     @Cacheable(cacheNames = com.example.InvestmentDataLoaderService.config.CacheConfig.INDICATIVES_CACHE,
@@ -278,17 +412,55 @@ public class InstrumentService {
                                              instrument.get("figi").asText().equalsIgnoreCase(figi));
                         
                         if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
-                            indicatives.add(new IndicativeDto(
-                                instrument.get("figi").asText(),
-                                instrument.get("ticker").asText(),
-                                instrument.get("name").asText(),
-                                instrument.get("currency").asText(),
-                                instrument.get("exchange").asText(),
-                                instrument.has("classCode") ? instrument.get("classCode").asText() : null,
-                                instrument.has("uid") ? instrument.get("uid").asText() : null,
-                                instrument.has("sellAvailableFlag") ? instrument.get("sellAvailableFlag").asBoolean() : null,
-                                instrument.has("buyAvailableFlag") ? instrument.get("buyAvailableFlag").asBoolean() : null
-                            ));
+                            String figiValue = instrument.get("figi").asText();
+                            // Пропускаем индикативы с пустым или null figi
+                            if (figiValue != null && !figiValue.trim().isEmpty()) {
+                                indicatives.add(new IndicativeDto(
+                                    figiValue,
+                                    instrument.get("ticker").asText(),
+                                    instrument.get("name").asText(),
+                                    instrument.get("currency").asText(),
+                                    instrument.get("exchange").asText(),
+                                    instrument.has("classCode") ? instrument.get("classCode").asText() : null,
+                                    instrument.has("uid") ? instrument.get("uid").asText() : null,
+                                    instrument.has("sellAvailableFlag") ? instrument.get("sellAvailableFlag").asBoolean() : null,
+                                    instrument.has("buyAvailableFlag") ? instrument.get("buyAvailableFlag").asBoolean() : null
+                                ));
+                            }
+                        }
+                    }
+                }
+            } else if (response.has("instrumentsList")) {
+                // Альтернативная структура ответа
+                var instruments = response.get("instrumentsList");
+                if (instruments.isArray()) {
+                    for (var instrument : instruments) {
+                        // Применяем фильтры
+                        boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
+                                                 instrument.get("exchange").asText().equalsIgnoreCase(exchange));
+                        boolean matchesCurrency = (currency == null || currency.isEmpty() || 
+                                                 instrument.get("currency").asText().equalsIgnoreCase(currency));
+                        boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
+                                               instrument.get("ticker").asText().equalsIgnoreCase(ticker));
+                        boolean matchesFigi = (figi == null || figi.isEmpty() || 
+                                             instrument.get("figi").asText().equalsIgnoreCase(figi));
+                        
+                        if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
+                            String figiValue = instrument.get("figi").asText();
+                            // Пропускаем индикативы с пустым или null figi
+                            if (figiValue != null && !figiValue.trim().isEmpty()) {
+                                indicatives.add(new IndicativeDto(
+                                    figiValue,
+                                    instrument.get("ticker").asText(),
+                                    instrument.get("name").asText(),
+                                    instrument.get("currency").asText(),
+                                    instrument.get("exchange").asText(),
+                                    instrument.has("classCode") ? instrument.get("classCode").asText() : null,
+                                    instrument.has("uid") ? instrument.get("uid").asText() : null,
+                                    instrument.has("sellAvailableFlag") ? instrument.get("sellAvailableFlag").asBoolean() : null,
+                                    instrument.has("buyAvailableFlag") ? instrument.get("buyAvailableFlag").asBoolean() : null
+                                ));
+                            }
                         }
                     }
                 }
@@ -412,6 +584,12 @@ public class InstrumentService {
         int existingCount = 0;
         
         for (IndicativeDto indicativeDto : indicativesFromApi) {
+            // Пропускаем индикативы с пустым или null figi
+            if (indicativeDto.figi() == null || indicativeDto.figi().trim().isEmpty()) {
+                System.out.println("Skipping indicative with empty FIGI: " + indicativeDto.ticker());
+                continue;
+            }
+            
             // Проверяем, существует ли индикативный инструмент в БД
             if (!indicativeRepo.existsById(indicativeDto.figi())) {
                 // Создаем и сохраняем новый индикативный инструмент

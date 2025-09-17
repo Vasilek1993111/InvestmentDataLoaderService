@@ -1,4 +1,4 @@
-package com.example.InvestmentDataLoaderService.service;
+package com.example.InvestmentDataLoaderService.integration;
 
 import com.example.InvestmentDataLoaderService.client.TinkoffRestClient;
 import com.fasterxml.jackson.databind.JsonNode;

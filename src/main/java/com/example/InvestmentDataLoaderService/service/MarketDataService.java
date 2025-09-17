@@ -15,6 +15,7 @@ import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.google.protobuf.Timestamp;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import ru.tinkoff.piapi.contract.v1.MarketDataServiceGrpc.MarketDataServiceBlockingStub;
 
 import java.math.BigDecimal;
@@ -24,7 +25,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -36,6 +39,7 @@ public class MarketDataService {
     private final ClosePriceRepository closePriceRepo;
     private final CandleRepository candleRepository;
     private final IndicativeRepository indicativeRepo;
+
 
     public MarketDataService(MarketDataServiceBlockingStub marketDataService,
                            ShareRepository shareRepo,
@@ -52,6 +56,47 @@ public class MarketDataService {
     }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ЦЕНАМИ ЗАКРЫТИЯ ===
+
+    /**
+     * Вспомогательный метод: определяет список FIGI для загрузки цен закрытия по запросу
+     */
+    public List<String> resolveInstrumentIdsForClosePrices(ClosePriceRequestDto request) {
+        List<String> instrumentIds = request != null ? request.getInstruments() : null;
+        if (instrumentIds != null) {
+            // Фильтруем пустые/пробельные FIGI
+            List<String> filtered = new ArrayList<>();
+            for (String id : instrumentIds) {
+                if (id != null && !id.trim().isEmpty()) {
+                    filtered.add(id);
+                }
+            }
+            return filtered;
+        }
+
+        List<String> allInstrumentIds = new ArrayList<>();
+        // Только акции в рублях
+        List<ShareEntity> shares = shareRepo.findAll();
+        for (ShareEntity share : shares) {
+            if ("RUB".equalsIgnoreCase(share.getCurrency())) {
+                allInstrumentIds.add(share.getFigi());
+            }
+        }
+        // Только фьючерсы в рублях
+        List<FutureEntity> futures = futureRepo.findAll();
+        for (FutureEntity future : futures) {
+            if ("RUB".equalsIgnoreCase(future.getCurrency())) {
+                allInstrumentIds.add(future.getFigi());
+            }
+        }
+        // Все индикативы с непустым FIGI
+        List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+        for (IndicativeEntity indicative : indicatives) {
+            if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
+                allInstrumentIds.add(indicative.getFigi());
+            }
+        }
+        return allInstrumentIds;
+    }
 
 
     public List<ClosePriceDto> getClosePrices(List<String> instrumentIds, String status) {
@@ -85,7 +130,7 @@ public class MarketDataService {
         List<ClosePriceDto> list = new ArrayList<>();
         for (var p : res.getClosePricesList()) {
             String date = Instant.ofEpochSecond(p.getTime().getSeconds())
-                    .atZone(ZoneId.of("UTC"))
+                    .atZone(ZoneId.of("Europe/Moscow"))
                     .toLocalDate()
                     .toString();
             Quotation qp = p.getPrice();
@@ -151,8 +196,87 @@ public class MarketDataService {
 
         // Получаем цены закрытия из API по частям (shares+futures, затем indicatives)
         List<ClosePriceDto> closePricesFromApi = new ArrayList<>();
+        int requestedInstrumentsCount = instrumentIds.size();
         
         try {
+            // Если в запросе передан явный список инструментов — загружаем только по ним
+            int batchSize = 100;
+            if (request.getInstruments() != null && !request.getInstruments().isEmpty()) {
+                System.out.println("Запрашиваем цены закрытия точечно для " + instrumentIds.size() + " инструментов батчами по " + batchSize);
+                for (int i = 0; i < instrumentIds.size(); i += batchSize) {
+                    int toIndex = Math.min(i + batchSize, instrumentIds.size());
+                    List<String> batch = instrumentIds.subList(i, toIndex);
+                    List<ClosePriceDto> prices = getClosePrices(batch, null);
+                    closePricesFromApi.addAll(prices);
+                    System.out.println("Получено цен для батча точечных инструментов (" + batch.size() + "): " + prices.size());
+                    try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                }
+
+                // Fallback для акций: если по части FIGI не пришли цены закрытия,
+                // пробуем получить последнюю свечу предыдущего торгового дня (до 5 дней назад)
+                try {
+                    Set<String> requested = new HashSet<>();
+                    for (String id : instrumentIds) {
+                        if (id != null && !id.trim().isEmpty()) {
+                            requested.add(id);
+                        }
+                    }
+                    Set<String> havePrices = new HashSet<>();
+                    for (ClosePriceDto p : closePricesFromApi) {
+                        havePrices.add(p.figi());
+                    }
+
+                    int fallbackTried = 0;
+                    int fallbackSaved = 0;
+                    for (String figi : requested) {
+                        if (havePrices.contains(figi)) {
+                            continue;
+                        }
+                        // Обрабатываем только акции
+                        if (!shareRepo.existsById(figi)) {
+                            continue;
+                        }
+                        
+                        // Обычный fallback для акций
+                        // Ищем последнюю доступную свечу, до 5 дней назад
+                        BigDecimal lastClose = null;
+                        LocalDate lastDate = null;
+                        for (int d = 1; d <= 5; d++) {
+                            LocalDate day = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(d);
+                            List<CandleDto> candles = getCandles(figi, day, "CANDLE_INTERVAL_1_MIN");
+                            fallbackTried++;
+                            if (!candles.isEmpty()) {
+                                CandleDto lastCandle = candles.get(candles.size() - 1);
+                                lastClose = lastCandle.close();
+                                lastDate = day;
+                                break;
+                            }
+                            try { Thread.sleep(100); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        }
+                        // Если свечей нет, пытаемся взять цену из последних сделок за предыдущие дни (до 5 дней)
+                        if (lastClose == null) {
+                            for (int d = 1; d <= 5; d++) {
+                                LocalDate day = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(d);
+                                List<LastTradeDto> trades = getLastTrades(figi, day, "TRADE_SOURCE_ALL");
+                                if (!trades.isEmpty()) {
+                                    LastTradeDto lastTrade = trades.get(trades.size() - 1);
+                                    lastClose = lastTrade.price();
+                                    lastDate = day;
+                                    break;
+                                }
+                                try { Thread.sleep(100); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                            }
+                        }
+                        if (lastClose != null && lastDate != null) {
+                            closePricesFromApi.add(new ClosePriceDto(figi, lastDate.toString(), lastClose, null));
+                            fallbackSaved++;
+                        }
+                    }
+                    System.out.println("Fallback по свечам для акций (точечный запрос): попыток=" + fallbackTried + ", получено цен=" + fallbackSaved);
+                } catch (Exception fe) {
+                    System.err.println("Ошибка в fallback по свечам для акций (точечный запрос): " + fe.getMessage());
+                }
+            } else {
             // Сначала получаем цены для shares и futures
             List<String> sharesAndFuturesIds = new ArrayList<>();
             List<ShareEntity> shares = shareRepo.findAll();
@@ -167,36 +291,105 @@ public class MarketDataService {
                     sharesAndFuturesIds.add(future.getFigi());
                 }
             }
-            
+
+            // Батчим запросы по 100 инструментов, чтобы избежать лимитов API
             if (!sharesAndFuturesIds.isEmpty()) {
-                System.out.println("Запрашиваем цены закрытия для " + sharesAndFuturesIds.size() + " shares и futures");
-                List<ClosePriceDto> sharesFuturesPrices = getClosePrices(sharesAndFuturesIds, null);
-                closePricesFromApi.addAll(sharesFuturesPrices);
-                System.out.println("Получено цен для shares и futures: " + sharesFuturesPrices.size());
-            }
-            
-            // Затем пытаемся получить цены для indicatives (если API поддерживает)
-            List<String> indicativesIds = new ArrayList<>();
-            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
-            for (IndicativeEntity indicative : indicatives) {
-                // Исключаем пустые FIGI
-                if (indicative.getFigi() != null && !indicative.getFigi().trim().isEmpty()) {
-                    indicativesIds.add(indicative.getFigi());
+                System.out.println("Запрашиваем цены закрытия для " + sharesAndFuturesIds.size() + " shares и futures батчами по " + batchSize);
+                for (int i = 0; i < sharesAndFuturesIds.size(); i += batchSize) {
+                    int toIndex = Math.min(i + batchSize, sharesAndFuturesIds.size());
+                    List<String> batch = sharesAndFuturesIds.subList(i, toIndex);
+                    List<ClosePriceDto> sharesFuturesPrices = getClosePrices(batch, null);
+                    closePricesFromApi.addAll(sharesFuturesPrices);
+                    System.out.println("Получено цен для батча shares/futures (" + batch.size() + "): " + sharesFuturesPrices.size());
+                    try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                 }
             }
-            
+
+            // Затем пытаемся получить цены для indicatives (если API поддерживает)
+            List<String> indicativesIds = new ArrayList<>();
+            List<String> indicativesFigis = new ArrayList<>();
+            List<IndicativeEntity> indicatives = indicativeRepo.findAll();
+            for (IndicativeEntity indicative : indicatives) {
+                // Предпочитаем UID для запросов к API, если он есть; иначе используем FIGI
+                String uid = indicative.getUid();
+                String figi = indicative.getFigi();
+                if (uid != null && !uid.trim().isEmpty()) {
+                    indicativesIds.add(uid);
+                } else if (figi != null && !figi.trim().isEmpty()) {
+                    indicativesIds.add(figi);
+                }
+                if (figi != null && !figi.trim().isEmpty()) {
+                    indicativesFigis.add(figi);
+                }
+            }
+
             if (!indicativesIds.isEmpty()) {
                 try {
-                    System.out.println("Запрашиваем цены закрытия для " + indicativesIds.size() + " indicatives");
-                    List<ClosePriceDto> indicativesPrices = getClosePrices(indicativesIds, null);
-                    closePricesFromApi.addAll(indicativesPrices);
-                    System.out.println("Получено цен для indicatives: " + indicativesPrices.size());
+                    System.out.println("Запрашиваем цены закрытия для " + indicativesIds.size() + " indicatives батчами по " + batchSize);
+                    for (int i = 0; i < indicativesIds.size(); i += batchSize) {
+                        int toIndex = Math.min(i + batchSize, indicativesIds.size());
+                        List<String> batch = indicativesIds.subList(i, toIndex);
+                        List<ClosePriceDto> indicativesPrices = getClosePrices(batch, null);
+                        closePricesFromApi.addAll(indicativesPrices);
+                        System.out.println("Получено цен для батча indicatives (" + batch.size() + "): " + indicativesPrices.size());
+                        try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    }
                 } catch (Exception e) {
                     System.err.println("Ошибка при получении цен закрытия для indicatives: " + e.getMessage());
                     System.err.println("Продолжаем без indicatives...");
                 }
+
+                // Fallback: для индикативов без цен закрытия пробуем взять закрытие из свечей за предыдущий день
+                try {
+                    LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
+                    Set<String> havePrices = new HashSet<>();
+                    for (ClosePriceDto p : closePricesFromApi) {
+                        havePrices.add(p.figi());
+                    }
+
+                    int fallbackTried = 0;
+                    int fallbackSaved = 0;
+                    for (int idx = 0; idx < indicativesFigis.size(); idx++) {
+                        String figi = indicativesFigis.get(idx);
+                        if (figi == null || figi.trim().isEmpty()) {
+                            continue;
+                        }
+                        if (havePrices.contains(figi)) {
+                            continue;
+                        }
+                        // Получаем свечи за день и берём последнюю как цену закрытия.
+                        // Для индикативов пробуем сначала uid, если доступен; иначе figi
+                        String instrumentIdForCandles = figi;
+                        try {
+                            IndicativeEntity entity = indicativeRepo.findById(figi).orElse(null);
+                            if (entity != null && entity.getUid() != null && !entity.getUid().trim().isEmpty()) {
+                                instrumentIdForCandles = entity.getUid();
+                            }
+                        } catch (Exception ignored) {}
+                        List<CandleDto> candles = getCandles(instrumentIdForCandles, previousDay, "CANDLE_INTERVAL_1_MIN");
+                        fallbackTried++;
+                        if (!candles.isEmpty()) {
+                            CandleDto lastCandle = candles.get(candles.size() - 1);
+                            ClosePriceDto fallbackPrice = new ClosePriceDto(
+                                    figi,
+                                    previousDay.toString(),
+                                    lastCandle.close(),
+                                    null
+                            );
+                            closePricesFromApi.add(fallbackPrice);
+                            fallbackSaved++;
+                        }
+                        try { Thread.sleep(100); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    }
+                    System.out.println("Fallback по свечам для indicatives: попыток=" + fallbackTried + ", получено цен=" + fallbackSaved);
+                } catch (Exception fe) {
+                    System.err.println("Ошибка в fallback по свечам для indicatives: " + fe.getMessage());
+                }
             }
-            
+
+            // Закрываем ветку else (полная загрузка)
+        }
+
         } catch (Exception e) {
             System.err.println("Ошибка при получении цен закрытия из API: " + e.getMessage());
             System.err.println("Количество инструментов в запросе: " + instrumentIds.size());
@@ -213,83 +406,110 @@ public class MarketDataService {
         List<ClosePriceDto> savedPrices = new ArrayList<>();
         int existingCount = 0;
         
+        int failedSavesCount = 0;
         for (ClosePriceDto closePriceDto : closePricesFromApi) {
             LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
             ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
-            
-            // Проверяем, существует ли запись с такой датой и FIGI
-            if (!closePriceRepo.existsById(key)) {
-                // Определяем тип инструмента и получаем дополнительную информацию
-                String instrumentType = "UNKNOWN";
-                String currency = "UNKNOWN";
-                String exchange = "UNKNOWN";
-                
-                // Проверяем в таблице shares
-                ShareEntity share = shareRepo.findById(closePriceDto.figi()).orElse(null);
-                if (share != null) {
-                    instrumentType = "SHARE";
-                    currency = share.getCurrency();
-                    exchange = share.getExchange();
+
+            // Определяем тип инструмента и получаем дополнительную информацию
+            String instrumentType = "UNKNOWN";
+            String currency = "UNKNOWN";
+            String exchange = "UNKNOWN";
+
+            // Проверяем в таблице shares
+            ShareEntity share = shareRepo.findById(closePriceDto.figi()).orElse(null);
+            if (share != null) {
+                instrumentType = "SHARE";
+                currency = share.getCurrency();
+                exchange = share.getExchange();
+            } else {
+                // Проверяем в таблице futures
+                FutureEntity future = futureRepo.findById(closePriceDto.figi()).orElse(null);
+                if (future != null) {
+                    instrumentType = "FUTURE";
+                    currency = future.getCurrency();
+                    exchange = future.getExchange();
                 } else {
-                    // Проверяем в таблице futures
-                    FutureEntity future = futureRepo.findById(closePriceDto.figi()).orElse(null);
-                    if (future != null) {
-                        instrumentType = "FUTURE";
-                        currency = future.getCurrency();
-                        exchange = future.getExchange();
-                    } else {
-                        // Проверяем в таблице indicatives
-                        IndicativeEntity indicative = indicativeRepo.findById(closePriceDto.figi()).orElse(null);
-                        if (indicative != null) {
-                            instrumentType = "INDICATIVE";
-                            currency = indicative.getCurrency();
-                            exchange = indicative.getExchange();
-                        }
+                    // Проверяем в таблице indicatives
+                    IndicativeEntity indicative = indicativeRepo.findById(closePriceDto.figi()).orElse(null);
+                    if (indicative != null) {
+                        instrumentType = "INDICATIVE";
+                        currency = indicative.getCurrency();
+                        exchange = indicative.getExchange();
                     }
                 }
-                
-                // Создаем и сохраняем новую запись
-                ClosePriceEntity closePriceEntity = new ClosePriceEntity(
-                    priceDate,
-                    closePriceDto.figi(),
-                    instrumentType,
-                    closePriceDto.closePrice(),
-                    currency,
-                    exchange
-                );
-                
-                try {
-                    closePriceRepo.save(closePriceEntity);
-                    savedPrices.add(closePriceDto);
-                } catch (Exception e) {
-                    // Логируем ошибку, но продолжаем обработку других цен
-                    System.err.println("Error saving close price for " + closePriceDto.figi() + 
-                                     " on " + priceDate + ": " + e.getMessage());
+            }
+
+            // Если запись уже существует — считаем как существующую и не пытаемся сохранять
+            try {
+                if (closePriceRepo.existsById(key)) {
+                    existingCount++;
+                    continue;
                 }
-            } else {
-                existingCount++;
+            } catch (Exception e) {
+                // В спорных случаях всё равно попробуем сохранить, а ошибку залогируем
+                System.err.println("existsById check failed for key (" + priceDate + ", " + closePriceDto.figi() + ") : " + e.getMessage());
+            }
+
+            // Создаем и пытаемся сохранить новую запись
+            ClosePriceEntity closePriceEntity = new ClosePriceEntity(
+                priceDate,
+                closePriceDto.figi(),
+                instrumentType,
+                closePriceDto.closePrice(),
+                currency,
+                exchange
+            );
+
+            try {
+                closePriceRepo.save(closePriceEntity);
+                savedPrices.add(closePriceDto);
+            } catch (DataIntegrityViolationException dive) {
+                failedSavesCount++;
+                System.err.println("DataIntegrityViolation saving close price for " + closePriceDto.figi() +
+                        " on " + priceDate + ": " + dive.getMessage());
+            } catch (Exception e) {
+                // Если не удалось сохранить по другой причине, проверим, существует ли запись
+                boolean exists = false;
+                try { exists = closePriceRepo.existsById(key); } catch (Exception ignored) {}
+                if (exists) {
+                    existingCount++;
+                } else {
+                    System.err.println("Error saving close price for " + closePriceDto.figi() +
+                            " on " + priceDate + ": " + e.getMessage());
+                    failedSavesCount++;
+                }
             }
         }
         
+        // Подсчитываем полученные цены и сохраненные
+        int receivedPricesCount = closePricesFromApi.size();
         // Формируем ответ
-        boolean success = !closePricesFromApi.isEmpty();
+        boolean success = receivedPricesCount > 0;
         String message;
         
         if (savedPrices.isEmpty()) {
             if (closePricesFromApi.isEmpty()) {
                 message = "Новых цен закрытия не обнаружено. По заданным инструментам цены не найдены.";
             } else {
-                message = "Новых цен закрытия не обнаружено. Все найденные цены уже существуют в базе данных.";
+                message = failedSavesCount > 0
+                    ? String.format("Новых цен закрытия не обнаружено. Ошибок сохранения: %d. Проверьте наличие инструментов и ограничения БД.", failedSavesCount)
+                    : "Новых цен закрытия не обнаружено. Все найденные цены уже существуют в базе данных.";
             }
         } else {
-            message = String.format("Успешно загружено %d новых цен закрытия из %d найденных.", 
-                                  savedPrices.size(), closePricesFromApi.size());
+            message = String.format(
+                "Запрошено по %d инструментам, получено цен: %d. Сохранено новых записей: %d, пропущено (уже были): %d.",
+                requestedInstrumentsCount,
+                receivedPricesCount,
+                savedPrices.size(),
+                existingCount
+            );
         }
         
         return new SaveResponseDto(
             success,
             message,
-            closePricesFromApi.size(),
+            requestedInstrumentsCount,
             savedPrices.size(),
             existingCount,
             savedPrices
@@ -322,8 +542,8 @@ public class MarketDataService {
         System.out.println("Selected interval: " + candleInterval);
 
         // Создаем временной диапазон для запроса (весь день)
-        Instant startTime = date.atStartOfDay(ZoneId.of("UTC")).toInstant();
-        Instant endTime = date.plusDays(1).atStartOfDay(ZoneId.of("UTC")).toInstant();
+        Instant startTime = date.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant();
+        Instant endTime = date.plusDays(1).atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant();
         
         System.out.println("Time range UTC: " + startTime + " to " + endTime);
         System.out.println("Time range Moscow: " + startTime.atZone(ZoneId.of("Europe/Moscow")) + " to " + endTime.atZone(ZoneId.of("Europe/Moscow")));

@@ -72,3 +72,7 @@ scope: manual
 <safeguards>
 Запусти виртуальные тесты в уме перед выводом. Убедись, что тесты не зависят от реального T-Invest API.
 </safeguards>
+
+<timezone>UTC+3</timezone>
+
+<encoding>UTF-8 без bom</encoding>

@@ -55,7 +55,7 @@ public class CandleEntity {
         this.volume = volume;
         this.high = high;
         this.low = low;
-        // Конвертируем время в UTC+3 (московское время)
+        // Конвертируем время в московское время (UTC+3)
         this.time = convertToMoscowTime(time);
         this.close = close;
         this.open = open;

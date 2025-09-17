@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface ShareRepository extends JpaRepository<ShareEntity,String> {
     Optional<ShareEntity> findByTicker(String ticker);
     
+    Optional<ShareEntity> findByTickerIgnoreCase(String ticker);
+    
     /**
      * Получает только FIGI акций (без загрузки полных объектов)
      * Оптимизированный метод для пакетной обработки

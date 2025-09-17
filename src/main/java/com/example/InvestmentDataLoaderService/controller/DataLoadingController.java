@@ -2,7 +2,6 @@ package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.service.TInvestService;
-import com.example.InvestmentDataLoaderService.scheduler.ClosePriceSchedulerService;
 import com.example.InvestmentDataLoaderService.scheduler.CandleSchedulerService;
 import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.MorningSessionService;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
@@ -26,20 +26,17 @@ import java.util.UUID;
 public class DataLoadingController {
 
     private final TInvestService service;
-    private final ClosePriceSchedulerService closePriceScheduler;
     private final CandleSchedulerService candleScheduler;
     private final EveningSessionService eveningSessionService;
     private final MorningSessionService morningSessionService;
     private final LastTradesService lastTradesService;
 
     public DataLoadingController(TInvestService service,
-                               ClosePriceSchedulerService closePriceScheduler,
                                CandleSchedulerService candleScheduler,
                                EveningSessionService eveningSessionService,
                                MorningSessionService morningSessionService,
                                LastTradesService lastTradesService) {
         this.service = service;
-        this.closePriceScheduler = closePriceScheduler;
         this.candleScheduler = candleScheduler;
         this.eveningSessionService = eveningSessionService;
         this.morningSessionService = morningSessionService;
@@ -194,32 +191,17 @@ public class DataLoadingController {
     // ==================== ЦЕНЫ ЗАКРЫТИЯ ====================
 
     /**
-     * Загрузка цен закрытия за сегодня
+     * Синхронная загрузка цен закрытия за сегодня по всем инструментам
      */
     @PostMapping("/close-prices")
-    public ResponseEntity<Map<String, Object>> loadClosePricesToday() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            closePriceScheduler.fetchAndStoreClosePrices();
-            
-            response.put("success", true);
-            response.put("message", "Загрузка цен закрытия запущена для сегодня");
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки цен закрытия: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
+    public ResponseEntity<SaveResponseDto> loadClosePricesToday() {
+        ClosePriceRequestDto request = new ClosePriceRequestDto();
+        SaveResponseDto response = service.saveClosePrices(request);
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Сохранение цен закрытия по запросу
+     * Синхронная точечная загрузка цен закрытия по указанным инструментам
      */
     @PostMapping("/close-prices/save")
     public ResponseEntity<SaveResponseDto> saveClosePrices(@RequestBody(required = false) ClosePriceRequestDto request) {
@@ -229,6 +211,77 @@ public class DataLoadingController {
         }
         SaveResponseDto response = service.saveClosePrices(request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение цены закрытия по инструменту из T-INVEST API
+     */
+    @GetMapping("/close-prices/{figi}")
+    public ResponseEntity<Map<String, Object>> getClosePriceByFigi(@PathVariable String figi) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<ClosePriceDto> closePrices = service.getClosePrices(List.of(figi), null);
+            
+            if (closePrices.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Цена закрытия не найдена для инструмента: " + figi);
+                response.put("figi", figi);
+                response.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.ok(response);
+            }
+            
+            ClosePriceDto closePrice = closePrices.get(0);
+            response.put("success", true);
+            response.put("message", "Цена закрытия получена успешно");
+            response.put("data", closePrice);
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения цены закрытия: " + e.getMessage());
+            response.put("figi", figi);
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Получение цен закрытия по нескольким инструментам из T-INVEST API
+     */
+    @PostMapping("/close-prices/get")
+    public ResponseEntity<Map<String, Object>> getClosePricesByFigis(@RequestBody ClosePriceRequestDto request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            if (request.getInstruments() == null || request.getInstruments().isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Список инструментов не может быть пустым");
+                response.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            List<ClosePriceDto> closePrices = service.getClosePrices(request.getInstruments(), null);
+            
+            response.put("success", true);
+            response.put("message", "Получено цен закрытия: " + closePrices.size() + " из " + request.getInstruments().size() + " запрошенных");
+            response.put("data", closePrices);
+            response.put("requestedCount", request.getInstruments().size());
+            response.put("receivedCount", closePrices.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения цен закрытия: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(500).body(response);
+        }
     }
 
     // ==================== СЕССИОННЫЕ ЦЕНЫ ====================

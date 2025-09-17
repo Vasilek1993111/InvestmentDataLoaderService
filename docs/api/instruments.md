@@ -30,6 +30,35 @@ curl "http://localhost:8083/api/instruments/shares?status=INSTRUMENT_STATUS_BASE
 ]
 ```
 
+## GET /api/instruments/shares/{identifier}
+Получение акции по FIGI или тикеру из базы данных.
+
+API автоматически определяет тип идентификатора:
+- Если идентификатор длиннее 10 символов или содержит `-` или `_` → поиск по FIGI
+- Иначе → поиск по тикеру
+
+Примеры:
+```bash
+# По FIGI
+curl "http://localhost:8083/api/instruments/shares/BBG004730N88"
+
+# По тикеру
+curl "http://localhost:8083/api/instruments/shares/SBER"
+```
+
+Ответ (пример):
+```json
+{
+  "figi": "BBG004730N88",
+  "ticker": "SBER",
+  "name": "Сбербанк",
+  "currency": "RUB",
+  "exchange": "moex_mrng_evng_e_wknd_dlr",
+  "sector": "Financial Services",
+  "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+}
+```
+
 ## POST /api/instruments/shares
 Сохранение акций в базу данных по фильтрам.
 ```bash
@@ -80,6 +109,34 @@ curl "http://localhost:8083/api/instruments/futures?status=INSTRUMENT_STATUS_BAS
     "exchange": "FORTS_EVENING"
   }
 ]
+```
+
+## GET /api/instruments/futures/{identifier}
+Получение фьючерса по FIGI или тикеру из базы данных.
+
+API автоматически определяет тип идентификатора:
+- Если идентификатор длиннее 10 символов или содержит `-` или `_` → поиск по FIGI
+- Иначе → поиск по тикеру
+
+Примеры:
+```bash
+# По FIGI
+curl "http://localhost:8083/api/instruments/futures/FUTSI1224000"
+
+# По тикеру
+curl "http://localhost:8083/api/instruments/futures/Si-12.24"
+```
+
+Ответ (пример):
+```json
+{
+  "figi": "FUTSI1224000",
+  "ticker": "Si-12.24",
+  "assetType": "TYPE_CURRENCY",
+  "basicAsset": "USD/RUB",
+  "currency": "RUB",
+  "exchange": "FORTS_EVENING"
+}
 ```
 
 ## POST /api/instruments/futures
@@ -161,35 +218,20 @@ curl -X POST "http://localhost:8083/api/instruments/indicatives" \
 }
 ```
 
-## GET /api/instruments/indicatives/{figi}
-Получение индикатива по FIGI. 404 если не найден.
+## GET /api/instruments/indicatives/{identifier}
+Получение индикатива по FIGI или тикеру.
 
-Пример:
+API автоматически определяет тип идентификатора:
+- Если идентификатор длиннее 10 символов или содержит `-` или `_` → поиск по FIGI
+- Иначе → поиск по тикеру
+
+Примеры:
 ```bash
+# По FIGI
 curl "http://localhost:8083/api/instruments/indicatives/BBG00QPYJ5X0"
-```
 
-Ответ (пример):
-```json
-{
-  "figi": "BBG00QPYJ5X0",
-  "ticker": "IMOEX",
-  "name": "Индекс МосБиржи",
-  "currency": "RUB",
-  "exchange": "moex_mrng_evng_e_wknd_dlr",
-  "classCode": "SPBXM",
-  "uid": "e6123145-9665-43e0-8413-cd61d8e6e372",
-  "sellAvailableFlag": true,
-  "buyAvailableFlag": true
-}
-```
-
-## GET /api/instruments/indicatives/ticker/{ticker}
-Получение индикатива по тикеру (case‑insensitive). 404 если не найден.
-
-Пример:
-```bash
-curl "http://localhost:8083/api/instruments/indicatives/ticker/IMOEX"
+# По тикеру
+curl "http://localhost:8083/api/instruments/indicatives/IMOEX"
 ```
 
 Ответ (пример):
@@ -220,57 +262,4 @@ curl "http://localhost:8083/api/instruments/count"
 Ответ (пример):
 ```json
 { "shares": 150, "futures": 200, "indicatives": 50, "total": 400 }
-```
-
-## GET /api/instruments/stats
-Расширенная статистика по инструментам (counts и timestamp).
-
-Пример:
-```bash
-curl "http://localhost:8083/api/instruments/stats"
-```
-
-Ответ (пример):
-```json
-{
-  "success": true,
-  "shares": 150,
-  "futures": 200,
-  "indicatives": 50,
-  "total": 400,
-  "timestamp": 1737043200000
-}
-```
-
-## GET /api/instruments/search?query=...
-Поиск в shares/futures/indicatives по тикеру/FIGI. Опционально `type=shares|futures|indicatives`.
-
-Пример:
-```bash
-curl "http://localhost:8083/api/instruments/search?query=SBER"
-```
-
-Ответ (пример):
-```json
-{ "success": true, "query": "SBER", "shares": [ { "ticker": "SBER", "figi": "BBG004730N88" } ] }
-```
-
-## GET /api/instruments/by-exchange/{exchange}
-Единая выборка инструментов по бирже (акции, фьючерсы, индикативы).
-
-Пример:
-```bash
-curl "http://localhost:8083/api/instruments/by-exchange/MOEX"
-```
-
-Ответ (пример):
-```json
-{
-  "success": true,
-  "exchange": "MOEX",
-  "shares": [ { "ticker": "SBER" } ],
-  "futures": [ { "ticker": "Si-12.24" } ],
-  "indicatives": [ { "ticker": "IMOEX" } ],
-  "timestamp": 1737043200000
-}
 ```

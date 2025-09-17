@@ -50,11 +50,29 @@ public class TInvestService {
         filter.setTicker(ticker);
         
         SaveResponseDto response = instrumentService.saveShares(filter);
-        return (List<ShareDto>) response.getSavedItems();
+        @SuppressWarnings("unchecked")
+        List<ShareDto> result = (List<ShareDto>) response.getSavedItems();
+        return result;
     }
 
     public SaveResponseDto saveShares(ShareFilterDto filter) {
         return instrumentService.saveShares(filter);
+    }
+
+    public List<ShareDto> getSharesFromDatabase(ShareFilterDto filter) {
+        return instrumentService.getSharesFromDatabase(filter);
+    }
+
+    public ShareDto getShareByFigi(String figi) {
+        return instrumentService.getShareByFigi(figi);
+    }
+
+    public ShareDto getShareByTicker(String ticker) {
+        return instrumentService.getShareByTicker(ticker);
+    }
+
+    public SaveResponseDto updateShare(ShareDto shareDto) {
+        return instrumentService.updateShare(shareDto);
     }
 
     public List<FutureDto> getFutures(String status, String exchange, String currency, String ticker, String assetType) {
@@ -70,11 +88,21 @@ public class TInvestService {
         filter.setAssetType(assetType);
         
         SaveResponseDto response = instrumentService.saveFutures(filter);
-        return (List<FutureDto>) response.getSavedItems();
+        @SuppressWarnings("unchecked")
+        List<FutureDto> result = (List<FutureDto>) response.getSavedItems();
+        return result;
     }
 
     public SaveResponseDto saveFutures(FutureFilterDto filter) {
         return instrumentService.saveFutures(filter);
+    }
+
+    public FutureDto getFutureByFigi(String figi) {
+        return instrumentService.getFutureByFigi(figi);
+    }
+
+    public FutureDto getFutureByTicker(String ticker) {
+        return instrumentService.getFutureByTicker(ticker);
     }
 
     public List<IndicativeDto> getIndicatives(String exchange, String currency, String ticker, String figi) {

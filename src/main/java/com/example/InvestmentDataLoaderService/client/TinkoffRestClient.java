@@ -36,6 +36,11 @@ public class TinkoffRestClient {
      */
     public JsonNode getIndicatives() {
         try {
+            // Проверяем, что токен не пустой
+            if (apiToken == null || apiToken.trim().isEmpty()) {
+                throw new RuntimeException("T-Invest API token is not configured. Please set T_INVEST_TOKEN environment variable.");
+            }
+            
             String url = baseUrl + "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Indicatives";
             
             // Заголовки для авторизации

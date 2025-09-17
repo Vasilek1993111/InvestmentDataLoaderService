@@ -12,4 +12,7 @@ public class ShareFilterDto {
     private String exchange;
     private String currency;
     private String ticker;
+    private String figi;
+    private String sector;
+    private String tradingStatus;
 }

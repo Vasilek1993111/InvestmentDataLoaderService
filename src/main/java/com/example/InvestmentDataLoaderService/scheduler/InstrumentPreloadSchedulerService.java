@@ -34,9 +34,9 @@ public class InstrumentPreloadSchedulerService {
         try {
             // Акции: только MOEX
             System.out.println("[" + taskId + "] Загрузка акций (exchange=" + MOEX_EXCHANGE + ")");
-            ShareFilterDto shareFilter = new ShareFilterDto(null, MOEX_EXCHANGE, null, null);
+            ShareFilterDto shareFilter = new ShareFilterDto(null, MOEX_EXCHANGE, null, null, null, null, null);
             // Прогрев кеша
-            List<ShareDto> shares = instrumentService.getShares(shareFilter.getStatus(), shareFilter.getExchange(), shareFilter.getCurrency(), shareFilter.getTicker(), null);
+            List<ShareDto> shares = instrumentService.getShares(shareFilter.getStatus(), shareFilter.getExchange(), shareFilter.getCurrency(), shareFilter.getTicker(), shareFilter.getFigi());
             System.out.println("[" + taskId + "] В кеш загружено акций: " + shares.size());
             // Сохранение в БД без дублей
             SaveResponseDto shareSave = instrumentService.saveShares(shareFilter);

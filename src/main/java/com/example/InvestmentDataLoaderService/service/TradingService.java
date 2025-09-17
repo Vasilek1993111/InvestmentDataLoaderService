@@ -53,10 +53,10 @@ public class TradingService {
             List<TradingDayDto> days = new ArrayList<>();
             for (var d : ex.getDaysList()) {
                 days.add(new TradingDayDto(
-                        Instant.ofEpochSecond(d.getDate().getSeconds()).atZone(ZoneId.of("UTC")).toLocalDate().toString(),
+                        Instant.ofEpochSecond(d.getDate().getSeconds()).atZone(ZoneId.of("Europe/Moscow")).toLocalDate().toString(),
                         d.getIsTradingDay(),
-                        Instant.ofEpochSecond(d.getStartTime().getSeconds()).atZone(ZoneId.of("UTC")).toString(),
-                        Instant.ofEpochSecond(d.getEndTime().getSeconds()).atZone(ZoneId.of("UTC")).toString()
+                        Instant.ofEpochSecond(d.getStartTime().getSeconds()).atZone(ZoneId.of("Europe/Moscow")).toString(),
+                        Instant.ofEpochSecond(d.getEndTime().getSeconds()).atZone(ZoneId.of("Europe/Moscow")).toString()
                 ));
             }
             list.add(new TradingScheduleDto(ex.getExchange(), days));

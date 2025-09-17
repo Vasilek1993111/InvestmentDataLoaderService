@@ -139,10 +139,10 @@ SELECT
         ELSE 0 
     END as weekend_avg_volume_per_candle,
     
-    -- Временные метки
-    MIN(time) as first_candle_time,
-    MAX(time) as last_candle_time,
-    NOW() as last_updated
+    -- Временные метки (конвертируем в московское время)
+    MIN(time) AT TIME ZONE 'Europe/Moscow' as first_candle_time,
+    MAX(time) AT TIME ZONE 'Europe/Moscow' as last_candle_time,
+    NOW() AT TIME ZONE 'Europe/Moscow' as last_updated
 FROM invest.candles
 GROUP BY figi
 ORDER BY figi;
@@ -292,9 +292,12 @@ SELECT
     -- Временные метки
     MIN(time) as first_candle_time,
     MAX(time) as last_candle_time,
-    NOW() as last_updated
+    NOW() AT TIME ZONE 'Europe/Moscow' as last_updated
 FROM invest.candles
-WHERE DATE(time AT TIME ZONE 'Europe/Moscow') = CURRENT_DATE AT TIME ZONE 'Europe/Moscow'
+WHERE 
+  -- Если сейчас время показа данных (07:00-23:59), показываем данные за сегодня
+  EXTRACT(HOUR FROM NOW() AT TIME ZONE 'Europe/Moscow') >= 7 
+  AND DATE(time AT TIME ZONE 'Europe/Moscow') = CURRENT_DATE AT TIME ZONE 'Europe/Moscow'
 GROUP BY figi
 ORDER BY figi;
 

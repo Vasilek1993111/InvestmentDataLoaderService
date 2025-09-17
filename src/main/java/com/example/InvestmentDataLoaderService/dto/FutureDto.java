@@ -6,6 +6,5 @@ public record FutureDto(
     String assetType,
     String basicAsset,
     String currency,
-    String exchange,
-    String stockTicker
+    String exchange
 ) {}

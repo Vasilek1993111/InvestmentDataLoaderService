@@ -14,6 +14,7 @@ public class CacheConfig {
     public static final String SHARES_CACHE = "sharesCache";
     public static final String FUTURES_CACHE = "futuresCache";
     public static final String INDICATIVES_CACHE = "indicativesCache";
+    public static final String CLOSE_PRICES_CACHE = "closePricesCache";
 
     @Bean
     public Caffeine<Object, Object> caffeineSpec() {
@@ -27,7 +28,8 @@ public class CacheConfig {
         CaffeineCacheManager manager = new CaffeineCacheManager(
                 SHARES_CACHE,
                 FUTURES_CACHE,
-                INDICATIVES_CACHE
+                INDICATIVES_CACHE,
+                CLOSE_PRICES_CACHE
         );
         manager.setCaffeine(caffeine);
         return manager;

@@ -107,6 +107,83 @@ curl -X POST "http://localhost:8083/api/data-loading/close-prices/save" -H "Cont
 }
 ```
 
+## GET /api/data-loading/close-prices/{figi}
+Получение цены закрытия по конкретному инструменту из T-INVEST API (без сохранения в БД).
+
+Пример запроса:
+```bash
+curl "http://localhost:8083/api/data-loading/close-prices/BBG0063FKTD1"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Цена закрытия получена успешно",
+  "data": {
+    "figi": "BBG0063FKTD1",
+    "tradingDate": "2024-01-15",
+    "closePrice": 1250.50,
+    "eveningSessionPrice": null
+  },
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+Ответ при отсутствии данных:
+```json
+{
+  "success": false,
+  "message": "Цена закрытия не найдена для инструмента: BBG0063FKTD1",
+  "figi": "BBG0063FKTD1",
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+## POST /api/data-loading/close-prices/get
+Получение цен закрытия по нескольким инструментам из T-INVEST API (без сохранения в БД).
+
+Тело запроса:
+```json
+{
+  "instruments": ["BBG0063FKTD1", "BBG004S685M2", "BBG004S68JR9"]
+}
+```
+Пример запроса:
+```bash
+curl -X POST "http://localhost:8083/api/data-loading/close-prices/get" -H "Content-Type: application/json" -d '{
+  "instruments": ["BBG0063FKTD1", "BBG004S685M2", "BBG004S68JR9"]
+}'
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Получено цен закрытия: 3 из 3 запрошенных",
+  "data": [
+    {
+      "figi": "BBG0063FKTD1",
+      "tradingDate": "2024-01-15",
+      "closePrice": 1250.50,
+      "eveningSessionPrice": null
+    },
+    {
+      "figi": "BBG004S685M2",
+      "tradingDate": "2024-01-15", 
+      "closePrice": 890.25,
+      "eveningSessionPrice": null
+    },
+    {
+      "figi": "BBG004S68JR9",
+      "tradingDate": "2024-01-15",
+      "closePrice": 2100.75,
+      "eveningSessionPrice": null
+    }
+  ],
+  "requestedCount": 3,
+  "receivedCount": 3,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
 ## POST /api/data-loading/evening-session-prices
 Загрузка цен вечерней сессии за сегодня.
 ```bash
