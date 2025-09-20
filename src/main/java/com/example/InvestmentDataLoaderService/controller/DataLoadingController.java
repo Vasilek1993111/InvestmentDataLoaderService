@@ -1,18 +1,28 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
+import com.example.InvestmentDataLoaderService.entity.ShareEntity;
+import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.exception.DataLoadException;
 import com.example.InvestmentDataLoaderService.service.TInvestService;
-import com.example.InvestmentDataLoaderService.scheduler.CandleSchedulerService;
+import com.example.InvestmentDataLoaderService.service.MinuteCandleService;
+import com.example.InvestmentDataLoaderService.service.DailyCandleService;
+import com.example.InvestmentDataLoaderService.service.MarketDataService;
+import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
+import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.MorningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.LastTradesService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -28,18 +38,33 @@ import java.util.stream.Collectors;
 public class DataLoadingController {
 
     private final TInvestService service;
-    private final CandleSchedulerService candleScheduler;
+    private final MinuteCandleService minuteCandleService;
+    private final DailyCandleService dailyCandleService;
+    private final MarketDataService marketDataService;
+    private final IndicativeRepository indicativeRepository;
+    private final ShareRepository shareRepository;
+    private final FutureRepository futureRepository;
     private final EveningSessionService eveningSessionService;
     private final MorningSessionService morningSessionService;
     private final LastTradesService lastTradesService;
 
     public DataLoadingController(TInvestService service,
-                               CandleSchedulerService candleScheduler,
+                               MinuteCandleService minuteCandleService,
+                               DailyCandleService dailyCandleService,
+                               MarketDataService marketDataService,
+                               IndicativeRepository indicativeRepository,
+                               ShareRepository shareRepository,
+                               FutureRepository futureRepository,
                                EveningSessionService eveningSessionService,
                                MorningSessionService morningSessionService,
                                LastTradesService lastTradesService) {
         this.service = service;
-        this.candleScheduler = candleScheduler;
+        this.minuteCandleService = minuteCandleService;
+        this.dailyCandleService = dailyCandleService;
+        this.marketDataService = marketDataService;
+        this.indicativeRepository = indicativeRepository;
+        this.shareRepository = shareRepository;
+        this.futureRepository = futureRepository;
         this.eveningSessionService = eveningSessionService;
         this.morningSessionService = morningSessionService;
         this.lastTradesService = lastTradesService;
@@ -48,13 +73,13 @@ public class DataLoadingController {
     // ==================== СВЕЧИ ====================
 
     /**
-     * Загрузка свечей за сегодня
+     * Загрузка минутных свечей за сегодня (или указанную дату)
      */
-    @PostMapping("/candles")
-    public ResponseEntity<CandleLoadResponseDto> loadCandlesToday(@RequestBody(required = false) CandleRequestDto request) {
+    @PostMapping("/candles/minute")
+    public ResponseEntity<CandleLoadResponseDto> loadMinuteCandlesToday(@RequestBody(required = false) MinuteCandleRequestDto request) {
         // Если request null, создаем пустой объект
         if (request == null) {
-            request = new CandleRequestDto();
+            request = new MinuteCandleRequestDto();
         }
         
         // Генерируем уникальный ID задачи
@@ -62,12 +87,12 @@ public class DataLoadingController {
         LocalDateTime startTime = LocalDateTime.now();
         
         // Запускаем загрузку в фоновом режиме
-        service.saveCandlesAsync(request, taskId);
+        minuteCandleService.saveMinuteCandlesAsync(request, taskId);
         
         // Немедленно возвращаем ответ о запуске
         CandleLoadResponseDto response = new CandleLoadResponseDto(
             true,
-            "Загрузка свечей запущена в фоновом режиме",
+            "Загрузка минутных свечей запущена в фоновом режиме",
             startTime,
             taskId
         );
@@ -76,117 +101,1324 @@ public class DataLoadingController {
     }
 
     /**
-     * Загрузка свечей за конкретную дату
+     * Загрузка дневных свечей за сегодня (или указанную дату)
      */
-    @PostMapping("/candles/{date}")
-    public ResponseEntity<Map<String, Object>> loadCandlesForDate(
+    @PostMapping("/candles/daily")
+    public ResponseEntity<CandleLoadResponseDto> loadDailyCandlesToday(@RequestBody(required = false) DailyCandleRequestDto request) {
+        // Если request null, создаем пустой объект
+        if (request == null) {
+            request = new DailyCandleRequestDto();
+        }
+        
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка дневных свечей запущена в фоновом режиме",
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Загрузка минутных свечей за конкретную дату
+     */
+    @PostMapping("/candles/minute/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        Map<String, Object> response = new HashMap<>();
+        // Создаем запрос для минутных свечей
+        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+        request.setDate(date);
         
-        try {
-            candleScheduler.fetchAndStoreCandlesForDate(date);
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка минутных свечей запущена для " + date,
+            startTime,
+            taskId
+        );
             
+            return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Загрузка дневных свечей за конкретную дату
+     */
+    @PostMapping("/candles/daily/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadDailyCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        // Создаем запрос для дневных свечей
+        DailyCandleRequestDto request = new DailyCandleRequestDto();
+        request.setDate(date);
+        
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка дневных свечей запущена для " + date,
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Загрузка минутных свечей акций за дату
+     */
+    @PostMapping("/candles/shares/minute/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadSharesMinuteCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        // Создаем запрос для минутных свечей акций
+        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+        request.setDate(date);
+        request.setAssetType(List.of("SHARES"));
+        
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка минутных свечей акций запущена для " + date,
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение минутных свечей акций за дату без сохранения
+     */
+    @GetMapping("/candles/shares/minute/{date}")
+    public ResponseEntity<Map<String, Object>> getSharesMinuteCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
+            System.out.println("Дата: " + date);
+            
+            // Получаем все акции из БД
+            List<ShareEntity> shares = shareRepository.findAll();
+            System.out.println("Найдено акций: " + shares.size());
+            
+            if (shares.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Акции не найдены в базе данных");
+                response.put("date", date);
+                response.put("candles", new ArrayList<>());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Собираем все свечи от API
+            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<Map<String, Object>> failedInstruments = new ArrayList<>();
+            List<Map<String, Object>> noDataInstruments = new ArrayList<>();
+            List<Map<String, Object>> errorInstruments = new ArrayList<>();
+            
+            int totalInstruments = shares.size();
+            int processedInstruments = 0;
+            int successfulInstruments = 0;
+            int noDataCount = 0;
+            int errorCount = 0;
+            int totalCandlesCount = 0;
+            
+            long startProcessingTime = System.currentTimeMillis();
+            
+            for (ShareEntity share : shares) {
+                long instrumentStartTime = System.currentTimeMillis();
+                
+                try {
+                    System.out.println("Обрабатываем акцию: " + share.getFigi() + " - " + share.getName());
+                    
+                    // Получаем минутные свечи из API
+                    List<CandleDto> candles = marketDataService.getCandles(share.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
+                    
+                    if (candles != null && !candles.isEmpty()) {
+                        System.out.println("Получено " + candles.size() + " свечей для " + share.getFigi());
+                        
+                        // Преобразуем свечи в формат для ответа
+                        for (CandleDto candle : candles) {
+                            Map<String, Object> candleData = new HashMap<>();
+                            candleData.put("figi", candle.figi());
+                            candleData.put("instrumentName", share.getName());
+                            candleData.put("volume", candle.volume());
+                            candleData.put("high", candle.high());
+                            candleData.put("low", candle.low());
+                            candleData.put("open", candle.open());
+                            candleData.put("close", candle.close());
+                            candleData.put("time", candle.time());
+                            candleData.put("isComplete", candle.isComplete());
+                            
+                            allCandles.add(candleData);
+                        }
+                        
+                        totalCandlesCount += candles.size();
+                        successfulInstruments++;
+                        
+                        System.out.println("Успешно обработан " + share.getFigi() + " за " + (System.currentTimeMillis() - instrumentStartTime) + "мс");
+                    } else {
+                        System.out.println("Нет данных для акции: " + share.getFigi());
+                        noDataCount++;
+                        
+                        // Записываем информацию об инструменте без данных
+                        Map<String, Object> noDataInfo = new HashMap<>();
+                        noDataInfo.put("figi", share.getFigi());
+                        noDataInfo.put("name", share.getName());
+                        noDataInfo.put("reason", "Нет торговых данных за указанную дату");
+                        noDataInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                        noDataInstruments.add(noDataInfo);
+                    }
+                    
+                    processedInstruments++;
+                    
+                    // Небольшая задержка между запросами к API
+                    Thread.sleep(100);
+                    
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении данных для " + share.getFigi() + ": " + e.getMessage());
+                    errorCount++;
+                    processedInstruments++;
+                    
+                    // Определяем тип ошибки
+                    String errorType = "UNKNOWN_ERROR";
+                    String errorReason = e.getMessage();
+                    
+                    if (e.getMessage() != null) {
+                        if (e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                            errorType = "TIMEOUT";
+                            errorReason = "Превышено время ожидания ответа от API";
+                        } else if (e.getMessage().contains("UNAVAILABLE")) {
+                            errorType = "SERVICE_UNAVAILABLE";
+                            errorReason = "Сервис API временно недоступен";
+                        } else if (e.getMessage().contains("PERMISSION_DENIED")) {
+                            errorType = "PERMISSION_DENIED";
+                            errorReason = "Нет доступа к инструменту";
+                        } else if (e.getMessage().contains("INVALID_ARGUMENT")) {
+                            errorType = "INVALID_ARGUMENT";
+                            errorReason = "Неверный аргумент запроса";
+                        }
+                    }
+                    
+                    // Записываем информацию об ошибке
+                    Map<String, Object> errorInfo = new HashMap<>();
+                    errorInfo.put("figi", share.getFigi());
+                    errorInfo.put("name", share.getName());
+                    errorInfo.put("errorType", errorType);
+                    errorInfo.put("reason", errorReason);
+                    errorInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                    errorInstruments.add(errorInfo);
+                }
+            }
+            
+            long totalProcessingTime = System.currentTimeMillis() - startProcessingTime;
+            
+            // Формируем детальную статистику
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalInstruments", totalInstruments);
+            statistics.put("processedInstruments", processedInstruments);
+            statistics.put("successfulInstruments", successfulInstruments);
+            statistics.put("noDataInstruments", noDataCount);
+            statistics.put("errorInstruments", errorCount);
+            statistics.put("successRate", totalInstruments > 0 ? (double) successfulInstruments / totalInstruments * 100 : 0);
+            statistics.put("totalProcessingTimeMs", totalProcessingTime);
+            statistics.put("averageProcessingTimePerInstrumentMs", processedInstruments > 0 ? totalProcessingTime / processedInstruments : 0);
+            
+            // Формируем ответ
+            Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Загрузка свечей запущена для " + date);
+            response.put("message", "Данные получены успешно");
             response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("statistics", statistics);
+            response.put("totalCandles", totalCandlesCount);
+            response.put("candles", allCandles);
+            response.put("failedInstruments", failedInstruments);
+            response.put("noDataInstruments", noDataInstruments);
+            response.put("errorInstruments", errorInstruments);
+            
+            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
+            System.out.println("Всего инструментов: " + totalInstruments);
+            System.out.println("Обработано: " + processedInstruments);
+            System.out.println("Успешно: " + successfulInstruments);
+            System.out.println("Без данных: " + noDataCount);
+            System.out.println("С ошибками: " + errorCount);
+            System.out.println("Процент успеха: " + String.format("%.2f", statistics.get("successRate")) + "%");
+            System.out.println("Всего свечей: " + totalCandlesCount);
+            System.out.println("Время обработки: " + totalProcessingTime + "мс");
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки свечей для " + date + ": " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            System.err.println("Ошибка при получении минутных свечей акций: " + e.getMessage());
+            e.printStackTrace();
             
-            return ResponseEntity.status(500).body(response);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка при получении данных: " + e.getMessage());
+            errorResponse.put("date", date);
+            errorResponse.put("candles", new ArrayList<>());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
     /**
-     * Загрузка свечей акций за дату
+     * Загрузка дневных свечей акций за дату
      */
-    @PostMapping("/candles/shares/{date}")
-    public ResponseEntity<Map<String, Object>> loadSharesCandlesForDate(
+    @PostMapping("/candles/shares/daily/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadSharesDailyCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        Map<String, Object> response = new HashMap<>();
+        // Создаем запрос для дневных свечей акций
+        DailyCandleRequestDto request = new DailyCandleRequestDto();
+        request.setDate(date);
+        request.setAssetType(List.of("SHARES"));
         
-        try {
-            candleScheduler.fetchAndStoreSharesCandlesForDate(date);
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка дневных свечей акций запущена для " + date,
+            startTime,
+            taskId
+        );
             
+            return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение дневных свечей акций за дату без сохранения
+     */
+    @GetMapping("/candles/shares/daily/{date}")
+    public ResponseEntity<Map<String, Object>> getSharesDailyCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            System.out.println("=== ПОЛУЧЕНИЕ ДНЕВНЫХ СВЕЧЕЙ АКЦИЙ ===");
+            System.out.println("Дата: " + date);
+            
+            // Получаем все акции из БД
+            List<ShareEntity> shares = shareRepository.findAll();
+            System.out.println("Найдено акций: " + shares.size());
+            
+            if (shares.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Акции не найдены в базе данных");
+                response.put("date", date);
+                response.put("candles", new ArrayList<>());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Собираем все свечи от API
+            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<Map<String, Object>> failedInstruments = new ArrayList<>();
+            List<Map<String, Object>> noDataInstruments = new ArrayList<>();
+            List<Map<String, Object>> errorInstruments = new ArrayList<>();
+            
+            int totalInstruments = shares.size();
+            int processedInstruments = 0;
+            int successfulInstruments = 0;
+            int noDataCount = 0;
+            int errorCount = 0;
+            int totalCandlesCount = 0;
+            
+            long startProcessingTime = System.currentTimeMillis();
+            
+            for (ShareEntity share : shares) {
+                long instrumentStartTime = System.currentTimeMillis();
+                
+                try {
+                    System.out.println("Обрабатываем акцию: " + share.getFigi() + " - " + share.getName());
+                    
+                    // Получаем дневные свечи из API
+                    List<CandleDto> candles = marketDataService.getCandles(share.getFigi(), date, "CANDLE_INTERVAL_DAY");
+                    
+                    if (candles != null && !candles.isEmpty()) {
+                        System.out.println("Получено " + candles.size() + " свечей для " + share.getFigi());
+                        
+                        // Преобразуем свечи в формат для ответа
+                        for (CandleDto candle : candles) {
+                            Map<String, Object> candleData = new HashMap<>();
+                            candleData.put("figi", candle.figi());
+                            candleData.put("instrumentName", share.getName());
+                            candleData.put("volume", candle.volume());
+                            candleData.put("high", candle.high());
+                            candleData.put("low", candle.low());
+                            candleData.put("open", candle.open());
+                            candleData.put("close", candle.close());
+                            candleData.put("time", candle.time());
+                            candleData.put("isComplete", candle.isComplete());
+                            
+                            allCandles.add(candleData);
+                        }
+                        
+                        totalCandlesCount += candles.size();
+                        successfulInstruments++;
+                        
+                        System.out.println("Успешно обработан " + share.getFigi() + " за " + (System.currentTimeMillis() - instrumentStartTime) + "мс");
+                    } else {
+                        System.out.println("Нет данных для акции: " + share.getFigi());
+                        noDataCount++;
+                        
+                        // Записываем информацию об инструменте без данных
+                        Map<String, Object> noDataInfo = new HashMap<>();
+                        noDataInfo.put("figi", share.getFigi());
+                        noDataInfo.put("name", share.getName());
+                        noDataInfo.put("reason", "Нет торговых данных за указанную дату");
+                        noDataInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                        noDataInstruments.add(noDataInfo);
+                    }
+                    
+                    processedInstruments++;
+                    
+                    // Небольшая задержка между запросами к API
+                    Thread.sleep(100);
+                    
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении данных для " + share.getFigi() + ": " + e.getMessage());
+                    errorCount++;
+                    processedInstruments++;
+                    
+                    // Определяем тип ошибки
+                    String errorType = "UNKNOWN_ERROR";
+                    String errorReason = e.getMessage();
+                    
+                    if (e.getMessage() != null) {
+                        if (e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                            errorType = "TIMEOUT";
+                            errorReason = "Превышено время ожидания ответа от API";
+                        } else if (e.getMessage().contains("UNAVAILABLE")) {
+                            errorType = "SERVICE_UNAVAILABLE";
+                            errorReason = "Сервис API временно недоступен";
+                        } else if (e.getMessage().contains("PERMISSION_DENIED")) {
+                            errorType = "PERMISSION_DENIED";
+                            errorReason = "Нет доступа к инструменту";
+                        } else if (e.getMessage().contains("INVALID_ARGUMENT")) {
+                            errorType = "INVALID_ARGUMENT";
+                            errorReason = "Неверный аргумент запроса";
+                        }
+                    }
+                    
+                    // Записываем информацию об ошибке
+                    Map<String, Object> errorInfo = new HashMap<>();
+                    errorInfo.put("figi", share.getFigi());
+                    errorInfo.put("name", share.getName());
+                    errorInfo.put("errorType", errorType);
+                    errorInfo.put("reason", errorReason);
+                    errorInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                    errorInstruments.add(errorInfo);
+                }
+            }
+            
+            long totalProcessingTime = System.currentTimeMillis() - startProcessingTime;
+            
+            // Формируем детальную статистику
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalInstruments", totalInstruments);
+            statistics.put("processedInstruments", processedInstruments);
+            statistics.put("successfulInstruments", successfulInstruments);
+            statistics.put("noDataInstruments", noDataCount);
+            statistics.put("errorInstruments", errorCount);
+            statistics.put("successRate", totalInstruments > 0 ? (double) successfulInstruments / totalInstruments * 100 : 0);
+            statistics.put("totalProcessingTimeMs", totalProcessingTime);
+            statistics.put("averageProcessingTimePerInstrumentMs", processedInstruments > 0 ? totalProcessingTime / processedInstruments : 0);
+            
+            // Формируем ответ
+            Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Загрузка свечей акций запущена для " + date);
+            response.put("message", "Данные получены успешно");
             response.put("date", date);
-            response.put("type", "shares");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("statistics", statistics);
+            response.put("totalCandles", totalCandlesCount);
+            response.put("candles", allCandles);
+            response.put("failedInstruments", failedInstruments);
+            response.put("noDataInstruments", noDataInstruments);
+            response.put("errorInstruments", errorInstruments);
+            
+            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ ДНЕВНЫХ СВЕЧЕЙ АКЦИЙ ===");
+            System.out.println("Всего инструментов: " + totalInstruments);
+            System.out.println("Обработано: " + processedInstruments);
+            System.out.println("Успешно: " + successfulInstruments);
+            System.out.println("Без данных: " + noDataCount);
+            System.out.println("С ошибками: " + errorCount);
+            System.out.println("Процент успеха: " + String.format("%.2f", statistics.get("successRate")) + "%");
+            System.out.println("Всего свечей: " + totalCandlesCount);
+            System.out.println("Время обработки: " + totalProcessingTime + "мс");
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки свечей акций для " + date + ": " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            System.err.println("Ошибка при получении дневных свечей акций: " + e.getMessage());
+            e.printStackTrace();
             
-            return ResponseEntity.status(500).body(response);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка при получении данных: " + e.getMessage());
+            errorResponse.put("date", date);
+            errorResponse.put("candles", new ArrayList<>());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
     /**
-     * Загрузка свечей фьючерсов за дату
+     * Загрузка минутных свечей фьючерсов за дату
      */
-    @PostMapping("/candles/futures/{date}")
-    public ResponseEntity<Map<String, Object>> loadFuturesCandlesForDate(
+    @PostMapping("/candles/futures/minute/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadFuturesMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        Map<String, Object> response = new HashMap<>();
+        // Создаем запрос для минутных свечей фьючерсов
+        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+        request.setDate(date);
+        request.setAssetType(List.of("FUTURES"));
         
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка минутных свечей фьючерсов запущена для " + date,
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение минутных свечей фьючерсов за дату без сохранения
+     */
+    @GetMapping("/candles/futures/minute/{date}")
+    public ResponseEntity<Map<String, Object>> getFuturesMinuteCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
         try {
-            candleScheduler.fetchAndStoreFuturesCandlesForDate(date);
+            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
+            System.out.println("Дата: " + date);
             
+            // Получаем все фьючерсы из БД
+            List<FutureEntity> futures = futureRepository.findAll();
+            System.out.println("Найдено фьючерсов: " + futures.size());
+            
+            if (futures.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Фьючерсы не найдены в базе данных");
+                response.put("date", date);
+                response.put("candles", new ArrayList<>());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Собираем все свечи от API
+            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<Map<String, Object>> failedInstruments = new ArrayList<>();
+            List<Map<String, Object>> noDataInstruments = new ArrayList<>();
+            List<Map<String, Object>> errorInstruments = new ArrayList<>();
+            
+            int totalInstruments = futures.size();
+            int processedInstruments = 0;
+            int successfulInstruments = 0;
+            int noDataCount = 0;
+            int errorCount = 0;
+            int totalCandlesCount = 0;
+            
+            long startProcessingTime = System.currentTimeMillis();
+            
+            for (FutureEntity future : futures) {
+                long instrumentStartTime = System.currentTimeMillis();
+                
+                try {
+                    System.out.println("Обрабатываем фьючерс: " + future.getFigi() + " - " + future.getTicker());
+                    
+                    // Получаем минутные свечи из API
+                    List<CandleDto> candles = marketDataService.getCandles(future.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
+                    
+                    if (candles != null && !candles.isEmpty()) {
+                        System.out.println("Получено " + candles.size() + " свечей для " + future.getFigi());
+                        
+                        // Преобразуем свечи в формат для ответа
+                        for (CandleDto candle : candles) {
+                            Map<String, Object> candleData = new HashMap<>();
+                            candleData.put("figi", candle.figi());
+                            candleData.put("instrumentName", future.getTicker());
+                            candleData.put("volume", candle.volume());
+                            candleData.put("high", candle.high());
+                            candleData.put("low", candle.low());
+                            candleData.put("open", candle.open());
+                            candleData.put("close", candle.close());
+                            candleData.put("time", candle.time());
+                            candleData.put("isComplete", candle.isComplete());
+                            
+                            allCandles.add(candleData);
+                        }
+                        
+                        totalCandlesCount += candles.size();
+                        successfulInstruments++;
+                        
+                        System.out.println("Успешно обработан " + future.getFigi() + " за " + (System.currentTimeMillis() - instrumentStartTime) + "мс");
+                    } else {
+                        System.out.println("Нет данных для фьючерса: " + future.getFigi());
+                        noDataCount++;
+                        
+                        // Записываем информацию об инструменте без данных
+                        Map<String, Object> noDataInfo = new HashMap<>();
+                        noDataInfo.put("figi", future.getFigi());
+                        noDataInfo.put("name", future.getTicker());
+                        noDataInfo.put("reason", "Нет торговых данных за указанную дату");
+                        noDataInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                        noDataInstruments.add(noDataInfo);
+                    }
+                    
+                    processedInstruments++;
+                    
+                    // Небольшая задержка между запросами к API
+                    Thread.sleep(100);
+                    
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении данных для " + future.getFigi() + ": " + e.getMessage());
+                    errorCount++;
+                    processedInstruments++;
+                    
+                    // Определяем тип ошибки
+                    String errorType = "UNKNOWN_ERROR";
+                    String errorReason = e.getMessage();
+                    
+                    if (e.getMessage() != null) {
+                        if (e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                            errorType = "TIMEOUT";
+                            errorReason = "Превышено время ожидания ответа от API";
+                        } else if (e.getMessage().contains("UNAVAILABLE")) {
+                            errorType = "SERVICE_UNAVAILABLE";
+                            errorReason = "Сервис API временно недоступен";
+                        } else if (e.getMessage().contains("PERMISSION_DENIED")) {
+                            errorType = "PERMISSION_DENIED";
+                            errorReason = "Нет доступа к инструменту";
+                        } else if (e.getMessage().contains("INVALID_ARGUMENT")) {
+                            errorType = "INVALID_ARGUMENT";
+                            errorReason = "Неверный аргумент запроса";
+                        }
+                    }
+                    
+                    // Записываем информацию об ошибке
+                    Map<String, Object> errorInfo = new HashMap<>();
+                    errorInfo.put("figi", future.getFigi());
+                    errorInfo.put("name", future.getTicker());
+                    errorInfo.put("errorType", errorType);
+                    errorInfo.put("reason", errorReason);
+                    errorInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                    errorInstruments.add(errorInfo);
+                }
+            }
+            
+            long totalProcessingTime = System.currentTimeMillis() - startProcessingTime;
+            
+            // Формируем детальную статистику
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalInstruments", totalInstruments);
+            statistics.put("processedInstruments", processedInstruments);
+            statistics.put("successfulInstruments", successfulInstruments);
+            statistics.put("noDataInstruments", noDataCount);
+            statistics.put("errorInstruments", errorCount);
+            statistics.put("successRate", totalInstruments > 0 ? (double) successfulInstruments / totalInstruments * 100 : 0);
+            statistics.put("totalProcessingTimeMs", totalProcessingTime);
+            statistics.put("averageProcessingTimePerInstrumentMs", processedInstruments > 0 ? totalProcessingTime / processedInstruments : 0);
+            
+            // Формируем ответ
+            Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Загрузка свечей фьючерсов запущена для " + date);
+            response.put("message", "Данные получены успешно");
             response.put("date", date);
-            response.put("type", "futures");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("statistics", statistics);
+            response.put("totalCandles", totalCandlesCount);
+            response.put("candles", allCandles);
+            response.put("failedInstruments", failedInstruments);
+            response.put("noDataInstruments", noDataInstruments);
+            response.put("errorInstruments", errorInstruments);
+            
+            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
+            System.out.println("Всего инструментов: " + totalInstruments);
+            System.out.println("Обработано: " + processedInstruments);
+            System.out.println("Успешно: " + successfulInstruments);
+            System.out.println("Без данных: " + noDataCount);
+            System.out.println("С ошибками: " + errorCount);
+            System.out.println("Процент успеха: " + String.format("%.2f", statistics.get("successRate")) + "%");
+            System.out.println("Всего свечей: " + totalCandlesCount);
+            System.out.println("Время обработки: " + totalProcessingTime + "мс");
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки свечей фьючерсов для " + date + ": " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            System.err.println("Ошибка при получении минутных свечей фьючерсов: " + e.getMessage());
+            e.printStackTrace();
             
-            return ResponseEntity.status(500).body(response);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка при получении данных: " + e.getMessage());
+            errorResponse.put("date", date);
+            errorResponse.put("candles", new ArrayList<>());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
     /**
-     * Загрузка свечей индикативов за дату
+     * Загрузка дневных свечей фьючерсов за дату
      */
-    @PostMapping("/candles/indicatives/{date}")
-    public ResponseEntity<Map<String, Object>> loadIndicativesCandlesForDate(
+    @PostMapping("/candles/futures/daily/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadFuturesDailyCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        Map<String, Object> response = new HashMap<>();
+        // Создаем запрос для дневных свечей фьючерсов
+        DailyCandleRequestDto request = new DailyCandleRequestDto();
+        request.setDate(date);
+        request.setAssetType(List.of("FUTURES"));
         
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка дневных свечей фьючерсов запущена для " + date,
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение дневных свечей фьючерсов за дату без сохранения
+     */
+    @GetMapping("/candles/futures/daily/{date}")
+    public ResponseEntity<Map<String, Object>> getFuturesDailyCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
         try {
-            candleScheduler.fetchAndStoreIndicativesCandlesForDate(date);
+            System.out.println("=== ПОЛУЧЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
+            System.out.println("Дата: " + date);
             
+            // Получаем все фьючерсы из БД
+            List<FutureEntity> futures = futureRepository.findAll();
+            System.out.println("Найдено фьючерсов: " + futures.size());
+            
+            if (futures.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Фьючерсы не найдены в базе данных");
+                response.put("date", date);
+                response.put("candles", new ArrayList<>());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Собираем все свечи от API
+            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<Map<String, Object>> failedInstruments = new ArrayList<>();
+            List<Map<String, Object>> noDataInstruments = new ArrayList<>();
+            List<Map<String, Object>> errorInstruments = new ArrayList<>();
+            
+            int totalInstruments = futures.size();
+            int processedInstruments = 0;
+            int successfulInstruments = 0;
+            int noDataCount = 0;
+            int errorCount = 0;
+            int totalCandlesCount = 0;
+            
+            long startProcessingTime = System.currentTimeMillis();
+            
+            for (FutureEntity future : futures) {
+                long instrumentStartTime = System.currentTimeMillis();
+                
+                try {
+                    System.out.println("Обрабатываем фьючерс: " + future.getFigi() + " - " + future.getTicker());
+                    
+                    // Получаем дневные свечи из API
+                    List<CandleDto> candles = marketDataService.getCandles(future.getFigi(), date, "CANDLE_INTERVAL_DAY");
+                    
+                    if (candles != null && !candles.isEmpty()) {
+                        System.out.println("Получено " + candles.size() + " свечей для " + future.getFigi());
+                        
+                        // Преобразуем свечи в формат для ответа
+                        for (CandleDto candle : candles) {
+                            Map<String, Object> candleData = new HashMap<>();
+                            candleData.put("figi", candle.figi());
+                            candleData.put("instrumentName", future.getTicker());
+                            candleData.put("volume", candle.volume());
+                            candleData.put("high", candle.high());
+                            candleData.put("low", candle.low());
+                            candleData.put("open", candle.open());
+                            candleData.put("close", candle.close());
+                            candleData.put("time", candle.time());
+                            candleData.put("isComplete", candle.isComplete());
+                            
+                            allCandles.add(candleData);
+                        }
+                        
+                        totalCandlesCount += candles.size();
+                        successfulInstruments++;
+                        
+                        System.out.println("Успешно обработан " + future.getFigi() + " за " + (System.currentTimeMillis() - instrumentStartTime) + "мс");
+                    } else {
+                        System.out.println("Нет данных для фьючерса: " + future.getFigi());
+                        noDataCount++;
+                        
+                        // Записываем информацию об инструменте без данных
+                        Map<String, Object> noDataInfo = new HashMap<>();
+                        noDataInfo.put("figi", future.getFigi());
+                        noDataInfo.put("name", future.getTicker());
+                        noDataInfo.put("reason", "Нет торговых данных за указанную дату");
+                        noDataInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                        noDataInstruments.add(noDataInfo);
+                    }
+                    
+                    processedInstruments++;
+                    
+                    // Небольшая задержка между запросами к API
+                    Thread.sleep(100);
+                    
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении данных для " + future.getFigi() + ": " + e.getMessage());
+                    errorCount++;
+                    processedInstruments++;
+                    
+                    // Определяем тип ошибки
+                    String errorType = "UNKNOWN_ERROR";
+                    String errorReason = e.getMessage();
+                    
+                    if (e.getMessage() != null) {
+                        if (e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                            errorType = "TIMEOUT";
+                            errorReason = "Превышено время ожидания ответа от API";
+                        } else if (e.getMessage().contains("UNAVAILABLE")) {
+                            errorType = "SERVICE_UNAVAILABLE";
+                            errorReason = "Сервис API временно недоступен";
+                        } else if (e.getMessage().contains("PERMISSION_DENIED")) {
+                            errorType = "PERMISSION_DENIED";
+                            errorReason = "Нет доступа к инструменту";
+                        } else if (e.getMessage().contains("INVALID_ARGUMENT")) {
+                            errorType = "INVALID_ARGUMENT";
+                            errorReason = "Неверный аргумент запроса";
+                        }
+                    }
+                    
+                    // Записываем информацию об ошибке
+                    Map<String, Object> errorInfo = new HashMap<>();
+                    errorInfo.put("figi", future.getFigi());
+                    errorInfo.put("name", future.getTicker());
+                    errorInfo.put("errorType", errorType);
+                    errorInfo.put("reason", errorReason);
+                    errorInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                    errorInstruments.add(errorInfo);
+                }
+            }
+            
+            long totalProcessingTime = System.currentTimeMillis() - startProcessingTime;
+            
+            // Формируем детальную статистику
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalInstruments", totalInstruments);
+            statistics.put("processedInstruments", processedInstruments);
+            statistics.put("successfulInstruments", successfulInstruments);
+            statistics.put("noDataInstruments", noDataCount);
+            statistics.put("errorInstruments", errorCount);
+            statistics.put("successRate", totalInstruments > 0 ? (double) successfulInstruments / totalInstruments * 100 : 0);
+            statistics.put("totalProcessingTimeMs", totalProcessingTime);
+            statistics.put("averageProcessingTimePerInstrumentMs", processedInstruments > 0 ? totalProcessingTime / processedInstruments : 0);
+            
+            // Формируем ответ
+            Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Загрузка свечей индикативов запущена для " + date);
+            response.put("message", "Данные получены успешно");
             response.put("date", date);
-            response.put("type", "indicatives");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("statistics", statistics);
+            response.put("totalCandles", totalCandlesCount);
+            response.put("candles", allCandles);
+            response.put("failedInstruments", failedInstruments);
+            response.put("noDataInstruments", noDataInstruments);
+            response.put("errorInstruments", errorInstruments);
+            
+            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ ДНЕВНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
+            System.out.println("Всего инструментов: " + totalInstruments);
+            System.out.println("Обработано: " + processedInstruments);
+            System.out.println("Успешно: " + successfulInstruments);
+            System.out.println("Без данных: " + noDataCount);
+            System.out.println("С ошибками: " + errorCount);
+            System.out.println("Процент успеха: " + String.format("%.2f", statistics.get("successRate")) + "%");
+            System.out.println("Всего свечей: " + totalCandlesCount);
+            System.out.println("Время обработки: " + totalProcessingTime + "мс");
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки свечей индикативов для " + date + ": " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            System.err.println("Ошибка при получении дневных свечей фьючерсов: " + e.getMessage());
+            e.printStackTrace();
             
-            return ResponseEntity.status(500).body(response);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка при получении данных: " + e.getMessage());
+            errorResponse.put("date", date);
+            errorResponse.put("candles", new ArrayList<>());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Загрузка минутных свечей индикативов за дату
+     */
+    @PostMapping("/candles/indicatives/minute/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadIndicativesMinuteCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        // Создаем запрос для минутных свечей индикативов
+        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+        request.setDate(date);
+        request.setAssetType(List.of("INDICATIVES"));
+        
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка минутных свечей индикативов запущена для " + date,
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение минутных свечей индикативов за дату без сохранения
+     */
+    @GetMapping("/candles/indicatives/minute/{date}")
+    public ResponseEntity<Map<String, Object>> getIndicativesMinuteCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
+            System.out.println("Дата: " + date);
+            
+            // Получаем все индикативы из БД
+            List<IndicativeEntity> indicatives = indicativeRepository.findAll();
+            System.out.println("Найдено индикативов: " + indicatives.size());
+            
+            if (indicatives.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Индикативы не найдены в базе данных");
+                response.put("date", date);
+                response.put("candles", new ArrayList<>());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Собираем все свечи от API
+            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<Map<String, Object>> failedInstruments = new ArrayList<>();
+            List<Map<String, Object>> noDataInstruments = new ArrayList<>();
+            List<Map<String, Object>> errorInstruments = new ArrayList<>();
+            
+            int totalInstruments = indicatives.size();
+            int processedInstruments = 0;
+            int successfulInstruments = 0;
+            int noDataCount = 0;
+            int errorCount = 0;
+            int totalCandlesCount = 0;
+            
+            long startProcessingTime = System.currentTimeMillis();
+            
+            for (IndicativeEntity indicative : indicatives) {
+                long instrumentStartTime = System.currentTimeMillis();
+                
+                try {
+                    System.out.println("Обрабатываем индикатив: " + indicative.getFigi() + " - " + indicative.getName());
+                    
+                    // Получаем минутные свечи из API
+                    List<CandleDto> candles = marketDataService.getCandles(indicative.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
+                    
+                    if (candles != null && !candles.isEmpty()) {
+                        System.out.println("Получено " + candles.size() + " свечей для " + indicative.getFigi());
+                        
+                        // Преобразуем свечи в формат для ответа
+                        for (CandleDto candle : candles) {
+                            Map<String, Object> candleData = new HashMap<>();
+                            candleData.put("figi", candle.figi());
+                            candleData.put("instrumentName", indicative.getName());
+                            candleData.put("volume", candle.volume());
+                            candleData.put("high", candle.high());
+                            candleData.put("low", candle.low());
+                            candleData.put("open", candle.open());
+                            candleData.put("close", candle.close());
+                            candleData.put("time", candle.time());
+                            candleData.put("isComplete", candle.isComplete());
+                            
+                            allCandles.add(candleData);
+                        }
+                        
+                        totalCandlesCount += candles.size();
+                        successfulInstruments++;
+                        
+                        System.out.println("Успешно обработан " + indicative.getFigi() + " за " + (System.currentTimeMillis() - instrumentStartTime) + "мс");
+                    } else {
+                        System.out.println("Нет данных для индикатива: " + indicative.getFigi());
+                        noDataCount++;
+                        
+                        // Записываем информацию об инструменте без данных
+                        Map<String, Object> noDataInfo = new HashMap<>();
+                        noDataInfo.put("figi", indicative.getFigi());
+                        noDataInfo.put("name", indicative.getName());
+                        noDataInfo.put("reason", "Нет торговых данных за указанную дату");
+                        noDataInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                        noDataInstruments.add(noDataInfo);
+                    }
+                    
+                    processedInstruments++;
+                    
+                    // Небольшая задержка между запросами к API
+                    Thread.sleep(100);
+                    
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении данных для " + indicative.getFigi() + ": " + e.getMessage());
+                    errorCount++;
+                    processedInstruments++;
+                    
+                    // Определяем тип ошибки
+                    String errorType = "UNKNOWN_ERROR";
+                    String errorReason = e.getMessage();
+                    
+                    if (e.getMessage() != null) {
+                        if (e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                            errorType = "TIMEOUT";
+                            errorReason = "Превышено время ожидания ответа от API";
+                        } else if (e.getMessage().contains("UNAVAILABLE")) {
+                            errorType = "SERVICE_UNAVAILABLE";
+                            errorReason = "Сервис API временно недоступен";
+                        } else if (e.getMessage().contains("PERMISSION_DENIED")) {
+                            errorType = "PERMISSION_DENIED";
+                            errorReason = "Нет доступа к инструменту";
+                        } else if (e.getMessage().contains("INVALID_ARGUMENT")) {
+                            errorType = "INVALID_ARGUMENT";
+                            errorReason = "Неверный аргумент запроса";
+                        }
+                    }
+                    
+                    // Записываем информацию об ошибке
+                    Map<String, Object> errorInfo = new HashMap<>();
+                    errorInfo.put("figi", indicative.getFigi());
+                    errorInfo.put("name", indicative.getName());
+                    errorInfo.put("errorType", errorType);
+                    errorInfo.put("reason", errorReason);
+                    errorInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                    errorInstruments.add(errorInfo);
+                }
+            }
+            
+            long totalProcessingTime = System.currentTimeMillis() - startProcessingTime;
+            
+            // Формируем детальную статистику
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalInstruments", totalInstruments);
+            statistics.put("processedInstruments", processedInstruments);
+            statistics.put("successfulInstruments", successfulInstruments);
+            statistics.put("noDataInstruments", noDataCount);
+            statistics.put("errorInstruments", errorCount);
+            statistics.put("successRate", totalInstruments > 0 ? (double) successfulInstruments / totalInstruments * 100 : 0);
+            statistics.put("totalProcessingTimeMs", totalProcessingTime);
+            statistics.put("averageProcessingTimePerInstrumentMs", processedInstruments > 0 ? totalProcessingTime / processedInstruments : 0);
+            
+            // Формируем ответ
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Данные получены успешно");
+            response.put("date", date);
+            response.put("statistics", statistics);
+            response.put("totalCandles", totalCandlesCount);
+            response.put("candles", allCandles);
+            response.put("failedInstruments", failedInstruments);
+            response.put("noDataInstruments", noDataInstruments);
+            response.put("errorInstruments", errorInstruments);
+            
+            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
+            System.out.println("Всего инструментов: " + totalInstruments);
+            System.out.println("Обработано: " + processedInstruments);
+            System.out.println("Успешно: " + successfulInstruments);
+            System.out.println("Без данных: " + noDataCount);
+            System.out.println("С ошибками: " + errorCount);
+            System.out.println("Процент успеха: " + String.format("%.2f", statistics.get("successRate")) + "%");
+            System.out.println("Всего свечей: " + totalCandlesCount);
+            System.out.println("Время обработки: " + totalProcessingTime + "мс");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при получении минутных свечей индикативов: " + e.getMessage());
+            e.printStackTrace();
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка при получении данных: " + e.getMessage());
+            errorResponse.put("date", date);
+            errorResponse.put("candles", new ArrayList<>());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Загрузка дневных свечей индикативов за дату
+     */
+    @PostMapping("/candles/indicatives/daily/{date}")
+    public ResponseEntity<CandleLoadResponseDto> loadIndicativesDailyCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        // Создаем запрос для дневных свечей индикативов
+        DailyCandleRequestDto request = new DailyCandleRequestDto();
+        request.setDate(date);
+        request.setAssetType(List.of("INDICATIVES"));
+        
+        // Генерируем уникальный ID задачи
+        String taskId = UUID.randomUUID().toString();
+        LocalDateTime startTime = LocalDateTime.now();
+        
+        // Запускаем загрузку в фоновом режиме
+        dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        
+        // Немедленно возвращаем ответ о запуске
+        CandleLoadResponseDto response = new CandleLoadResponseDto(
+            true,
+            "Загрузка дневных свечей индикативов запущена для " + date,
+            startTime,
+            taskId
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Получение дневных свечей индикативов за дату без сохранения
+     */
+    @GetMapping("/candles/indicatives/daily/{date}")
+    public ResponseEntity<Map<String, Object>> getIndicativesDailyCandlesForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            System.out.println("=== ПОЛУЧЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
+            System.out.println("Дата: " + date);
+            
+            // Получаем все индикативы из БД
+            List<IndicativeEntity> indicatives = indicativeRepository.findAll();
+            System.out.println("Найдено индикативов: " + indicatives.size());
+            
+            if (indicatives.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Индикативы не найдены в базе данных");
+                response.put("date", date);
+                response.put("candles", new ArrayList<>());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Собираем все свечи от API
+            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<Map<String, Object>> failedInstruments = new ArrayList<>();
+            List<Map<String, Object>> noDataInstruments = new ArrayList<>();
+            List<Map<String, Object>> errorInstruments = new ArrayList<>();
+            
+            int totalInstruments = indicatives.size();
+            int processedInstruments = 0;
+            int successfulInstruments = 0;
+            int noDataCount = 0;
+            int errorCount = 0;
+            int totalCandlesCount = 0;
+            
+            long startProcessingTime = System.currentTimeMillis();
+            
+            for (IndicativeEntity indicative : indicatives) {
+                long instrumentStartTime = System.currentTimeMillis();
+                
+                try {
+                    System.out.println("Обрабатываем индикатив: " + indicative.getFigi() + " - " + indicative.getName());
+                    
+                    // Получаем дневные свечи из API
+                    List<CandleDto> candles = marketDataService.getCandles(indicative.getFigi(), date, "CANDLE_INTERVAL_DAY");
+                    
+                    if (candles != null && !candles.isEmpty()) {
+                        System.out.println("Получено " + candles.size() + " свечей для " + indicative.getFigi());
+                        
+                        // Преобразуем свечи в формат для ответа
+                        for (CandleDto candle : candles) {
+                            Map<String, Object> candleData = new HashMap<>();
+                            candleData.put("figi", candle.figi());
+                            candleData.put("instrumentName", indicative.getName());
+                            candleData.put("volume", candle.volume());
+                            candleData.put("high", candle.high());
+                            candleData.put("low", candle.low());
+                            candleData.put("open", candle.open());
+                            candleData.put("close", candle.close());
+                            candleData.put("time", candle.time());
+                            candleData.put("isComplete", candle.isComplete());
+                            
+                            allCandles.add(candleData);
+                        }
+                        
+                        totalCandlesCount += candles.size();
+                        successfulInstruments++;
+                        
+                        System.out.println("Успешно обработан " + indicative.getFigi() + " за " + (System.currentTimeMillis() - instrumentStartTime) + "мс");
+                    } else {
+                        System.out.println("Нет данных для индикатива: " + indicative.getFigi());
+                        noDataCount++;
+                        
+                        // Записываем информацию об инструменте без данных
+                        Map<String, Object> noDataInfo = new HashMap<>();
+                        noDataInfo.put("figi", indicative.getFigi());
+                        noDataInfo.put("name", indicative.getName());
+                        noDataInfo.put("reason", "Нет торговых данных за указанную дату");
+                        noDataInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                        noDataInstruments.add(noDataInfo);
+                    }
+                    
+                    processedInstruments++;
+                    
+                    // Небольшая задержка между запросами к API
+                    Thread.sleep(100);
+                    
+                } catch (Exception e) {
+                    System.err.println("Ошибка при получении данных для " + indicative.getFigi() + ": " + e.getMessage());
+                    errorCount++;
+                    processedInstruments++;
+                    
+                    // Определяем тип ошибки
+                    String errorType = "UNKNOWN_ERROR";
+                    String errorReason = e.getMessage();
+                    
+                    if (e.getMessage() != null) {
+                        if (e.getMessage().contains("DEADLINE_EXCEEDED")) {
+                            errorType = "TIMEOUT";
+                            errorReason = "Превышено время ожидания ответа от API";
+                        } else if (e.getMessage().contains("UNAVAILABLE")) {
+                            errorType = "SERVICE_UNAVAILABLE";
+                            errorReason = "Сервис API временно недоступен";
+                        } else if (e.getMessage().contains("PERMISSION_DENIED")) {
+                            errorType = "PERMISSION_DENIED";
+                            errorReason = "Нет доступа к инструменту";
+                        } else if (e.getMessage().contains("INVALID_ARGUMENT")) {
+                            errorType = "INVALID_ARGUMENT";
+                            errorReason = "Неверный аргумент запроса";
+                        }
+                    }
+                    
+                    // Записываем информацию об ошибке
+                    Map<String, Object> errorInfo = new HashMap<>();
+                    errorInfo.put("figi", indicative.getFigi());
+                    errorInfo.put("name", indicative.getName());
+                    errorInfo.put("errorType", errorType);
+                    errorInfo.put("reason", errorReason);
+                    errorInfo.put("processingTimeMs", System.currentTimeMillis() - instrumentStartTime);
+                    errorInstruments.add(errorInfo);
+                }
+            }
+            
+            long totalProcessingTime = System.currentTimeMillis() - startProcessingTime;
+            
+            // Формируем детальную статистику
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalInstruments", totalInstruments);
+            statistics.put("processedInstruments", processedInstruments);
+            statistics.put("successfulInstruments", successfulInstruments);
+            statistics.put("noDataInstruments", noDataCount);
+            statistics.put("errorInstruments", errorCount);
+            statistics.put("successRate", totalInstruments > 0 ? (double) successfulInstruments / totalInstruments * 100 : 0);
+            statistics.put("totalProcessingTimeMs", totalProcessingTime);
+            statistics.put("averageProcessingTimePerInstrumentMs", processedInstruments > 0 ? totalProcessingTime / processedInstruments : 0);
+            
+            // Формируем ответ
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Данные получены успешно");
+            response.put("date", date);
+            response.put("statistics", statistics);
+            response.put("totalCandles", totalCandlesCount);
+            response.put("candles", allCandles);
+            response.put("failedInstruments", failedInstruments);
+            response.put("noDataInstruments", noDataInstruments);
+            response.put("errorInstruments", errorInstruments);
+            
+            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ ДНЕВНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
+            System.out.println("Всего инструментов: " + totalInstruments);
+            System.out.println("Обработано: " + processedInstruments);
+            System.out.println("Успешно: " + successfulInstruments);
+            System.out.println("Без данных: " + noDataCount);
+            System.out.println("С ошибками: " + errorCount);
+            System.out.println("Процент успеха: " + String.format("%.2f", statistics.get("successRate")) + "%");
+            System.out.println("Всего свечей: " + totalCandlesCount);
+            System.out.println("Время обработки: " + totalProcessingTime + "мс");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при получении дневных свечей индикативов: " + e.getMessage());
+            e.printStackTrace();
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка при получении данных: " + e.getMessage());
+            errorResponse.put("date", date);
+            errorResponse.put("candles", new ArrayList<>());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 

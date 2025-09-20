@@ -1,76 +1,379 @@
 # API — Загрузка данных (`/api/data-loading`)
 
-## POST /api/data-loading/candles
-Асинхронная загрузка свечей. Тело запроса опционально.
+## POST /api/data-loading/candles/minute
+Асинхронная загрузка минутных свечей в таблицу `invest.minute_candles`. Тело запроса опционально.
 ```json
 {
   "instruments": ["BBG004730N88", "BBG004730ZJ9"],
   "date": "2024-01-15",
-  "interval": "CANDLE_INTERVAL_1_MIN",
   "assetType": ["SHARES", "FUTURES"]
 }
 ```
 Примеры:
 ```bash
-# Все инструменты из БД, вчерашняя дата по умолчанию
-curl -X POST "http://localhost:8083/api/data-loading/candles" -H "Content-Type: application/json" -d '{}'
+# Все инструменты из БД, сегодняшняя дата по умолчанию
+curl -X POST "http://localhost:8083/api/data-loading/candles/minute" -H "Content-Type: application/json" -d '{}'
 
 # Конкретные инструменты и дата
-curl -X POST "http://localhost:8083/api/data-loading/candles" -H "Content-Type: application/json" -d '{
+curl -X POST "http://localhost:8083/api/data-loading/candles/minute" -H "Content-Type: application/json" -d '{
   "instruments": ["BBG004730N88"],
   "date": "2024-01-15",
-  "interval": "CANDLE_INTERVAL_5_MIN"
+  "assetType": ["SHARES"]
 }'
 ```
 Ответ (пример):
 ```json
 {
   "success": true,
-  "message": "Загрузка свечей запущена в фоновом режиме",
-  "taskId": "1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77",
-  "startTime": "2024-01-15T10:30:00"
+  "message": "Загрузка минутных свечей запущена в фоновом режиме",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77"
 }
 ```
 
-## POST /api/data-loading/candles/{date}
-Запуск загрузки свечей за дату (все типы).
+## POST /api/data-loading/candles/daily
+Асинхронная загрузка дневных свечей в таблицу `invest.daily_candles`. Тело запроса опционально.
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"],
+  "date": "2024-01-15",
+  "assetType": ["SHARES", "FUTURES"]
+}
+```
+Примеры:
 ```bash
-curl -X POST "http://localhost:8083/api/data-loading/candles/2024-01-15"
+# Все инструменты из БД, сегодняшняя дата по умолчанию
+curl -X POST "http://localhost:8083/api/data-loading/candles/daily" -H "Content-Type: application/json" -d '{}'
+
+# Конкретные инструменты и дата
+curl -X POST "http://localhost:8083/api/data-loading/candles/daily" -H "Content-Type: application/json" -d '{
+  "instruments": ["BBG004730N88"],
+  "date": "2024-01-15",
+  "assetType": ["SHARES"]
+}'
 ```
 Ответ (пример):
 ```json
-{ "success": true, "message": "Загрузка свечей запущена для 2024-01-15", "date": "2024-01-15" }
+{
+  "success": true,
+  "message": "Загрузка дневных свечей запущена в фоновом режиме",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "2d8b4g7f-1f2c-5b62-ae80-1g4dce3d9b88"
+}
 ```
 
-## POST /api/data-loading/candles/shares/{date}
-Загрузка свечей только для акций за дату.
+**Примечание:** 
+- Минутные свечи сохраняются в таблицу `invest.minute_candles` с интервалом CANDLE_INTERVAL_1_MIN
+- Дневные свечи сохраняются в таблицу `invest.daily_candles` с интервалом CANDLE_INTERVAL_DAY
+- Каждый эндпоинт работает независимо и возвращает уникальный taskId для отслеживания прогресса
+
+## POST /api/data-loading/candles/minute/{date}
+Запуск загрузки минутных свечей за конкретную дату.
 ```bash
-curl -X POST "http://localhost:8083/api/data-loading/candles/shares/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/minute/2024-01-15"
 ```
 Ответ (пример):
 ```json
-{ "success": true, "type": "shares", "message": "Загрузка свечей акций запущена для 2024-01-15" }
+{
+  "success": true,
+  "message": "Загрузка минутных свечей запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77"
+}
 ```
 
-## POST /api/data-loading/candles/futures/{date}
-Загрузка свечей только для фьючерсов за дату.
+## POST /api/data-loading/candles/daily/{date}
+Запуск загрузки дневных свечей за конкретную дату.
 ```bash
-curl -X POST "http://localhost:8083/api/data-loading/candles/futures/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/daily/2024-01-15"
 ```
 Ответ (пример):
 ```json
-{ "success": true, "type": "futures", "message": "Загрузка свечей фьючерсов запущена для 2024-01-15" }
+{
+  "success": true,
+  "message": "Загрузка дневных свечей запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "2d8b4g7f-1f2c-5b62-ae80-1g4dce3d9b88"
+}
 ```
 
-## POST /api/data-loading/candles/indicatives/{date}
-Загрузка свечей только для индикативов за дату.
+## POST /api/data-loading/candles/shares/minute/{date}
+Загрузка минутных свечей только для акций за дату.
 ```bash
-curl -X POST "http://localhost:8083/api/data-loading/candles/indicatives/2024-01-15"
+curl -X POST "http://localhost:8083/api/data-loading/candles/shares/minute/2024-01-15"
 ```
 Ответ (пример):
 ```json
-{ "success": true, "type": "indicatives", "message": "Загрузка свечей индикативов запущена для 2024-01-15" }
+{
+  "success": true,
+  "message": "Загрузка минутных свечей акций запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "1c7a3f6e-0e1b-4a51-9d79-0f3cbe2c8a77"
+}
 ```
+
+## POST /api/data-loading/candles/shares/daily/{date}
+Загрузка дневных свечей только для акций за дату.
+```bash
+curl -X POST "http://localhost:8083/api/data-loading/candles/shares/daily/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Загрузка дневных свечей акций запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "2d8b4g7f-1f2c-5b62-ae80-1g4dce3d9b88"
+}
+```
+
+## POST /api/data-loading/candles/futures/minute/{date}
+Загрузка минутных свечей только для фьючерсов за дату.
+```bash
+curl -X POST "http://localhost:8083/api/data-loading/candles/futures/minute/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Загрузка минутных свечей фьючерсов запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "3e9c5h8g-2g3d-6c73-bf91-2h5edf4e0c99"
+}
+```
+
+## POST /api/data-loading/candles/futures/daily/{date}
+Загрузка дневных свечей только для фьючерсов за дату.
+```bash
+curl -X POST "http://localhost:8083/api/data-loading/candles/futures/daily/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Загрузка дневных свечей фьючерсов запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "4f0d6i9h-3h4e-7d84-cg02-3i6feg5f1d00"
+}
+```
+
+## POST /api/data-loading/candles/indicatives/minute/{date}
+Загрузка минутных свечей только для индикативных инструментов за дату.
+```bash
+curl -X POST "http://localhost:8083/api/data-loading/candles/indicatives/minute/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Загрузка минутных свечей индикативов запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "5g1e7j0i-4i5f-8e95-dh13-4j7gfh6g2e11"
+}
+```
+
+## GET /api/data-loading/candles/indicatives/minute/{date}
+Получение минутных свечей индикативных инструментов за дату без сохранения в базу данных. Данные получаются напрямую от API T-Invest.
+```bash
+curl -X GET "http://localhost:8083/api/data-loading/candles/indicatives/minute/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Данные получены успешно",
+  "date": "2024-01-15",
+  "statistics": {
+    "totalInstruments": 25,
+    "processedInstruments": 25,
+    "successfulInstruments": 23,
+    "noDataInstruments": 1,
+    "errorInstruments": 1,
+    "successRate": 92.0,
+    "totalProcessingTimeMs": 15420,
+    "averageProcessingTimePerInstrumentMs": 616
+  },
+  "totalCandles": 1840,
+  "candles": [
+    {
+      "figi": "BBG004730N88",
+      "instrumentName": "Сбербанк",
+      "volume": 1000000,
+      "high": 250.50,
+      "low": 248.30,
+      "open": 249.00,
+      "close": 250.20,
+      "time": "2024-01-15T10:00:00Z",
+      "isComplete": true
+    }
+  ],
+  "failedInstruments": [],
+  "noDataInstruments": [
+    {
+      "figi": "BBG004730ZJ9",
+      "name": "Газпром",
+      "reason": "Нет торговых данных за указанную дату",
+      "processingTimeMs": 450
+    }
+  ],
+  "errorInstruments": [
+    {
+      "figi": "BBG004730ABC",
+      "name": "Неизвестный инструмент",
+      "errorType": "TIMEOUT",
+      "reason": "Превышено время ожидания ответа от API",
+      "processingTimeMs": 5000
+    }
+  ]
+}
+```
+
+### Поля ответа:
+
+**Основные поля:**
+- `success` - статус операции (boolean)
+- `message` - сообщение о результате (string)
+- `date` - запрашиваемая дата (string)
+- `totalCandles` - общее количество полученных свечей (number)
+- `candles` - массив свечей с данными (array)
+
+**Статистика (`statistics`):**
+- `totalInstruments` - общее количество инструментов в базе (number)
+- `processedInstruments` - количество обработанных инструментов (number)
+- `successfulInstruments` - количество успешно обработанных инструментов (number)
+- `noDataInstruments` - количество инструментов без данных (number)
+- `errorInstruments` - количество инструментов с ошибками (number)
+- `successRate` - процент успешной обработки (number, %)
+- `totalProcessingTimeMs` - общее время обработки в миллисекундах (number)
+- `averageProcessingTimePerInstrumentMs` - среднее время обработки одного инструмента (number)
+
+**Детали неудач:**
+- `noDataInstruments` - массив инструментов без данных с причинами
+- `errorInstruments` - массив инструментов с ошибками и типами ошибок
+- `failedInstruments` - общий массив неудачных инструментов (для совместимости)
+
+## POST /api/data-loading/candles/indicatives/daily/{date}
+Загрузка дневных свечей только для индикативных инструментов за дату.
+```bash
+curl -X POST "http://localhost:8083/api/data-loading/candles/indicatives/daily/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Загрузка дневных свечей индикативов запущена для 2024-01-15",
+  "startTime": "2024-01-15T10:30:00",
+  "taskId": "6h2f8k1j-5j6g-9f06-ei24-5k8hgi7h3f22"
+}
+```
+
+## GET /api/data-loading/candles/indicatives/daily/{date}
+Получение дневных свечей индикативных инструментов за дату без сохранения в базу данных. Данные получаются напрямую от API T-Invest.
+```bash
+curl -X GET "http://localhost:8083/api/data-loading/candles/indicatives/daily/2024-01-15"
+```
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Данные получены успешно",
+  "date": "2024-01-15",
+  "statistics": {
+    "totalInstruments": 15,
+    "processedInstruments": 15,
+    "successfulInstruments": 14,
+    "noDataInstruments": 0,
+    "errorInstruments": 1,
+    "successRate": 93.33,
+    "totalProcessingTimeMs": 8200,
+    "averageProcessingTimePerInstrumentMs": 546
+  },
+  "totalCandles": 14,
+  "candles": [
+    {
+      "figi": "BBG004730N88",
+      "instrumentName": "Сбербанк",
+      "volume": 1500000,
+      "high": 102.30,
+      "low": 99.80,
+      "open": 100.50,
+      "close": 101.20,
+      "time": "2024-01-15T00:00:00Z",
+      "isComplete": true
+    }
+  ],
+  "failedInstruments": [],
+  "noDataInstruments": [],
+  "errorInstruments": [
+    {
+      "figi": "BBG004730ABC",
+      "name": "Неизвестный инструмент",
+      "errorType": "TIMEOUT",
+      "reason": "Превышено время ожидания ответа от API",
+      "processingTimeMs": 5000
+    }
+  ]
+}
+```
+
+### Поля ответа:
+
+**Основные поля:**
+- `success` - статус операции (boolean)
+- `message` - сообщение о результате (string)
+- `date` - запрашиваемая дата (string)
+- `totalCandles` - общее количество полученных свечей (number)
+- `candles` - массив свечей с данными (array)
+
+**Статистика (`statistics`):**
+- `totalInstruments` - общее количество инструментов в базе (number)
+- `processedInstruments` - количество обработанных инструментов (number)
+- `successfulInstruments` - количество успешно обработанных инструментов (number)
+- `noDataInstruments` - количество инструментов без данных (number)
+- `errorInstruments` - количество инструментов с ошибками (number)
+- `successRate` - процент успешной обработки (number, %)
+- `totalProcessingTimeMs` - общее время обработки в миллисекундах (number)
+- `averageProcessingTimePerInstrumentMs` - среднее время обработки одного инструмента (number)
+
+**Детали неудач:**
+- `noDataInstruments` - массив инструментов без данных с причинами
+- `errorInstruments` - массив инструментов с ошибками и типами ошибок
+- `failedInstruments` - общий массив неудачных инструментов (для совместимости)
+
+## GET /api/data-loading/candles/shares/minute/{date}
+Получение минутных свечей акций за дату без сохранения в базу данных. Данные получаются напрямую от API T-Invest.
+```bash
+curl -X GET "http://localhost:8083/api/data-loading/candles/shares/minute/2024-01-15"
+```
+Ответ имеет ту же структуру, что и для индикативов, но содержит данные по акциям.
+
+## GET /api/data-loading/candles/shares/daily/{date}
+Получение дневных свечей акций за дату без сохранения в базу данных. Данные получаются напрямую от API T-Invest.
+```bash
+curl -X GET "http://localhost:8083/api/data-loading/candles/shares/daily/2024-01-15"
+```
+Ответ имеет ту же структуру, что и для индикативов, но содержит данные по акциям.
+
+## GET /api/data-loading/candles/futures/minute/{date}
+Получение минутных свечей фьючерсов за дату без сохранения в базу данных. Данные получаются напрямую от API T-Invest.
+```bash
+curl -X GET "http://localhost:8083/api/data-loading/candles/futures/minute/2024-01-15"
+```
+Ответ имеет ту же структуру, что и для индикативов, но содержит данные по фьючерсам.
+
+## GET /api/data-loading/candles/futures/daily/{date}
+Получение дневных свечей фьючерсов за дату без сохранения в базу данных. Данные получаются напрямую от API T-Invest.
+```bash
+curl -X GET "http://localhost:8083/api/data-loading/candles/futures/daily/2024-01-15"
+```
+Ответ имеет ту же структуру, что и для индикативов, но содержит данные по фьючерсам.
+
+**Примечание:** Все GET методы для свечей (акции, фьючерсы, индикативы) имеют одинаковую структуру ответа с расширенной статистикой, включая:
+- Детальную статистику обработки инструментов
+- Классификацию ошибок (TIMEOUT, SERVICE_UNAVAILABLE, PERMISSION_DENIED, INVALID_ARGUMENT)
+- Время обработки каждого инструмента
+- Процент успешной обработки
+- Детали по неудачным инструментам
 
 ## POST /api/data-loading/close-prices
 Загрузка и сохранение цен закрытия за сегодня (только акции и фьючерсы, без indicatives).
