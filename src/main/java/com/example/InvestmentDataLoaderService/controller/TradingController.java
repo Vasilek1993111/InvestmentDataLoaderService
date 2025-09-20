@@ -34,19 +34,6 @@ public class TradingController {
         return ResponseEntity.ok(service.getAccounts());
     }
 
-    // ==================== ЦЕНЫ ЗАКРЫТИЯ ====================
-
-    /**
-     * Получение цен закрытия с фильтрацией
-     */
-    @GetMapping("/close-prices")
-    public ResponseEntity<List<ClosePriceDto>> getClosePrices(
-            @RequestParam(required = false) List<String> instrumentId,
-            @RequestParam(required = false) String instrumentStatus
-    ) {
-        return ResponseEntity.ok(service.getClosePrices(instrumentId, instrumentStatus));
-    }
-
     // ==================== ТОРГОВЫЕ РАСПИСАНИЯ ====================
 
     /**

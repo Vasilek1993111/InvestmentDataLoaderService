@@ -70,7 +70,30 @@
 - `evening_session_volume, evening_session_candles, evening_avg_volume_per_candle`
 - `weekend_session_volume, weekend_session_candles, weekend_avg_volume_per_candle`
 
+## Таблицы цен закрытия
+
+### invest.close_prices_evening_session
+Таблица для хранения цен закрытия вечерней сессии.
+
+**Структура:**
+- `price_date` (DATE, NOT NULL) — дата торгов
+- `figi` (VARCHAR, NOT NULL) — идентификатор инструмента
+- `close_price` (DECIMAL(18,9), NOT NULL) — цена закрытия вечерней сессии
+- `instrument_type` (VARCHAR) — тип инструмента (SHARES, FUTURES)
+- `currency` (VARCHAR) — валюта (RUB)
+- `exchange` (VARCHAR) — биржа (MOEX)
+- `created_at` (TIMESTAMP) — время создания записи
+
+**Первичный ключ:** `(price_date, figi)`
+
+**Особенности:**
+- Содержит только цены закрытия вечерней сессии (19:05-23:50 МСК)
+- Заполняется автоматически планировщиком в 02:00 МСК
+- Работает только с акциями и фьючерсами в рублях
+- В выходные дни данные не загружаются
+
 ## Индексы (рекомендации)
 - `candles(figi, time)` — PK
 - `daily_volume_aggregation(figi, trade_date)` — UNIQUE
 - `today_volume_aggregation(figi)` — UNIQUE
+- `close_prices_evening_session(price_date, figi)` — PK

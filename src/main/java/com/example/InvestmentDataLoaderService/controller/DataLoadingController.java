@@ -337,31 +337,156 @@ public class DataLoadingController {
         }
     }
 
-
-    // ==================== СЕССИОННЫЕ ЦЕНЫ ====================
+    // ==================== ЦЕНЫ ВЕЧЕРНЕЙ СЕССИИ ====================
 
     /**
-     * Загрузка цен вечерней сессии за сегодня
+     * Получение цен вечерней сессии для всех акций из T-INVEST API
      */
-    @PostMapping("/evening-session-prices")
-    public ResponseEntity<Map<String, Object>> loadEveningSessionPricesToday() {
+    @GetMapping("/evening-session-prices/shares")
+    public ResponseEntity<Map<String, Object>> getEveningSessionPricesForShares() {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            eveningSessionService.fetchAndStoreEveningSessionPrices();
+            List<ClosePriceDto> allClosePrices = service.getClosePricesForAllShares();
+            
+            // Фильтруем неверные цены (с датой 1970-01-01) и оставляем только с eveningSessionPrice
+            List<ClosePriceDto> validEveningPrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .filter(price -> price.eveningSessionPrice() != null)
+                    .collect(Collectors.toList());
             
             response.put("success", true);
-            response.put("message", "Загрузка цен вечерней сессии запущена для сегодня");
+            response.put("message", "Цены вечерней сессии для акций получены успешно");
+            response.put("data", validEveningPrices);
+            response.put("count", validEveningPrices.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка получения цен вечерней сессии для акций: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Получение цен вечерней сессии для всех фьючерсов из T-INVEST API
+     */
+    @GetMapping("/evening-session-prices/futures")
+    public ResponseEntity<Map<String, Object>> getEveningSessionPricesForFutures() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<ClosePriceDto> allClosePrices = service.getClosePricesForAllFutures();
+            
+            // Фильтруем неверные цены (с датой 1970-01-01) и оставляем только с eveningSessionPrice
+            List<ClosePriceDto> validEveningPrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .filter(price -> price.eveningSessionPrice() != null)
+                    .collect(Collectors.toList());
+            
+            response.put("success", true);
+            response.put("message", "Цены вечерней сессии для фьючерсов получены успешно");
+            response.put("data", validEveningPrices);
+            response.put("count", validEveningPrices.size());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка получения цен вечерней сессии для фьючерсов: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Получение цены вечерней сессии по инструменту из T-INVEST API
+     */
+    @GetMapping("/evening-session-prices/{figi}")
+    public ResponseEntity<Map<String, Object>> getEveningSessionPriceByFigi(@PathVariable String figi) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            List<ClosePriceDto> allClosePrices = service.getClosePrices(List.of(figi), null);
+            
+            // Фильтруем неверные цены (с датой 1970-01-01) и оставляем только с eveningSessionPrice
+            List<ClosePriceDto> validEveningPrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .filter(price -> price.eveningSessionPrice() != null)
+                    .collect(Collectors.toList());
+            
+            if (validEveningPrices.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Цена вечерней сессии не найдена для инструмента: " + figi);
+                response.put("figi", figi);
+                response.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.ok(response);
+            }
+            
+            ClosePriceDto eveningPrice = validEveningPrices.get(0);
+            response.put("success", true);
+            response.put("message", "Цена вечерней сессии получена успешно");
+            response.put("data", eveningPrice);
             response.put("timestamp", LocalDateTime.now());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
-            response.put("message", "Ошибка загрузки цен вечерней сессии: " + e.getMessage());
+            response.put("message", "Ошибка получения цены вечерней сессии: " + e.getMessage());
+            response.put("figi", figi);
             response.put("timestamp", LocalDateTime.now());
             
             return ResponseEntity.status(500).body(response);
+        }
+    }
+
+
+    // ==================== СЕССИОННЫЕ ЦЕНЫ ====================
+
+    /**
+     * Синхронная загрузка цен вечерней сессии за сегодня по всем инструментам
+     */
+    @PostMapping("/evening-session-prices")
+    public ResponseEntity<Map<String, Object>> loadEveningSessionPricesToday() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
+            SaveResponseDto saveResponse = service.saveClosePricesEveningSession(request);
+            
+            response.put("success", saveResponse.isSuccess());
+            response.put("message", saveResponse.getMessage());
+            response.put("totalRequested", saveResponse.getTotalRequested());
+            response.put("newItemsSaved", saveResponse.getNewItemsSaved());
+            response.put("existingItemsSkipped", saveResponse.getExistingItemsSkipped());
+            response.put("invalidItemsFiltered", saveResponse.getInvalidItemsFiltered());
+            response.put("missingFromApi", saveResponse.getMissingFromApi());
+            response.put("savedItems", saveResponse.getSavedItems());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка загрузки цен вечерней сессии за сегодня: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Синхронная точечная загрузка цен вечерней сессии по указанным инструментам
+     */
+    @PostMapping("/evening-session-prices/save")
+    public ResponseEntity<SaveResponseDto> saveEveningSessionPrices(@RequestBody(required = false) ClosePriceEveningSessionRequestDto request) {
+        try {
+            // Если request null, создаем пустой объект
+            if (request == null) {
+                request = new ClosePriceEveningSessionRequestDto();
+            }
+            SaveResponseDto response = service.saveClosePricesEveningSession(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // Исключение будет обработано GlobalExceptionHandler
+            throw new DataLoadException("Ошибка сохранения цен вечерней сессии: " + e.getMessage(), e);
         }
     }
 

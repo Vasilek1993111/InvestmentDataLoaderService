@@ -38,3 +38,15 @@ build/
 .env.development
 .env.production
 .env.test
+.env.prod
+.env.staging
+
+### IDE Configuration (with secrets) ###
+.vscode/launch.json
+.vscode/settings.json
+
+### Allure Reports ###
+allure-results/
+allure-report/
+allure-results-*/
+allure-report-*/

@@ -1,37 +1,82 @@
+version: '3.8'
+
 services:
-  # Spring Boot приложение
-  investment-service:
+  # ===========================================
+  # ТЕСТОВОЕ ОКРУЖЕНИЕ
+  # ===========================================
+  investment-service-test:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: investment-data-loader-service
+    container_name: investment-data-loader-service-test
     environment:
-      # Подключение к внешней PostgreSQL БД
-      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5434/postgres
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 123password123
+      # Профиль
+      SPRING_PROFILES_ACTIVE: test
       
-      # Токен Tinkoff API (должен быть установлен в .env файле)
-      T_INVEST_TOKEN: ${T_INVEST_TOKEN}
+      # База данных - тестовая (локальная PostgreSQL)
+      SPRING_DATASOURCE_TEST_URL: jdbc:postgresql://host.docker.internal:5434/postgres
+      SPRING_DATASOURCE_TEST_USERNAME: postgres
+      SPRING_DATASOURCE_TEST_PASSWORD: 123password123
+      
+      # Токен Tinkoff API - тестовый
+      T_INVEST_TEST_TOKEN: ${T_INVEST_TEST_TOKEN:-test-token-12345}
       
       # Настройки JVM для контейнера
-      JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
-      
-      # Дополнительные настройки для Docker
-      SPRING_PROFILES_ACTIVE: docker
+      JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
       
       # DevTools настройки для hot reload
       SPRING_DEVTOOLS_RESTART_ENABLED: "true"
       SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
     ports:
-      - "8083:8083"
+      - "8087:8087"
     volumes:
       # Volume mapping для hot reload
       - ./src:/app/src
       - ./target:/app/target
       - ./src/main/resources:/app/src/main/resources
       # Копируем .env файл для загрузки переменных
-      - ./.env:/app/.env:ro
+      - ./.env.test:/app/.env:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ===========================================
+  # ПРОДАКШН ОКРУЖЕНИЕ
+  # ===========================================
+  investment-service-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: investment-data-loader-service-prod
+    environment:
+      # Профиль
+      SPRING_PROFILES_ACTIVE: prod
+      
+      # База данных - продакшн (облачная PostgreSQL)
+      SPRING_DATASOURCE_PROD_URL: ${SPRING_DATASOURCE_PROD_URL:-jdbc:postgresql://45.132.176.136:5432/postgres}
+      SPRING_DATASOURCE_PROD_USERNAME: ${SPRING_DATASOURCE_PROD_USERNAME:-postgres}
+      SPRING_DATASOURCE_PROD_PASSWORD: ${SPRING_DATASOURCE_PROD_PASSWORD}
+      
+      # Токен Tinkoff API - продакшн
+      T_INVEST_PROD_TOKEN: ${T_INVEST_PROD_TOKEN}
+      
+      # Настройки JVM для контейнера
+      JAVA_OPTS: "-Xmx1024m -Xms512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+      
+      # DevTools отключены в продакшне
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "false"
+    ports:
+      - "8083:8083"
+    volumes:
+      # Только конфигурационные файлы
+      - ./src/main/resources:/app/src/main/resources
+      # Копируем .env файл для загрузки переменных
+      - ./.env.prod:/app/.env:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
@@ -39,3 +84,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    profiles:
+      - production

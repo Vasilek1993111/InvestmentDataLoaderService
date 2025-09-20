@@ -1,0 +1,102 @@
+[
+  {
+    "name": "API Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"api\"\\).*"
+  },
+  {
+    "name": "Unit Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"unit\"\\).*"
+  },
+  {
+    "name": "Integration Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"integration\"\\).*"
+  },
+  {
+    "name": "Component Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"component\"\\).*"
+  },
+  {
+    "name": "Critical Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "traceRegex": ".*CRITICAL.*"
+  },
+  {
+    "name": "High Priority Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Severity\\(SeverityLevel\\.HIGH\\).*"
+  },
+  {
+    "name": "Normal Priority Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Severity\\(SeverityLevel\\.NORMAL\\).*"
+  },
+  {
+    "name": "Instruments Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"instruments\"\\).*"
+  },
+  {
+    "name": "Data Loading Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"data-loading\"\\).*"
+  },
+  {
+    "name": "System Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"system\"\\).*"
+  },
+  {
+    "name": "Trading Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"trading\"\\).*"
+  },
+  {
+    "name": "Shares Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"shares\"\\).*"
+  },
+  {
+    "name": "Futures Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"futures\"\\).*"
+  },
+  {
+    "name": "Indicatives Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"indicatives\"\\).*"
+  },
+  {
+    "name": "Close Prices Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"close-prices\"\\).*"
+  },
+  {
+    "name": "Evening Session Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"evening-session\"\\).*"
+  },
+  {
+    "name": "Success Tests",
+    "matchedStatuses": ["passed"],
+    "messageRegex": ".*@Tag\\(\"success\"\\).*"
+  },
+  {
+    "name": "Error Handling Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"error\"\\).*"
+  },
+  {
+    "name": "Validation Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"validation\"\\).*"
+  },
+  {
+    "name": "Filtering Tests",
+    "matchedStatuses": ["passed", "failed", "broken", "skipped"],
+    "messageRegex": ".*@Tag\\(\"filtering\"\\).*"
+  }
+]

@@ -141,6 +141,10 @@ public class TInvestService {
         return marketDataService.saveClosePrices(request);
     }
 
+    public SaveResponseDto saveClosePricesEveningSession(ClosePriceEveningSessionRequestDto request) {
+        return marketDataService.saveClosePricesEveningSession(request);
+    }
+
     public List<ClosePriceDto> getClosePricesForAllShares() {
         return marketDataService.getClosePricesForAllShares();
     }

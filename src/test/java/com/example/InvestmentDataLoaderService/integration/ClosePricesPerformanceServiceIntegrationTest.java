@@ -1,7 +1,10 @@
 package com.example.InvestmentDataLoaderService.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.qameta.allure.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +39,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Transactional
+@Epic("Performance Testing")
+@Feature("Close Prices Performance")
+@DisplayName("Close Prices Performance Integration Tests")
+@Owner("Investment Data Loader Service Team")
+@Severity(SeverityLevel.CRITICAL)
 class ClosePricesPerformanceServiceIntegrationTest {
 
     @LocalServerPort
@@ -52,6 +60,10 @@ class ClosePricesPerformanceServiceIntegrationTest {
     private String baseUrl;
 
     @BeforeEach
+    @Step("Подготовка тестовых данных для тестов производительности")
+    @DisplayName("Подготовка тестовых данных")
+    @Description("Инициализация тестовых данных и определение тестовой даты для тестов производительности")
+    @Tag("setup")
     void setUp() {
         // Определяем тестовую дату на основе текущего времени
         currentTime = LocalDateTime.now(ZoneId.of("Europe/Moscow"));
@@ -68,6 +80,10 @@ class ClosePricesPerformanceServiceIntegrationTest {
     /**
      * Определяет тестовую дату на основе текущего времени
      */
+    @Step("Определение тестовой даты на основе текущего времени")
+    @DisplayName("Определение тестовой даты")
+    @Description("Определяет подходящую тестовую дату с учетом выходных дней и времени суток")
+    @Tag("helper")
     private LocalDate determineTestDate() {
         LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
         DayOfWeek todayDayOfWeek = today.getDayOfWeek();
@@ -92,6 +108,10 @@ class ClosePricesPerformanceServiceIntegrationTest {
     /**
      * Находит предыдущий рабочий день
      */
+    @Step("Поиск предыдущего рабочего дня")
+    @DisplayName("Поиск предыдущего рабочего дня")
+    @Description("Находит предыдущий рабочий день, пропуская выходные")
+    @Tag("helper")
     private LocalDate findPreviousWorkingDay(LocalDate fromDate) {
         LocalDate candidate = fromDate.minusDays(1);
         while (candidate.getDayOfWeek() == DayOfWeek.SATURDAY || 
@@ -102,6 +122,16 @@ class ClosePricesPerformanceServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Тест производительности - получение цен акций")
+    @Description("Тест проверяет производительность получения цен закрытия для акций через реальный API")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Performance Testing")
+    @Tag("api")
+    @Tag("performance")
+    @Tag("integration")
+    @Tag("shares")
+    @Tag("close-prices")
+    @Tag("real-api")
     void getClosePricesForShares_PerformanceTest_ShouldCompleteWithinReasonableTime() throws Exception {
         // Given
         System.out.println("=== ТЕСТ ПРОИЗВОДИТЕЛЬНОСТИ: Получение цен акций ===");
@@ -132,6 +162,16 @@ class ClosePricesPerformanceServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Тест производительности - получение цен фьючерсов")
+    @Description("Тест проверяет производительность получения цен закрытия для фьючерсов через реальный API")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Performance Testing")
+    @Tag("api")
+    @Tag("performance")
+    @Tag("integration")
+    @Tag("futures")
+    @Tag("close-prices")
+    @Tag("real-api")
     void getClosePricesForFutures_PerformanceTest_ShouldCompleteWithinReasonableTime() throws Exception {
         // Given
         System.out.println("=== ТЕСТ ПРОИЗВОДИТЕЛЬНОСТИ: Получение цен фьючерсов ===");
@@ -162,6 +202,17 @@ class ClosePricesPerformanceServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Тест производительности - получение цены по FIGI")
+    @Description("Тест проверяет производительность получения цены закрытия по конкретному FIGI через реальный API")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Performance Testing")
+    @Tag("api")
+    @Tag("performance")
+    @Tag("integration")
+    @Tag("figi")
+    @Tag("close-prices")
+    @Tag("real-api")
+    @Tag("single-request")
     void getClosePriceByFigi_PerformanceTest_ShouldCompleteWithinReasonableTime() throws Exception {
         // Given
         String realFigi = "BBG004730N88"; // Сбербанк
@@ -193,6 +244,17 @@ class ClosePricesPerformanceServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Тест производительности - загрузка цен закрытия")
+    @Description("Тест проверяет производительность загрузки и сохранения цен закрытия через реальный API")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Performance Testing")
+    @Tag("api")
+    @Tag("performance")
+    @Tag("integration")
+    @Tag("load")
+    @Tag("close-prices")
+    @Tag("real-api")
+    @Tag("save")
     void loadClosePricesToday_PerformanceTest_ShouldCompleteWithinReasonableTime() throws Exception {
         // Given
         System.out.println("=== ТЕСТ ПРОИЗВОДИТЕЛЬНОСТИ: Загрузка цен закрытия ===");
@@ -231,6 +293,17 @@ class ClosePricesPerformanceServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Тест производительности - множественные запросы")
+    @Description("Тест проверяет производительность и стабильность при выполнении множественных запросов подряд")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Performance Testing")
+    @Tag("api")
+    @Tag("performance")
+    @Tag("integration")
+    @Tag("concurrent")
+    @Tag("multiple-requests")
+    @Tag("stability")
+    @Tag("real-api")
     void multipleRequests_ConcurrentPerformanceTest_ShouldHandleMultipleRequests() throws Exception {
         // Given
         System.out.println("=== ТЕСТ ПРОИЗВОДИТЕЛЬНОСТИ: Множественные запросы ===");
@@ -285,6 +358,18 @@ class ClosePricesPerformanceServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Стресс-тест - повторные загрузки цен")
+    @Description("Стресс-тест проверяет стабильность системы при повторных загрузках цен закрытия")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Performance Testing")
+    @Tag("api")
+    @Tag("performance")
+    @Tag("integration")
+    @Tag("stress-test")
+    @Tag("repeated-requests")
+    @Tag("load")
+    @Tag("stability")
+    @Tag("real-api")
     void loadClosePricesToday_StressTest_ShouldHandleRepeatedRequests() throws Exception {
         // Given
         System.out.println("=== СТРЕСС-ТЕСТ: Повторные загрузки цен ===");

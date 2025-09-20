@@ -204,25 +204,258 @@ curl "http://localhost:8083/api/data-loading/close-prices/BBG0063FKTD1"
 }
 ```
 
-## POST /api/data-loading/evening-session-prices
-Загрузка цен вечерней сессии за сегодня.
+## Цены вечерней сессии
+
+**Обзор:** Вечерняя сессия на Московской бирже проводится с 19:05 до 23:50 по московскому времени. API предоставляет функциональность для загрузки, получения и управления ценами закрытия вечерней сессии.
+
+**Время работы:**
+- Вечерняя сессия: 19:05-23:50 МСК
+- Автоматическая загрузка: 02:00 МСК (ежедневно, кроме выходных)
+- Поддерживаемые инструменты: Акции и фьючерсы в рублях
+- Выходные дни: Суббота и воскресенье (загрузка не производится)
+
+### POST /api/data-loading/evening-session-prices
+Синхронная загрузка цен вечерней сессии за сегодня по всем инструментам (акции и фьючерсы).
+
 ```bash
 curl -X POST "http://localhost:8083/api/data-loading/evening-session-prices"
 ```
+
 Ответ (пример):
 ```json
-{ "success": true, "message": "Загрузка цен вечерней сессии запущена для сегодня" }
+{
+  "success": true,
+  "message": "Успешно загружено 25 новых цен вечерней сессии из 30 найденных.",
+  "totalRequested": 30,
+  "newItemsSaved": 25,
+  "existingItemsSkipped": 5,
+  "invalidItemsFiltered": 0,
+  "missingFromApi": 0,
+  "savedItems": [
+    {
+      "priceDate": "2024-01-15",
+      "figi": "BBG004730N88",
+      "closePrice": 251.00,
+      "instrumentType": "SHARES",
+      "currency": "RUB",
+      "exchange": "MOEX"
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00"
+}
 ```
 
-## POST /api/data-loading/evening-session-prices/{date}
-Загрузка цен вечерней сессии за дату.
+### POST /api/data-loading/evening-session-prices/save
+Синхронная точечная загрузка цен вечерней сессии по указанным инструментам.
+
+Тело запроса (опционально):
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"]
+}
+```
+
+Пример запроса:
+```bash
+# Загрузка всех инструментов
+curl -X POST "http://localhost:8083/api/data-loading/evening-session-prices/save"
+
+# Загрузка конкретных инструментов
+curl -X POST "http://localhost:8083/api/data-loading/evening-session-prices/save" \
+  -H "Content-Type: application/json" \
+  -d '{"instruments": ["BBG004730N88", "BBG004730ZJ9"]}'
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Успешно загружено 2 новых цены вечерней сессии из 2 найденных.",
+  "totalRequested": 2,
+  "newItemsSaved": 2,
+  "existingItemsSkipped": 0,
+  "invalidItemsFiltered": 0,
+  "missingFromApi": 0,
+  "savedItems": [
+    {
+      "priceDate": "2024-01-15",
+      "figi": "BBG004730N88",
+      "closePrice": 251.00,
+      "instrumentType": "SHARES",
+      "currency": "RUB",
+      "exchange": "MOEX"
+    }
+  ]
+}
+```
+
+### POST /api/data-loading/evening-session-prices/{date}
+Загрузка цен вечерней сессии за конкретную дату.
+
 ```bash
 curl -X POST "http://localhost:8083/api/data-loading/evening-session-prices/2024-01-15"
 ```
+
 Ответ (пример):
 ```json
-{ "success": true, "message": "Загрузка цен вечерней сессии запущена для 2024-01-15", "date": "2024-01-15" }
+{
+  "success": true,
+  "message": "Успешно загружено 25 новых цен вечерней сессии из 30 найденных.",
+  "totalRequested": 30,
+  "newItemsSaved": 25,
+  "existingItemsSkipped": 5,
+  "invalidItemsFiltered": 0,
+  "missingFromApi": 0,
+  "savedItems": [...]
+}
 ```
+
+**Примечание:** В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. При попытке загрузки за выходной день вернется сообщение об ошибке.
+
+### GET /api/data-loading/evening-session-prices/shares
+Получение цен вечерней сессии для всех акций из T-INVEST API (без сохранения в БД). Загружает только акции в рублях из БД.
+
+```bash
+curl "http://localhost:8083/api/data-loading/evening-session-prices/shares"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Цены вечерней сессии для акций получены успешно",
+  "data": [
+    {
+      "figi": "BBG004730N88",
+      "tradingDate": "2024-01-15",
+      "closePrice": 250.75,
+      "eveningSessionPrice": 251.00
+    },
+    {
+      "figi": "BBG004730ZJ9",
+      "tradingDate": "2024-01-15",
+      "closePrice": 180.50,
+      "eveningSessionPrice": 181.00
+    }
+  ],
+  "count": 2,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+### GET /api/data-loading/evening-session-prices/futures
+Получение цен вечерней сессии для всех фьючерсов из T-INVEST API (без сохранения в БД). Загружает только фьючерсы в рублях из БД.
+
+```bash
+curl "http://localhost:8083/api/data-loading/evening-session-prices/futures"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Цены вечерней сессии для фьючерсов получены успешно",
+  "data": [
+    {
+      "figi": "FUTSILV-3.24",
+      "tradingDate": "2024-01-15",
+      "closePrice": 75000.00,
+      "eveningSessionPrice": 75100.00
+    },
+    {
+      "figi": "FUTGOLD-3.24",
+      "tradingDate": "2024-01-15",
+      "closePrice": 250000.00,
+      "eveningSessionPrice": 250500.00
+    }
+  ],
+  "count": 2,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+### GET /api/data-loading/evening-session-prices/{figi}
+Получение цены вечерней сессии по конкретному инструменту из T-INVEST API (без сохранения в БД). Работает только с акциями и фьючерсами.
+
+```bash
+curl "http://localhost:8083/api/data-loading/evening-session-prices/BBG004730N88"
+```
+
+Ответ (пример):
+```json
+{
+  "success": true,
+  "message": "Цена вечерней сессии получена успешно",
+  "data": {
+    "figi": "BBG004730N88",
+    "tradingDate": "2024-01-15",
+    "closePrice": 250.75,
+    "eveningSessionPrice": 251.00
+  },
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+Ответ при отсутствии данных:
+```json
+{
+  "success": false,
+  "message": "Цена вечерней сессии не найдена для инструмента: BBG004730N88",
+  "figi": "BBG004730N88",
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+**Примечание:** Цены вечерней сессии сохраняются в таблице `invest.close_prices_evening_session`. Эндпоинты загружают только акции и фьючерсы, исключая indicatives. Вечерняя сессия проводится с 19:05 до 23:50 по московскому времени.
+
+### Структуры данных
+
+**ClosePriceEveningSessionRequestDto:**
+```json
+{
+  "instruments": ["BBG004730N88", "BBG004730ZJ9"]
+}
+```
+
+**ClosePriceEveningSessionDto (для сохранения):**
+```json
+{
+  "priceDate": "2024-01-15",
+  "figi": "BBG004730N88",
+  "closePrice": 251.00,
+  "instrumentType": "SHARES",
+  "currency": "RUB",
+  "exchange": "MOEX"
+}
+```
+
+### Обработка ошибок
+
+**Выходные дни:**
+```json
+{
+  "success": false,
+  "message": "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: 2024-01-13"
+}
+```
+
+**Ошибки API:**
+```json
+{
+  "success": false,
+  "message": "Ошибка получения цены вечерней сессии: [описание ошибки]",
+  "figi": "BBG004730N88",
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+### Ограничения
+
+1. **Инструменты:** Только акции и фьючерсы в рублях
+2. **Выходные дни:** Загрузка не производится в субботу и воскресенье
+3. **Время сессии:** Данные доступны только для периода 19:05-23:50 МСК
+4. **Дублирование:** Существующие записи не перезаписываются
+5. **Валидация:** Фильтруются записи с некорректными датами (1970-01-01)
 
 ## POST /api/data-loading/morning-session-prices
 Загрузка цен утренней сессии за сегодня.

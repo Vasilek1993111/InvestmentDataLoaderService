@@ -10,7 +10,10 @@ import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.MorningSessionService;
 import com.example.InvestmentDataLoaderService.scheduler.LastTradesService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.qameta.allure.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -28,6 +31,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(DataLoadingController.class)
+@Epic("Data Loading API")
+@Feature("Close Prices")
+@DisplayName("Data Loading Controller Close Prices Tests")
+@Owner("Investment Data Loader Service Team")
+@Severity(SeverityLevel.CRITICAL)
 class DataLoadingControllerClosePricesTest {
 
     @Autowired
@@ -55,6 +63,10 @@ class DataLoadingControllerClosePricesTest {
     private SaveResponseDto sampleSaveResponse;
 
     @BeforeEach
+    @Step("Подготовка тестовых данных для цен закрытия")
+    @DisplayName("Подготовка тестовых данных")
+    @Description("Инициализация тестовых данных для тестов цен закрытия")
+    @Tag("setup")
     void setUp() {
         sampleClosePrice = new ClosePriceDto(
             "BBG004730N88",
@@ -78,6 +90,14 @@ class DataLoadingControllerClosePricesTest {
     // ==================== POST /api/data-loading/close-prices ====================
 
     @Test
+    @DisplayName("Загрузка цен закрытия за сегодня - успешный случай")
+    @Description("Тест проверяет корректность загрузки цен закрытия за текущий день")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Loading")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("load")
+    @Tag("success")
     void loadClosePricesToday_ShouldReturnSuccessResponse() throws Exception {
         // Given
         when(service.saveClosePrices(any(ClosePriceRequestDto.class)))
@@ -100,6 +120,14 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Загрузка цен закрытия за сегодня - ошибка сервиса")
+    @Description("Тест проверяет корректность обработки ошибок при загрузке цен закрытия")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Loading")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("load")
+    @Tag("error")
     void loadClosePricesToday_ShouldHandleServiceException() throws Exception {
         // Given
         when(service.saveClosePrices(any(ClosePriceRequestDto.class)))
@@ -118,6 +146,14 @@ class DataLoadingControllerClosePricesTest {
     // ==================== POST /api/data-loading/close-prices/save ====================
 
     @Test
+    @DisplayName("Сохранение цен закрытия - валидный запрос")
+    @Description("Тест проверяет корректность сохранения цен закрытия с валидным запросом")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Saving")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("save")
+    @Tag("valid-request")
     void saveClosePrices_WithValidRequest_ShouldReturnSuccessResponse() throws Exception {
         // Given
         ClosePriceRequestDto request = new ClosePriceRequestDto();
@@ -141,6 +177,14 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Сохранение цен закрытия - null запрос")
+    @Description("Тест проверяет корректность обработки null запроса при сохранении цен закрытия")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Saving")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("save")
+    @Tag("null-request")
     void saveClosePrices_WithNullRequest_ShouldCreateEmptyRequest() throws Exception {
         // Given
         when(service.saveClosePrices(any(ClosePriceRequestDto.class)))
@@ -156,6 +200,14 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Сохранение цен закрытия - пустой запрос")
+    @Description("Тест проверяет корректность обработки пустого запроса при сохранении цен закрытия")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Saving")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("save")
+    @Tag("empty-request")
     void saveClosePrices_WithEmptyRequest_ShouldReturnSuccessResponse() throws Exception {
         // Given
         when(service.saveClosePrices(any(ClosePriceRequestDto.class)))
@@ -171,6 +223,14 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Сохранение цен закрытия - ошибка сервиса")
+    @Description("Тест проверяет корректность обработки ошибок сервиса при сохранении цен закрытия")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Saving")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("save")
+    @Tag("error")
     void saveClosePrices_ShouldHandleServiceException() throws Exception {
         // Given
         ClosePriceRequestDto request = new ClosePriceRequestDto();
@@ -194,6 +254,15 @@ class DataLoadingControllerClosePricesTest {
     // ==================== GET /api/data-loading/close-prices/shares ====================
 
     @Test
+    @DisplayName("Получение цен закрытия для акций - успешный случай")
+    @Description("Тест проверяет корректность получения цен закрытия для всех акций")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("success")
     void getClosePricesForShares_ShouldReturnSuccessResponse() throws Exception {
         // Given
         List<ClosePriceDto> mockClosePrices = List.of(
@@ -220,6 +289,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цен закрытия для акций - пустой результат")
+    @Description("Тест проверяет корректность обработки пустого результата при получении цен закрытия для акций")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("empty-result")
     void getClosePricesForShares_WithEmptyResult_ShouldReturnEmptyArray() throws Exception {
         // Given
         when(service.getClosePricesForAllShares()).thenReturn(List.of());
@@ -237,6 +315,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цен закрытия для акций - ошибка сервиса")
+    @Description("Тест проверяет корректность обработки ошибок сервиса при получении цен закрытия для акций")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("error")
     void getClosePricesForShares_ShouldHandleServiceException() throws Exception {
         // Given
         when(service.getClosePricesForAllShares())
@@ -253,6 +340,16 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цен закрытия для акций - фильтрация невалидных цен")
+    @Description("Тест проверяет корректность фильтрации невалидных цен при получении цен закрытия для акций")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("filtering")
+    @Tag("validation")
     void getClosePricesForShares_ShouldFilterInvalidPrices() throws Exception {
         // Given - смесь валидных и невалидных цен
         List<ClosePriceDto> mockClosePrices = List.of(
@@ -284,6 +381,15 @@ class DataLoadingControllerClosePricesTest {
     // ==================== GET /api/data-loading/close-prices/futures ====================
 
     @Test
+    @DisplayName("Получение цен закрытия для фьючерсов - успешный случай")
+    @Description("Тест проверяет корректность получения цен закрытия для всех фьючерсов")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("success")
     void getClosePricesForFutures_ShouldReturnSuccessResponse() throws Exception {
         // Given
         List<ClosePriceDto> mockClosePrices = List.of(
@@ -310,6 +416,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цен закрытия для фьючерсов - пустой результат")
+    @Description("Тест проверяет корректность обработки пустого результата при получении цен закрытия для фьючерсов")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("empty-result")
     void getClosePricesForFutures_WithEmptyResult_ShouldReturnEmptyArray() throws Exception {
         // Given
         when(service.getClosePricesForAllFutures()).thenReturn(List.of());
@@ -327,6 +442,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цен закрытия для фьючерсов - ошибка сервиса")
+    @Description("Тест проверяет корректность обработки ошибок сервиса при получении цен закрытия для фьючерсов")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("error")
     void getClosePricesForFutures_ShouldHandleServiceException() throws Exception {
         // Given
         when(service.getClosePricesForAllFutures())
@@ -343,6 +467,16 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цен закрытия для фьючерсов - фильтрация невалидных цен")
+    @Description("Тест проверяет корректность фильтрации невалидных цен при получении цен закрытия для фьючерсов")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Retrieval")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("filtering")
+    @Tag("validation")
     void getClosePricesForFutures_ShouldFilterInvalidPrices() throws Exception {
         // Given - смесь валидных и невалидных цен
         List<ClosePriceDto> mockClosePrices = List.of(
@@ -374,6 +508,15 @@ class DataLoadingControllerClosePricesTest {
     // ==================== GET /api/data-loading/close-prices/{figi} ====================
 
     @Test
+    @DisplayName("Получение цены закрытия по FIGI - валидный FIGI")
+    @Description("Тест проверяет корректность получения цены закрытия по указанному FIGI")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Price by FIGI")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get-by-figi")
+    @Tag("valid-figi")
+    @Tag("success")
     void getClosePriceByFigi_WithValidFigi_ShouldReturnSuccessResponse() throws Exception {
         // Given
         String figi = "BBG004730N88";
@@ -394,6 +537,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цены закрытия по FIGI - несуществующий FIGI")
+    @Description("Тест проверяет корректность обработки случая когда цена закрытия не найдена для указанного FIGI")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Price by FIGI")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get-by-figi")
+    @Tag("not-found")
+    @Tag("invalid-figi")
     void getClosePriceByFigi_WithEmptyResult_ShouldReturnNotFoundResponse() throws Exception {
         // Given
         String figi = "INVALID_FIGI";
@@ -411,6 +563,14 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цены закрытия по FIGI - ошибка сервиса")
+    @Description("Тест проверяет корректность обработки ошибок сервиса при получении цены закрытия по FIGI")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Close Price by FIGI")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get-by-figi")
+    @Tag("error")
     void getClosePriceByFigi_ShouldHandleServiceException() throws Exception {
         // Given
         String figi = "BBG004730N88";
@@ -428,6 +588,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цены закрытия по FIGI - специальные символы")
+    @Description("Тест проверяет корректность обработки FIGI со специальными символами")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Price by FIGI")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get-by-figi")
+    @Tag("special-characters")
+    @Tag("edge-case")
     void getClosePriceByFigi_WithSpecialCharacters_ShouldHandleCorrectly() throws Exception {
         // Given
         String figi = "BBG004730N88+";
@@ -444,6 +613,16 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цены закрытия по FIGI - невалидная дата")
+    @Description("Тест проверяет корректность фильтрации цен с невалидной датой при получении цены закрытия по FIGI")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Price by FIGI")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get-by-figi")
+    @Tag("invalid-date")
+    @Tag("filtering")
+    @Tag("validation")
     void getClosePriceByFigi_WithInvalidPriceDate_ShouldReturnNotFound() throws Exception {
         // Given - цена с неверной датой 1970-01-01 (будет отфильтрована)
         String figi = "BBG004730N88";
@@ -464,6 +643,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Загрузка цен закрытия за сегодня - включение отфильтрованных элементов")
+    @Description("Тест проверяет корректность включения информации об отфильтрованных элементах в ответе")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Loading")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("load")
+    @Tag("filtering")
+    @Tag("response-structure")
     void loadClosePricesToday_ShouldIncludeInvalidItemsFilteredInResponse() throws Exception {
         // Given - мок с отфильтрованными ценами
         SaveResponseDto mockResponse = new SaveResponseDto(
@@ -500,6 +688,15 @@ class DataLoadingControllerClosePricesTest {
     // ==================== EDGE CASES ====================
 
     @Test
+    @DisplayName("Сохранение цен закрытия - невалидный JSON")
+    @Description("Тест проверяет корректность обработки невалидного JSON при сохранении цен закрытия")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Prices Saving")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("save")
+    @Tag("invalid-json")
+    @Tag("edge-case")
     void saveClosePrices_WithInvalidJson_ShouldReturnBadRequest() throws Exception {
         // When & Then
         mockMvc.perform(post("/api/data-loading/close-prices/save")
@@ -512,6 +709,15 @@ class DataLoadingControllerClosePricesTest {
     }
 
     @Test
+    @DisplayName("Получение цены закрытия по FIGI - пустой FIGI")
+    @Description("Тест проверяет корректность обработки пустого FIGI при получении цены закрытия")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Close Price by FIGI")
+    @Tag("api")
+    @Tag("close-prices")
+    @Tag("get-by-figi")
+    @Tag("empty-figi")
+    @Tag("edge-case")
     void getClosePriceByFigi_WithEmptyFigi_ShouldReturnNotFound() throws Exception {
         // Given
         String figi = "";

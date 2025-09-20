@@ -2,8 +2,11 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 
 import com.example.InvestmentDataLoaderService.controller.SystemController;
 import com.example.InvestmentDataLoaderService.scheduler.VolumeAggregationSchedulerService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.qameta.allure.*;
+import io.qameta.allure.SeverityLevel;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -22,6 +25,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Unit-тесты для SystemController
  */
 @WebMvcTest(SystemController.class)
+@Epic("System API")
+@Feature("System Controller")
+@DisplayName("System Controller Tests")
 class SystemControllerTest {
 
     @Autowired
@@ -32,6 +38,7 @@ class SystemControllerTest {
 
 
     @BeforeEach
+    @Step("Подготовка тестовых данных")
     void setUp() {
         // Настройка моков по умолчанию
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(true);
@@ -41,6 +48,12 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ HEALTH ENDPOINT ====================
 
     @Test
+    @DisplayName("Проверка здоровья системы - успешный случай")
+    @Description("Тест проверяет корректность ответа health endpoint при здоровой системе")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Health Check")
+    @Tag("api")
+    @Tag("health")
     void getHealthStatus_ShouldReturnHealthyStatus_WhenSystemIsHealthy() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(true);
@@ -61,6 +74,13 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Проверка здоровья системы - предупреждение о материализованных представлениях")
+    @Description("Тест проверяет корректность ответа health endpoint когда материализованные представления отсутствуют")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Health Check")
+    @Tag("api")
+    @Tag("health")
+    @Tag("warning")
     void getHealthStatus_ShouldReturnWarningStatus_WhenMaterializedViewsMissing() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(false);
@@ -77,6 +97,13 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Проверка здоровья системы - ошибка подключения к БД")
+    @Description("Тест проверяет корректность ответа health endpoint при возникновении исключения")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Health Check")
+    @Tag("api")
+    @Tag("health")
+    @Tag("error")
     void getHealthStatus_ShouldReturnUnhealthyStatus_WhenExceptionOccurs() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenThrow(new RuntimeException("Database connection failed"));
@@ -95,6 +122,12 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ DIAGNOSTICS ENDPOINT ====================
 
     @Test
+    @DisplayName("Получение диагностики системы")
+    @Description("Тест проверяет корректность получения диагностической информации о системе")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("System Diagnostics")
+    @Tag("api")
+    @Tag("diagnostics")
     void getSystemDiagnostics_ShouldReturnSystemInfo_WhenSuccessful() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(true);
@@ -122,6 +155,13 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение диагностики системы - отсутствующие представления")
+    @Description("Тест проверяет корректность получения диагностической информации когда материализованные представления отсутствуют")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("System Diagnostics")
+    @Tag("api")
+    @Tag("diagnostics")
+    @Tag("missing-views")
     void getSystemDiagnostics_ShouldReturnMissingViewsStatus_WhenViewsNotExist() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(false);
@@ -138,6 +178,13 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение диагностики системы - ошибка БД")
+    @Description("Тест проверяет корректность обработки ошибок при получении диагностической информации")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("System Diagnostics")
+    @Tag("api")
+    @Tag("diagnostics")
+    @Tag("error")
     void getSystemDiagnostics_ShouldReturnError_WhenExceptionOccurs() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenThrow(new RuntimeException("Database error"));
@@ -156,6 +203,13 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ VOLUME AGGREGATION CHECK ====================
 
     @Test
+    @DisplayName("Проверка материализованных представлений - представления существуют")
+    @Description("Тест проверяет корректность ответа при проверке существования материализованных представлений")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Volume Aggregation")
+    @Tag("api")
+    @Tag("volume-aggregation")
+    @Tag("check")
     void checkMaterializedViews_ShouldReturnExistsTrue_WhenViewsExist() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(true);
@@ -173,6 +227,14 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Проверка материализованных представлений - представления не найдены")
+    @Description("Тест проверяет корректность ответа когда материализованные представления не существуют")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Volume Aggregation")
+    @Tag("api")
+    @Tag("volume-aggregation")
+    @Tag("check")
+    @Tag("missing")
     void checkMaterializedViews_ShouldReturnExistsFalse_WhenViewsNotExist() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenReturn(false);
@@ -190,6 +252,14 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Проверка материализованных представлений - ошибка проверки")
+    @Description("Тест проверяет корректность обработки ошибок при проверке материализованных представлений")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Volume Aggregation")
+    @Tag("api")
+    @Tag("volume-aggregation")
+    @Tag("check")
+    @Tag("error")
     void checkMaterializedViews_ShouldReturnError_WhenExceptionOccurs() throws Exception {
         // Given
         when(volumeAggregationService.isMaterializedViewExists()).thenThrow(new RuntimeException("Check failed"));
@@ -208,6 +278,13 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ SCHEDULE INFO ====================
 
     @Test
+    @DisplayName("Получение информации о расписании - успешный случай")
+    @Description("Тест проверяет корректность получения информации о расписании обновления материализованных представлений")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Volume Aggregation")
+    @Tag("api")
+    @Tag("volume-aggregation")
+    @Tag("schedule")
     void getScheduleInfo_ShouldReturnScheduleInformation_WhenSuccessful() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/system/volume-aggregation/schedule-info"))
@@ -222,6 +299,14 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение информации о расписании - без ошибок")
+    @Description("Тест проверяет стабильность работы endpoint получения информации о расписании")
+    @Severity(SeverityLevel.MINOR)
+    @Story("Volume Aggregation")
+    @Tag("api")
+    @Tag("volume-aggregation")
+    @Tag("schedule")
+    @Tag("stability")
     void getScheduleInfo_ShouldReturnError_WhenExceptionOccurs() throws Exception {
         // Given - No mocking needed as this endpoint doesn't use external services
 
@@ -235,6 +320,14 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ SYSTEM STATS ====================
 
     @Test
+    @DisplayName("Получение статистики системы - успешный случай")
+    @Description("Тест проверяет корректность получения статистики системы включая память, процессор и данные агрегации")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("System Stats")
+    @Tag("api")
+    @Tag("stats")
+    @Tag("memory")
+    @Tag("processor")
     void getSystemStats_ShouldReturnSystemStats_WhenSuccessful() throws Exception {
         // Given
         when(volumeAggregationService.getDetailedStats()).thenReturn(createMockDetailedStats());
@@ -258,6 +351,14 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение статистики системы - ошибка агрегации")
+    @Description("Тест проверяет корректность обработки ошибок при получении статистики агрегации объемов")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("System Stats")
+    @Tag("api")
+    @Tag("stats")
+    @Tag("error")
+    @Tag("volume-aggregation")
     void getSystemStats_ShouldReturnStatsWithError_WhenVolumeAggregationFails() throws Exception {
         // Given
         when(volumeAggregationService.getDetailedStats()).thenThrow(new RuntimeException("Stats error"));
@@ -277,6 +378,14 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение статистики системы - без данных агрегации")
+    @Description("Тест проверяет корректность получения статистики когда сервис агрегации возвращает null")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("System Stats")
+    @Tag("api")
+    @Tag("stats")
+    @Tag("null-data")
+    @Tag("volume-aggregation")
     void getSystemStats_ShouldReturnStatsWithoutVolumeAggregation_WhenServiceReturnsNull() throws Exception {
         // Given
         when(volumeAggregationService.getDetailedStats()).thenReturn(null);
@@ -296,6 +405,14 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение статистики системы - системная ошибка")
+    @Description("Тест проверяет корректность обработки системных ошибок при получении статистики")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("System Stats")
+    @Tag("api")
+    @Tag("stats")
+    @Tag("error")
+    @Tag("system-error")
     void getSystemStats_ShouldReturnError_WhenExceptionOccurs() throws Exception {
         // Given
         when(volumeAggregationService.getDetailedStats()).thenThrow(new RuntimeException("System error"));
@@ -313,6 +430,15 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ SYSTEM INFO ====================
 
     @Test
+    @DisplayName("Получение информации о системе - успешный случай")
+    @Description("Тест проверяет корректность получения детальной информации о системе включая Java, OS и приложение")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("System Info")
+    @Tag("api")
+    @Tag("system-info")
+    @Tag("java")
+    @Tag("os")
+    @Tag("application")
     void getSystemInfo_ShouldReturnSystemInformation_WhenSuccessful() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/system/info"))
@@ -335,6 +461,13 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Получение информации о системе - стабильность")
+    @Description("Тест проверяет стабильность работы endpoint получения информации о системе")
+    @Severity(SeverityLevel.MINOR)
+    @Story("System Info")
+    @Tag("api")
+    @Tag("system-info")
+    @Tag("stability")
     void getSystemInfo_ShouldReturnError_WhenExceptionOccurs() throws Exception {
         // Given - This test is mainly for completeness, as the method doesn't throw exceptions
         // When & Then
@@ -347,6 +480,14 @@ class SystemControllerTest {
     // ==================== ТЕСТЫ ДЛЯ EXTERNAL SERVICES ====================
 
     @Test
+    @DisplayName("Проверка внешних сервисов - успешный случай")
+    @Description("Тест проверяет корректность получения статуса внешних сервисов включая Tinkoff API и базу данных")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("External Services")
+    @Tag("api")
+    @Tag("external-services")
+    @Tag("tinkoff-api")
+    @Tag("database")
     void checkExternalServices_ShouldReturnServicesStatus_WhenSuccessful() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/system/external-services"))
@@ -361,6 +502,13 @@ class SystemControllerTest {
     }
 
     @Test
+    @DisplayName("Проверка внешних сервисов - стабильность")
+    @Description("Тест проверяет стабильность работы endpoint проверки внешних сервисов")
+    @Severity(SeverityLevel.MINOR)
+    @Story("External Services")
+    @Tag("api")
+    @Tag("external-services")
+    @Tag("stability")
     void checkExternalServices_ShouldReturnError_WhenExceptionOccurs() throws Exception {
         // Given - This test is mainly for completeness, as the method doesn't throw exceptions
         // When & Then
@@ -372,6 +520,11 @@ class SystemControllerTest {
 
     // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
+    @Step("Создание мок-данных для детальной статистики")
+    @DisplayName("Создание мок-данных статистики")
+    @Description("Создает тестовые данные для детальной статистики системы")
+    @Tag("helper")
+    @Tag("mock-data")
     private Map<String, Object> createMockDetailedStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("test_key", "test_value");
