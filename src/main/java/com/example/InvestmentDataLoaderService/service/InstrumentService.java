@@ -14,8 +14,42 @@ import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * Сервис для работы с финансовыми инструментами
+ * 
+ * <p>Предоставляет бизнес-логику для работы с тремя типами финансовых инструментов:</p>
+ * <ul>
+ *   <li><strong>Акции (Shares)</strong> - обыкновенные и привилегированные акции</li>
+ *   <li><strong>Фьючерсы (Futures)</strong> - производные финансовые инструменты</li>
+ *   <li><strong>Индикативы (Indicatives)</strong> - индикативные инструменты</li>
+ * </ul>
+ * 
+ * <p>Основные возможности сервиса:</p>
+ * <ul>
+ *   <li>Получение инструментов из внешнего API Tinkoff с кэшированием</li>
+ *   <li>Получение инструментов из локальной базы данных</li>
+ *   <li>Сохранение инструментов в БД с защитой от дубликатов</li>
+ *   <li>Фильтрация инструментов по различным параметрам</li>
+ *   <li>Поиск инструментов по FIGI или тикеру</li>
+ *   <li>Получение статистики по количеству инструментов</li>
+ * </ul>
+ * 
+ * <p>Сервис использует:</p>
+ * <ul>
+ *   <li>gRPC клиент для получения акций и фьючерсов</li>
+ *   <li>REST клиент для получения индикативных инструментов</li>
+ *   <li>Spring Cache для кэширования данных</li>
+ *   <li>JPA репозитории для работы с БД</li>
+ * </ul>
+ * 
+ * @author InvestmentDataLoaderService
+ * @version 1.0
+ * @since 2024
+ */
 @Service
 public class InstrumentService {
 
@@ -25,6 +59,15 @@ public class InstrumentService {
     private final IndicativeRepository indicativeRepo;
     private final TinkoffRestClient restClient;
 
+    /**
+     * Конструктор сервиса инструментов
+     * 
+     * @param instrumentsService gRPC клиент для получения акций и фьючерсов из Tinkoff API
+     * @param shareRepo репозиторий для работы с акциями в БД
+     * @param futureRepo репозиторий для работы с фьючерсами в БД
+     * @param indicativeRepo репозиторий для работы с индикативными инструментами в БД
+     * @param restClient REST клиент для получения индикативных инструментов из Tinkoff API
+     */
     public InstrumentService(InstrumentsServiceBlockingStub instrumentsService,
                            ShareRepository shareRepo,
                            FutureRepository futureRepo,
@@ -39,6 +82,19 @@ public class InstrumentService {
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С АКЦИЯМИ ===
 
+    /**
+     * Получение списка акций из Tinkoff API с фильтрацией
+     * 
+     * <p>Метод получает акции из внешнего API Tinkoff с применением фильтров.
+     * Результат кэшируется для повышения производительности.</p>
+     * 
+     * @param status статус инструмента (INSTRUMENT_STATUS_ACTIVE, INSTRUMENT_STATUS_BASE)
+     * @param exchange биржа (например: MOEX, SPB)
+     * @param currency валюта (например: RUB, USD, EUR)
+     * @param ticker тикер акции (например: SBER, GAZP)
+     * @param figi уникальный идентификатор инструмента
+     * @return список акций, отсортированный по тикеру
+     */
     @Cacheable(cacheNames = com.example.InvestmentDataLoaderService.config.CacheConfig.SHARES_CACHE,
             key = "T(java.util.Objects).toString(#status,'') + '|' + T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#figi,'')")
     public List<ShareDto> getShares(String status, String exchange, String currency, String ticker, String figi) {
@@ -88,6 +144,22 @@ public class InstrumentService {
         return shares;
     }
 
+    /**
+     * Сохранение акций в базу данных с защитой от дубликатов
+     * 
+     * <p>Метод получает акции из Tinkoff API по заданным фильтрам и сохраняет их в БД.
+     * Если акция уже существует в БД, она не будет сохранена повторно.</p>
+     * 
+     * <p>Возвращает детальную информацию о результате операции:</p>
+     * <ul>
+     *   <li>Количество найденных акций в API</li>
+     *   <li>Количество сохраненных новых акций</li>
+     *   <li>Количество уже существующих акций</li>
+     * </ul>
+     * 
+     * @param filter фильтр для получения акций из API
+     * @return результат операции сохранения с детальной статистикой
+     */
     public SaveResponseDto saveShares(ShareFilterDto filter) {
         // Получаем акции из API (используем существующий метод)
         List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getFigi());
@@ -151,6 +223,12 @@ public class InstrumentService {
 
     /**
      * Получение акций из базы данных с фильтрацией
+     * 
+     * <p>Метод получает акции из локальной БД с применением расширенных фильтров.
+     * Поддерживает фильтрацию по всем полям сущности акции.</p>
+     * 
+     * @param filter фильтр для поиска акций в БД
+     * @return список акций из БД, отсортированный по тикеру
      */
     public List<ShareDto> getSharesFromDatabase(ShareFilterDto filter) {
         List<ShareEntity> entities = shareRepo.findAll();
@@ -191,6 +269,9 @@ public class InstrumentService {
 
     /**
      * Получение акции по FIGI из базы данных
+     * 
+     * @param figi уникальный идентификатор инструмента
+     * @return акция, если найдена, иначе null
      */
     public ShareDto getShareByFigi(String figi) {
         return shareRepo.findById(figi)
@@ -208,6 +289,9 @@ public class InstrumentService {
 
     /**
      * Получение акции по тикеру из базы данных
+     * 
+     * @param ticker тикер акции
+     * @return акция, если найдена, иначе null
      */
     public ShareDto getShareByTicker(String ticker) {
         return shareRepo.findByTickerIgnoreCase(ticker)
@@ -223,31 +307,6 @@ public class InstrumentService {
                 .orElse(null);
     }
 
-    /**
-     * Обновление акции в базе данных
-     */
-    public SaveResponseDto updateShare(ShareDto shareDto) {
-        try {
-            ShareEntity existingEntity = shareRepo.findById(shareDto.figi()).orElse(null);
-            if (existingEntity == null) {
-                return new SaveResponseDto(false, "Акция с FIGI " + shareDto.figi() + " не найдена", 0, 0, 0, 0, 0, List.of());
-            }
-            
-            // Обновляем поля
-            existingEntity.setTicker(shareDto.ticker());
-            existingEntity.setName(shareDto.name());
-            existingEntity.setCurrency(shareDto.currency());
-            existingEntity.setExchange(shareDto.exchange());
-            existingEntity.setSector(shareDto.sector());
-            existingEntity.setTradingStatus(shareDto.tradingStatus());
-            
-            shareRepo.save(existingEntity);
-            
-            return new SaveResponseDto(true, "Акция успешно обновлена", 1, 1, 0, 0, 0, List.of(shareDto));
-        } catch (Exception e) {
-            return new SaveResponseDto(false, "Ошибка обновления акции: " + e.getMessage(), 0, 0, 0, 0, 0, List.of());
-        }
-    }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ФЬЮЧЕРСАМИ ===
 
@@ -645,5 +704,29 @@ public class InstrumentService {
             0, // missingFromApi
             savedIndicatives
         );
+    }
+
+    /**
+     * Получение количества инструментов по типам
+     * 
+     * <p>Подсчитывает количество инструментов в локальной БД по типам:
+     * акции, фьючерсы, индикативные инструменты и общее количество.</p>
+     * 
+     * @return карта с количеством инструментов по типам
+     */
+    public Map<String, Long> getInstrumentCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        
+        // Подсчитываем инструменты в базе данных
+        long sharesCount = shareRepo.count();
+        long futuresCount = futureRepo.count();
+        long indicativesCount = indicativeRepo.count();
+        
+        counts.put("shares", sharesCount);
+        counts.put("futures", futuresCount);
+        counts.put("indicatives", indicativesCount);
+        counts.put("total", sharesCount + futuresCount + indicativesCount);
+        
+        return counts;
     }
 }

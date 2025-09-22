@@ -4,6 +4,7 @@ import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
 import com.example.InvestmentDataLoaderService.repository.*;
 import com.example.InvestmentDataLoaderService.service.*;
+import com.example.InvestmentDataLoaderService.util.MinuteCandleMapper;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -89,37 +90,13 @@ public class CandlesInstrumentController {
                 return ResponseEntity.ok(response);
             }
 
-            List<Map<String, Object>> allCandles = new ArrayList<>();
+            List<MinuteCandleExtendedDto> allCandles = new ArrayList<>();
             int totalCandles = 0;
 
             for (var candle : candles) {
-                Map<String, Object> candleData = new HashMap<>();
-                candleData.put("figi", figi);
-                candleData.put("open", candle.open());
-                candleData.put("close", candle.close());
-                candleData.put("high", candle.high());
-                candleData.put("low", candle.low());
-                candleData.put("volume", candle.volume());
-                candleData.put("time", candle.time());
-                candleData.put("isComplete", candle.isComplete());
-
-                // Добавляем расширенную статистику
-                BigDecimal priceChange = candle.close().subtract(candle.open());
-                BigDecimal priceChangePercent = candle.open().compareTo(BigDecimal.ZERO) > 0 
-                    ? priceChange.divide(candle.open(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
-                    : BigDecimal.ZERO;
-
-                candleData.put("priceChange", priceChange);
-                candleData.put("priceChangePercent", priceChangePercent);
-                candleData.put("highLowRange", candle.high().subtract(candle.low()));
-                candleData.put("bodySize", candle.close().subtract(candle.open()).abs());
-                candleData.put("upperShadow", candle.high().subtract(candle.open().max(candle.close())));
-                candleData.put("lowerShadow", candle.open().min(candle.close()).subtract(candle.low()));
-                candleData.put("averagePrice", candle.high().add(candle.low()).add(candle.open()).add(candle.close()).divide(BigDecimal.valueOf(4), 2, RoundingMode.HALF_UP));
-                candleData.put("candleType", candle.close().compareTo(candle.open()) > 0 ? "BULLISH" : 
-                    candle.close().compareTo(candle.open()) < 0 ? "BEARISH" : "DOJI");
-
-                allCandles.add(candleData);
+                // Используем маппер для создания расширенного DTO
+                MinuteCandleExtendedDto extendedCandle = MinuteCandleMapper.toExtendedDto(candle);
+                allCandles.add(extendedCandle);
                 totalCandles++;
             }
 
@@ -134,13 +111,9 @@ public class CandlesInstrumentController {
             if (!allCandles.isEmpty()) {
                 BigDecimal totalVolume = allCandles.stream()
                     .map(candle -> {
-                        Object volume = candle.get("volume");
-                        if (volume instanceof BigDecimal) {
-                            return (BigDecimal) volume;
-                        } else if (volume instanceof Long) {
-                            return BigDecimal.valueOf((Long) volume);
-                        } else if (volume instanceof Integer) {
-                            return BigDecimal.valueOf((Integer) volume);
+                        Long volume = candle.volume();
+                        if (volume != null) {
+                            return BigDecimal.valueOf(volume);
                         } else {
                             return BigDecimal.ZERO;
                         }
@@ -148,7 +121,7 @@ public class CandlesInstrumentController {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal avgPrice = allCandles.stream()
-                    .map(candle -> (BigDecimal) candle.get("averagePrice"))
+                    .map(candle -> candle.averagePrice())
                     .reduce(BigDecimal.ZERO, BigDecimal::add)
                     .divide(BigDecimal.valueOf(allCandles.size()), 2, RoundingMode.HALF_UP);
 
