@@ -14,7 +14,6 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Контроллер для работы с свечами конкретных инструментов
@@ -214,10 +213,10 @@ public class CandlesInstrumentController {
     }
 
     /**
-     * Сохранение минутных свечей конкретного инструмента за дату
+     * Асинхронное сохранение минутных свечей конкретного инструмента за дату
      */
     @PostMapping("/minute/{figi}/{date}")
-    public ResponseEntity<CandleLoadResponseDto> saveInstrumentMinuteCandlesForDate(
+    public ResponseEntity<Map<String, Object>> saveInstrumentMinuteCandlesForDateAsync(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -231,7 +230,7 @@ public class CandlesInstrumentController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало сохранения минутных свечей инструмента " + figi + " за " + date);
+        startLog.setMessage("Начало асинхронного сохранения минутных свечей инструмента " + figi + " за " + date);
         startLog.setStartTime(startTime);
 
         try {
@@ -242,48 +241,35 @@ public class CandlesInstrumentController {
         }
 
         try {
-            System.out.println("=== СОХРАНЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
             System.out.println("FIGI: " + figi);
             System.out.println("Дата: " + date);
+            System.out.println("Task ID: " + taskId);
 
             // Создаем запрос для загрузки минутных свечей
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
             request.setInstruments(List.of(figi));
             request.setAssetType(List.of("INSTRUMENT"));
-            request.setDate(date); // Устанавливаем дату из URL
+            request.setDate(date);
 
-            // Загружаем минутные свечи асинхронно
-            CompletableFuture<SaveResponseDto> future = minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+            // Запускаем асинхронную загрузку
+            minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
-            // Ждем завершения
-            SaveResponseDto result = future.get();
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронное сохранение минутных свечей инструмента " + figi + " за " + date + " запущено");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("figi", figi);
+            response.put("date", date.toString());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Сохранение минутных свечей инструмента " + figi + " завершено успешно за " + date + ": " + result.getMessage());
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto response = new CandleLoadResponseDto();
-            response.setSuccess(result.isSuccess());
-            response.setMessage("Сохранение минутных свечей инструмента " + figi + " за " + date + ": " + result.getMessage());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения минутных свечей инструмента: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронного сохранения минутных свечей инструмента: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -291,22 +277,25 @@ public class CandlesInstrumentController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка сохранения минутных свечей инструмента " + figi + " за " + date + ": " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронного сохранения: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка сохранения минутных свечей инструмента: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронного сохранения: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("figi", figi);
+            errorResponse.put("date", date.toString());
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -470,10 +459,10 @@ public class CandlesInstrumentController {
     }
 
     /**
-     * Сохранение дневных свечей конкретного инструмента за дату
+     * Асинхронное сохранение дневных свечей конкретного инструмента за дату
      */
     @PostMapping("/daily/{figi}/{date}")
-    public ResponseEntity<CandleLoadResponseDto> saveInstrumentDailyCandlesForDate(
+    public ResponseEntity<Map<String, Object>> saveInstrumentDailyCandlesForDateAsync(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -487,7 +476,7 @@ public class CandlesInstrumentController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало сохранения дневных свечей инструмента " + figi + " за " + date);
+        startLog.setMessage("Начало асинхронного сохранения дневных свечей инструмента " + figi + " за " + date);
         startLog.setStartTime(startTime);
 
         try {
@@ -498,48 +487,35 @@ public class CandlesInstrumentController {
         }
 
         try {
-            System.out.println("=== СОХРАНЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
             System.out.println("FIGI: " + figi);
             System.out.println("Дата: " + date);
+            System.out.println("Task ID: " + taskId);
 
             // Создаем запрос для загрузки дневных свечей
             DailyCandleRequestDto request = new DailyCandleRequestDto();
             request.setInstruments(List.of(figi));
             request.setAssetType(List.of("INSTRUMENT"));
-            request.setDate(date); // Устанавливаем дату из URL
+            request.setDate(date);
 
-            // Загружаем дневные свечи асинхронно
-            CompletableFuture<SaveResponseDto> future = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+            // Запускаем асинхронную загрузку
+            dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
-            // Ждем завершения
-            SaveResponseDto result = future.get();
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронное сохранение дневных свечей инструмента " + figi + " за " + date + " запущено");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("figi", figi);
+            response.put("date", date.toString());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Сохранение дневных свечей инструмента " + figi + " завершено успешно за " + date + ": " + result.getMessage());
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto response = new CandleLoadResponseDto();
-            response.setSuccess(result.isSuccess());
-            response.setMessage("Сохранение дневных свечей инструмента " + figi + " за " + date + ": " + result.getMessage());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения дневных свечей инструмента: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронного сохранения дневных свечей инструмента: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -547,22 +523,25 @@ public class CandlesInstrumentController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка сохранения дневных свечей инструмента " + figi + " за " + date + ": " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронного сохранения: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка сохранения дневных свечей инструмента: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронного сохранения: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("figi", figi);
+            errorResponse.put("date", date.toString());
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }

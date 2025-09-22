@@ -223,7 +223,7 @@ public class MinuteCandleService {
         try {
             SystemLogEntity figiLog = new SystemLogEntity();
             figiLog.setTaskId(taskId);
-            figiLog.setEndpoint("/api/data-loading/candles/futures/minute/FIGI_PROCESSING");
+            figiLog.setEndpoint("/api/candles/minute/FIGI_PROCESSING");
             figiLog.setMethod("POST");
             figiLog.setStatus(status);
             figiLog.setMessage(message + 

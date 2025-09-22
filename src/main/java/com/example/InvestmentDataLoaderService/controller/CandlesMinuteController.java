@@ -14,7 +14,6 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Контроллер для работы с минутными свечами
@@ -52,7 +51,7 @@ public class CandlesMinuteController {
      * Загрузка минутных свечей за сегодня
      */
     @PostMapping
-    public ResponseEntity<CandleLoadResponseDto> loadMinuteCandlesToday(@RequestBody MinuteCandleRequestDto request) {
+    public ResponseEntity<Map<String, Object>> loadMinuteCandlesTodayAsync(@RequestBody MinuteCandleRequestDto request) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/minute";
         Instant startTime = Instant.now();
@@ -63,7 +62,7 @@ public class CandlesMinuteController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало загрузки минутных свечей за сегодня");
+        startLog.setMessage("Начало асинхронной загрузки минутных свечей за сегодня");
         startLog.setStartTime(startTime);
 
         try {
@@ -74,43 +73,29 @@ public class CandlesMinuteController {
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА СЕГОДНЯ ===");
+            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА СЕГОДНЯ ===");
             System.out.println("Инструменты: " + request.getInstruments());
             System.out.println("Типы активов: " + request.getAssetType());
+            System.out.println("Task ID: " + taskId);
 
-            // Загружаем минутные свечи асинхронно
-            CompletableFuture<SaveResponseDto> future = minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+            // Запускаем асинхронную загрузку
+            minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
-            // Ждем завершения (в реальном приложении можно вернуть taskId)
-            SaveResponseDto result = future.get();
-            
-            // Конвертируем в CandleLoadResponseDto
-            CandleLoadResponseDto candleResult = new CandleLoadResponseDto();
-            candleResult.setSuccess(result.isSuccess());
-            candleResult.setMessage(result.getMessage());
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронная загрузка минутных свечей за сегодня запущена");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("instruments", request.getInstruments());
+            response.put("assetTypes", request.getAssetType());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Загрузка минутных свечей завершена успешно: " + candleResult.getMessage());
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            return ResponseEntity.ok(candleResult);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки минутных свечей: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронной загрузки минутных свечей: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -118,32 +103,34 @@ public class CandlesMinuteController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка загрузки минутных свечей: " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронной загрузки: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка загрузки минутных свечей: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронной загрузки: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
+
     /**
-     * Загрузка минутных свечей за конкретную дату
+     * Асинхронная загрузка минутных свечей за конкретную дату
      */
     @PostMapping("/{date}")
-    public ResponseEntity<CandleLoadResponseDto> loadMinuteCandlesForDate(
+    public ResponseEntity<Map<String, Object>> loadMinuteCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestBody MinuteCandleRequestDto request
     ) {
@@ -157,7 +144,7 @@ public class CandlesMinuteController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало загрузки минутных свечей за " + date);
+        startLog.setMessage("Начало асинхронной загрузки минутных свечей за " + date);
         startLog.setStartTime(startTime);
 
         try {
@@ -168,44 +155,31 @@ public class CandlesMinuteController {
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА ДАТУ ===");
+            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА ДАТУ ===");
             System.out.println("Дата: " + date);
             System.out.println("Инструменты: " + request.getInstruments());
             System.out.println("Типы активов: " + request.getAssetType());
+            System.out.println("Task ID: " + taskId);
 
-            // Загружаем минутные свечи асинхронно
-            CompletableFuture<SaveResponseDto> future = minuteCandleService.saveMinuteCandlesAsync(request, taskId);
+            // Запускаем асинхронную загрузку
+            minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
-            // Ждем завершения
-            SaveResponseDto result = future.get();
-            
-            // Конвертируем в CandleLoadResponseDto
-            CandleLoadResponseDto candleResult = new CandleLoadResponseDto();
-            candleResult.setSuccess(result.isSuccess());
-            candleResult.setMessage(result.getMessage());
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронная загрузка минутных свечей за " + date + " запущена");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("date", date.toString());
+            response.put("instruments", request.getInstruments());
+            response.put("assetTypes", request.getAssetType());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Загрузка минутных свечей за " + date + " завершена успешно: " + candleResult.getMessage());
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            return ResponseEntity.ok(candleResult);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки минутных свечей за дату: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронной загрузки минутных свечей за дату: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -213,26 +187,28 @@ public class CandlesMinuteController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка загрузки минутных свечей за " + date + ": " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронной загрузки: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка загрузки минутных свечей за дату: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронной загрузки: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
 
     // ==================== АКЦИИ ====================
 
@@ -488,10 +464,10 @@ public class CandlesMinuteController {
     }
 
     /**
-     * Загрузка минутных свечей акций за дату
+     * Асинхронная загрузка минутных свечей акций за дату
      */
     @PostMapping("/shares/{date}")
-    public ResponseEntity<CandleLoadResponseDto> loadSharesMinuteCandlesForDate(
+    public ResponseEntity<Map<String, Object>> loadSharesMinuteCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         String taskId = UUID.randomUUID().toString();
@@ -504,7 +480,7 @@ public class CandlesMinuteController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало загрузки минутных свечей акций за " + date);
+        startLog.setMessage("Начало асинхронной загрузки минутных свечей акций за " + date);
         startLog.setStartTime(startTime);
 
         try {
@@ -515,94 +491,38 @@ public class CandlesMinuteController {
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ЗА ДАТУ ===");
+            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ЗА ДАТУ ===");
             System.out.println("Дата: " + date);
+            System.out.println("Task ID: " + taskId);
 
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
             System.out.println("Найдено акций: " + shares.size());
 
-            int totalProcessed = 0;
-            int totalNew = 0;
-            int totalExisting = 0;
-            int totalInvalid = 0;
-            int totalMissing = 0;
+            // Создаем запрос для загрузки всех минутных свечей акций
+            MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+            request.setInstruments(shares.stream().map(ShareEntity::getFigi).toList());
+            request.setAssetType(List.of("SHARES"));
+            request.setDate(date);
 
-            for (ShareEntity share : shares) {
-                try {
-                    System.out.println("Загружаем свечи для акции: " + share.getTicker() + " (" + share.getFigi() + ")");
+            // Запускаем асинхронную загрузку
+            minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
-                    // Создаем запрос для загрузки минутных свечей
-                    MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-                    request.setInstruments(List.of(share.getFigi()));
-                    request.setAssetType(List.of("SHARES"));
-                    request.setDate(date); // Устанавливаем дату из URL
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронная загрузка минутных свечей акций запущена");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("date", date.toString());
+            response.put("instrumentsCount", shares.size());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-                    // Загружаем минутные свечи асинхронно
-                    CompletableFuture<SaveResponseDto> future = minuteCandleService.saveMinuteCandlesAsync(request, taskId);
-
-                    // Ждем завершения
-                    SaveResponseDto result = future.get();
-                    totalProcessed++;
-
-                    if (result.isSuccess()) {
-                        // Используем поля из SaveResponseDto напрямую
-                        totalNew += result.getNewItemsSaved();
-                        totalExisting += result.getExistingItemsSkipped();
-                        totalInvalid += result.getInvalidItemsFiltered();
-                        totalMissing += result.getMissingFromApi();
-                        
-                        System.out.println("Статистика для " + share.getTicker() + ": новых=" + result.getNewItemsSaved() + 
-                            ", существующих=" + result.getExistingItemsSkipped() + 
-                            ", невалидных=" + result.getInvalidItemsFiltered() + 
-                            ", отсутствующих=" + result.getMissingFromApi());
-                    }
-
-                } catch (Exception e) {
-                    System.err.println("Ошибка загрузки свечей для акции " + share.getTicker() + ": " + e.getMessage());
-                }
-            }
-
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Загрузка минутных свечей акций завершена успешно за " + date + 
-                ": Всего инструментов=" + shares.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto response = new CandleLoadResponseDto();
-            response.setSuccess(true);
-            response.setMessage("Загружено минутных свечей акций за " + date + 
-                ": Всего инструментов=" + shares.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            response.setTaskId(taskId);
-            response.setStartTime(startTime.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки минутных свечей акций: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронной загрузки минутных свечей акций: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -610,34 +530,36 @@ public class CandlesMinuteController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка загрузки минутных свечей акций за " + date + ": " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронной загрузки: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка загрузки минутных свечей акций: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронной загрузки: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
+
     // ==================== ФЬЮЧЕРСЫ ====================
 
     /**
-     * Загрузка минутных свечей фьючерсов за дату
+     * Асинхронная загрузка минутных свечей фьючерсов за дату
      */
     @PostMapping("/futures/{date}")
-    public ResponseEntity<CandleLoadResponseDto> loadFuturesMinuteCandlesForDate(
+    public ResponseEntity<Map<String, Object>> loadFuturesMinuteCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         String taskId = UUID.randomUUID().toString();
@@ -650,7 +572,7 @@ public class CandlesMinuteController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало загрузки минутных свечей фьючерсов за " + date);
+        startLog.setMessage("Начало асинхронной загрузки минутных свечей фьючерсов за " + date);
         startLog.setStartTime(startTime);
 
         try {
@@ -661,94 +583,38 @@ public class CandlesMinuteController {
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ЗА ДАТУ ===");
+            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ЗА ДАТУ ===");
             System.out.println("Дата: " + date);
+            System.out.println("Task ID: " + taskId);
 
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
             System.out.println("Найдено фьючерсов: " + futures.size());
 
-            int totalProcessed = 0;
-            int totalNew = 0;
-            int totalExisting = 0;
-            int totalInvalid = 0;
-            int totalMissing = 0;
+            // Создаем запрос для загрузки всех минутных свечей фьючерсов
+            MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+            request.setInstruments(futures.stream().map(FutureEntity::getFigi).toList());
+            request.setAssetType(List.of("FUTURES"));
+            request.setDate(date);
 
-            for (FutureEntity future : futures) {
-                try {
-                    System.out.println("Загружаем свечи для фьючерса: " + future.getTicker() + " (" + future.getFigi() + ")");
+            // Запускаем асинхронную загрузку
+            minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
-                    // Создаем запрос для загрузки минутных свечей
-                    MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-                    request.setInstruments(List.of(future.getFigi()));
-                    request.setAssetType(List.of("FUTURES"));
-                    request.setDate(date); // Устанавливаем дату из URL
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронная загрузка минутных свечей фьючерсов за " + date + " запущена");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("date", date.toString());
+            response.put("instrumentsCount", futures.size());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-                    // Загружаем минутные свечи асинхронно
-                    CompletableFuture<SaveResponseDto> futureResult = minuteCandleService.saveMinuteCandlesAsync(request, taskId);
-
-                    // Ждем завершения
-                    SaveResponseDto result = futureResult.get();
-                    totalProcessed++;
-
-                    if (result.isSuccess()) {
-                        // Используем поля из SaveResponseDto напрямую
-                        totalNew += result.getNewItemsSaved();
-                        totalExisting += result.getExistingItemsSkipped();
-                        totalInvalid += result.getInvalidItemsFiltered();
-                        totalMissing += result.getMissingFromApi();
-                        
-                        System.out.println("Статистика для " + future.getTicker() + ": новых=" + result.getNewItemsSaved() + 
-                            ", существующих=" + result.getExistingItemsSkipped() + 
-                            ", невалидных=" + result.getInvalidItemsFiltered() + 
-                            ", отсутствующих=" + result.getMissingFromApi());
-                    }
-
-                } catch (Exception e) {
-                    System.err.println("Ошибка загрузки свечей для фьючерса " + future.getTicker() + ": " + e.getMessage());
-                }
-            }
-
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Загрузка минутных свечей фьючерсов завершена успешно за " + date + 
-                ": Всего инструментов=" + futures.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto response = new CandleLoadResponseDto();
-            response.setSuccess(true);
-            response.setMessage("Загружено минутных свечей фьючерсов за " + date + 
-                ": Всего инструментов=" + futures.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            response.setTaskId(taskId);
-            response.setStartTime(startTime.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки минутных свечей фьючерсов: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронной загрузки минутных свечей фьючерсов: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -756,22 +622,23 @@ public class CandlesMinuteController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка загрузки минутных свечей фьючерсов за " + date + ": " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронной загрузки: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка загрузки минутных свечей фьючерсов: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронной загрузки: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -961,10 +828,10 @@ public class CandlesMinuteController {
     // ==================== ИНДИКАТИВЫ ====================
 
     /**
-     * Загрузка минутных свечей индикативов за дату
+     * Асинхронная загрузка минутных свечей индикативов за дату
      */
     @PostMapping("/indicatives/{date}")
-    public ResponseEntity<CandleLoadResponseDto> loadIndicativesMinuteCandlesForDate(
+    public ResponseEntity<Map<String, Object>> loadIndicativesMinuteCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         String taskId = UUID.randomUUID().toString();
@@ -977,7 +844,7 @@ public class CandlesMinuteController {
         startLog.setEndpoint(endpoint);
         startLog.setMethod("POST");
         startLog.setStatus("STARTED");
-        startLog.setMessage("Начало загрузки минутных свечей индикативов за " + date);
+        startLog.setMessage("Начало асинхронной загрузки минутных свечей индикативов за " + date);
         startLog.setStartTime(startTime);
 
         try {
@@ -988,94 +855,38 @@ public class CandlesMinuteController {
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ЗА ДАТУ ===");
+            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ЗА ДАТУ ===");
             System.out.println("Дата: " + date);
+            System.out.println("Task ID: " + taskId);
 
             // Получаем все индикативы из БД
             List<IndicativeEntity> indicatives = indicativeRepository.findAll();
             System.out.println("Найдено индикативов: " + indicatives.size());
 
-            int totalProcessed = 0;
-            int totalNew = 0;
-            int totalExisting = 0;
-            int totalInvalid = 0;
-            int totalMissing = 0;
+            // Создаем запрос для загрузки всех минутных свечей индикативов
+            MinuteCandleRequestDto request = new MinuteCandleRequestDto();
+            request.setInstruments(indicatives.stream().map(IndicativeEntity::getFigi).toList());
+            request.setAssetType(List.of("INDICATIVES"));
+            request.setDate(date);
 
-            for (IndicativeEntity indicative : indicatives) {
-                try {
-                    System.out.println("Загружаем свечи для индикатива: " + indicative.getTicker() + " (" + indicative.getFigi() + ")");
+            // Запускаем асинхронную загрузку
+            minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
-                    // Создаем запрос для загрузки минутных свечей
-                    MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-                    request.setInstruments(List.of(indicative.getFigi()));
-                    request.setAssetType(List.of("INDICATIVES"));
-                    request.setDate(date); // Устанавливаем дату из URL
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронная загрузка минутных свечей индикативов за " + date + " запущена");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("date", date.toString());
+            response.put("instrumentsCount", indicatives.size());
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-                    // Загружаем минутные свечи асинхронно
-                    CompletableFuture<SaveResponseDto> futureResult = minuteCandleService.saveMinuteCandlesAsync(request, taskId);
-
-                    // Ждем завершения
-                    SaveResponseDto result = futureResult.get();
-                    totalProcessed++;
-
-                    if (result.isSuccess()) {
-                        // Используем поля из SaveResponseDto напрямую
-                        totalNew += result.getNewItemsSaved();
-                        totalExisting += result.getExistingItemsSkipped();
-                        totalInvalid += result.getInvalidItemsFiltered();
-                        totalMissing += result.getMissingFromApi();
-                        
-                        System.out.println("Статистика для " + indicative.getTicker() + ": новых=" + result.getNewItemsSaved() + 
-                            ", существующих=" + result.getExistingItemsSkipped() + 
-                            ", невалидных=" + result.getInvalidItemsFiltered() + 
-                            ", отсутствующих=" + result.getMissingFromApi());
-                    }
-
-                } catch (Exception e) {
-                    System.err.println("Ошибка загрузки свечей для индикатива " + indicative.getTicker() + ": " + e.getMessage());
-                }
-            }
-
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Загрузка минутных свечей индикативов завершена успешно за " + date + 
-                ": Всего инструментов=" + indicatives.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto response = new CandleLoadResponseDto();
-            response.setSuccess(true);
-            response.setMessage("Загружено минутных свечей индикативов за " + date + 
-                ": Всего инструментов=" + indicatives.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            response.setTaskId(taskId);
-            response.setStartTime(startTime.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки минутных свечей индикативов: " + e.getMessage());
+            System.err.println("Ошибка запуска асинхронной загрузки минутных свечей индикативов: " + e.getMessage());
             e.printStackTrace();
 
             // Логируем ошибку
@@ -1083,22 +894,23 @@ public class CandlesMinuteController {
             errorLog.setTaskId(taskId);
             errorLog.setEndpoint(endpoint);
             errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка загрузки минутных свечей индикативов за " + date + ": " + e.getMessage());
+            errorLog.setStatus("ERROR");
+            errorLog.setMessage("Ошибка запуска асинхронной загрузки: " + e.getMessage());
             errorLog.setStartTime(startTime);
             errorLog.setEndTime(Instant.now());
             errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
             } catch (Exception logException) {
                 System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
             }
 
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка загрузки минутных свечей индикативов: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Ошибка запуска асинхронной загрузки: " + e.getMessage());
+            errorResponse.put("taskId", taskId);
+            errorResponse.put("status", "ERROR");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
