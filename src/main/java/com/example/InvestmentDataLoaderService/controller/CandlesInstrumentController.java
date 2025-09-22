@@ -225,13 +225,13 @@ public class CandlesInstrumentController {
             request.setAssetType(List.of("INSTRUMENT"));
             request.setDate(date);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем параллельную загрузку
             minuteCandleService.saveMinuteCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронное сохранение минутных свечей инструмента " + figi + " за " + date + " запущено");
+            response.put("message", "Сохранение минутных свечей инструмента " + figi + " за " + date + " запущено");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("figi", figi);
@@ -471,13 +471,13 @@ public class CandlesInstrumentController {
             request.setAssetType(List.of("INSTRUMENT"));
             request.setDate(date);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем загрузку
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронное сохранение дневных свечей инструмента " + figi + " за " + date + " запущено");
+            response.put("message", "Сохранение дневных свечей инструмента " + figi + " за " + date + " запущено");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("figi", figi);

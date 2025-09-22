@@ -79,13 +79,13 @@ public class CandlesDailyController {
             System.out.println("Типы активов: " + request.getAssetType());
             System.out.println("Task ID: " + taskId);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем загрузку
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронная загрузка дневных свечей за сегодня запущена");
+            response.put("message", "Загрузка дневных свечей за сегодня запущена");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("instruments", request.getInstruments());
@@ -161,13 +161,13 @@ public class CandlesDailyController {
             System.out.println("Типы активов: " + request.getAssetType());
             System.out.println("Task ID: " + taskId);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем загрузку
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронная загрузка дневных свечей за " + date + " запущена");
+            response.put("message", "Загрузка дневных свечей за " + date + " запущена");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("date", date.toString());
@@ -486,13 +486,13 @@ public class CandlesDailyController {
             request.setAssetType(List.of("SHARES"));
             request.setDate(date);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем загрузку
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронная загрузка дневных свечей акций запущена");
+            response.put("message", "Загрузка дневных свечей акций запущена");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("date", date.toString());
@@ -721,13 +721,13 @@ public class CandlesDailyController {
             request.setAssetType(List.of("FUTURES"));
             request.setDate(date);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем загрузку
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронная загрузка дневных свечей фьючерсов за " + date + " запущена");
+            response.put("message", "Загрузка дневных свечей фьючерсов за " + date + " запущена");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("date", date.toString());
@@ -975,13 +975,13 @@ public class CandlesDailyController {
             request.setAssetType(List.of("INDICATIVES"));
             request.setDate(date);
 
-            // Запускаем асинхронную загрузку
+            // Запускаем загрузку
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
 
             // НЕ ждем завершения - возвращаем taskId сразу
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Асинхронная загрузка дневных свечей индикативов за " + date + " запущена");
+            response.put("message", "Загрузка дневных свечей индикативов за " + date + " запущена");
             response.put("taskId", taskId);
             response.put("endpoint", endpoint);
             response.put("date", date.toString());
