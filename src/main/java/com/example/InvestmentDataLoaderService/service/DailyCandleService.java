@@ -121,9 +121,14 @@ public class DailyCandleService {
                 System.out.println("Отфильтровано неверных: " + invalidItemsFiltered);
                 System.out.println("Отсутствует в API: " + missingFromApi);
 
+                String message = String.format(
+                    "Загрузка дневных свечей завершена: запрошено=%d, новых=%d, существующих=%d, невалидных=%d, отсутствующих=%d",
+                    totalRequested, newItemsSaved, existingItemsSkipped, invalidItemsFiltered, missingFromApi
+                );
+                
                 return new SaveResponseDto(
                     true,
-                    "Загрузка дневных свечей завершена успешно",
+                    message,
                     totalRequested,
                     newItemsSaved,
                     existingItemsSkipped,

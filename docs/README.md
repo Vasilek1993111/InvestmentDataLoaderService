@@ -42,7 +42,12 @@ curl http://localhost:8083/api/system/health
 - База данных: `docs/database.md`
 - API:
   - Инструменты: `docs/api/instruments.md`
-  - Загрузка данных: `docs/api/data-loading.md`
+  - Цены основной сессии: `docs/api/main-session-prices.md`
+  - Утренняя сессия: `docs/api/morning-session.md`
+  - Последние сделки: `docs/api/last-trades.md`
+  - Статус загрузки: `docs/api/status.md`
+  - Свечи: `docs/api/candles.md`
+  - Цены вечерней сессии: `docs/api/evening-session.md`
   - Аналитика и агрегация: `docs/api/analytics.md`
   - Торговые данные: `docs/api/trading.md`
   - Системные эндпоинты: `docs/api/system.md`

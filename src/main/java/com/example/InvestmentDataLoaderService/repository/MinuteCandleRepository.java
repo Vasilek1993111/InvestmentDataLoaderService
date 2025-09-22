@@ -86,4 +86,10 @@ public interface MinuteCandleRepository extends JpaRepository<MinuteCandleEntity
     List<Object[]> getAggregatedDataByFigiAndDateRange(@Param("figi") String figi,
                                                       @Param("startDate") Instant startDate,
                                                       @Param("endDate") Instant endDate);
+    
+    /**
+     * Находит последнюю минутную свечу для конкретного инструмента за день
+     */
+    @Query("SELECT c FROM MinuteCandleEntity c WHERE c.figi = :figi AND DATE(c.time) = :date ORDER BY c.time DESC LIMIT 1")
+    MinuteCandleEntity findLastCandleForDate(@Param("figi") String figi, @Param("date") LocalDate date);
 }

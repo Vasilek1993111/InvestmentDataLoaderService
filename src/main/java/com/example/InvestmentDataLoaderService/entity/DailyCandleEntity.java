@@ -42,6 +42,31 @@ public class DailyCandleEntity {
     
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+    
+    // Расширенная статистика
+    @Column(name = "price_change", precision = 18, scale = 9)
+    private BigDecimal priceChange;
+    
+    @Column(name = "price_change_percent", precision = 18, scale = 9)
+    private BigDecimal priceChangePercent;
+    
+    @Column(name = "candle_type", length = 20)
+    private String candleType;
+    
+    @Column(name = "body_size", precision = 18, scale = 9)
+    private BigDecimal bodySize;
+    
+    @Column(name = "upper_shadow", precision = 18, scale = 9)
+    private BigDecimal upperShadow;
+    
+    @Column(name = "lower_shadow", precision = 18, scale = 9)
+    private BigDecimal lowerShadow;
+    
+    @Column(name = "high_low_range", precision = 18, scale = 9)
+    private BigDecimal highLowRange;
+    
+    @Column(name = "average_price", precision = 18, scale = 9)
+    private BigDecimal averagePrice;
 
     public DailyCandleEntity() {
         this.createdAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow")).toInstant();
@@ -79,6 +104,55 @@ public class DailyCandleEntity {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow")).toInstant();
+        calculateExtendedStatistics();
+    }
+    
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow")).toInstant();
+        this.updatedAt = ZonedDateTime.now(ZoneId.of("Europe/Moscow")).toInstant();
+        calculateExtendedStatistics();
+    }
+    
+    /**
+     * Вычисляет расширенную статистику для свечи
+     */
+    public void calculateExtendedStatistics() {
+        if (open != null && close != null && high != null && low != null) {
+            // Изменение цены
+            this.priceChange = close.subtract(open);
+            
+            // Процентное изменение
+            if (open.compareTo(BigDecimal.ZERO) > 0) {
+                this.priceChangePercent = priceChange.divide(open, 4, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+            } else {
+                this.priceChangePercent = BigDecimal.ZERO;
+            }
+            
+            // Тип свечи
+            if (close.compareTo(open) > 0) {
+                this.candleType = "BULLISH";
+            } else if (close.compareTo(open) < 0) {
+                this.candleType = "BEARISH";
+            } else {
+                this.candleType = "DOJI";
+            }
+            
+            // Размер тела свечи
+            this.bodySize = priceChange.abs();
+            
+            // Тени
+            this.upperShadow = high.subtract(close.max(open));
+            this.lowerShadow = open.min(close).subtract(low);
+            
+            // Диапазон
+            this.highLowRange = high.subtract(low);
+            
+            // Средняя цена
+            this.averagePrice = high.add(low).add(close)
+                .divide(BigDecimal.valueOf(3), 2, java.math.RoundingMode.HALF_UP);
+        }
     }
 
     // Getters and Setters
@@ -111,4 +185,29 @@ public class DailyCandleEntity {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    
+    // Getters and Setters for extended statistics
+    public BigDecimal getPriceChange() { return priceChange; }
+    public void setPriceChange(BigDecimal priceChange) { this.priceChange = priceChange; }
+    
+    public BigDecimal getPriceChangePercent() { return priceChangePercent; }
+    public void setPriceChangePercent(BigDecimal priceChangePercent) { this.priceChangePercent = priceChangePercent; }
+    
+    public String getCandleType() { return candleType; }
+    public void setCandleType(String candleType) { this.candleType = candleType; }
+    
+    public BigDecimal getBodySize() { return bodySize; }
+    public void setBodySize(BigDecimal bodySize) { this.bodySize = bodySize; }
+    
+    public BigDecimal getUpperShadow() { return upperShadow; }
+    public void setUpperShadow(BigDecimal upperShadow) { this.upperShadow = upperShadow; }
+    
+    public BigDecimal getLowerShadow() { return lowerShadow; }
+    public void setLowerShadow(BigDecimal lowerShadow) { this.lowerShadow = lowerShadow; }
+    
+    public BigDecimal getHighLowRange() { return highLowRange; }
+    public void setHighLowRange(BigDecimal highLowRange) { this.highLowRange = highLowRange; }
+    
+    public BigDecimal getAveragePrice() { return averagePrice; }
+    public void setAveragePrice(BigDecimal averagePrice) { this.averagePrice = averagePrice; }
 }

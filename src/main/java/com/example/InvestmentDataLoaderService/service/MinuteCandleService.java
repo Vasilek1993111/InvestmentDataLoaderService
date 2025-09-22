@@ -3,14 +3,17 @@ package com.example.InvestmentDataLoaderService.service;
 import com.example.InvestmentDataLoaderService.dto.MinuteCandleRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.entity.MinuteCandleEntity;
+import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
+import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,17 +29,20 @@ public class MinuteCandleService {
     private final FutureRepository futureRepository;
     private final IndicativeRepository indicativeRepository;
     private final MarketDataService marketDataService;
+    private final SystemLogRepository systemLogRepository;
 
     public MinuteCandleService(MinuteCandleRepository minuteCandleRepository,
                               ShareRepository shareRepository,
                               FutureRepository futureRepository,
                               IndicativeRepository indicativeRepository,
-                              MarketDataService marketDataService) {
+                              MarketDataService marketDataService,
+                              SystemLogRepository systemLogRepository) {
         this.minuteCandleRepository = minuteCandleRepository;
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.indicativeRepository = indicativeRepository;
         this.marketDataService = marketDataService;
+        this.systemLogRepository = systemLogRepository;
     }
 
     /**
@@ -74,6 +80,11 @@ public class MinuteCandleService {
                 List<String> savedItems = new ArrayList<>();
 
                 for (String figi : instrumentIds) {
+                    int figiNewItems = 0;
+                    int figiExistingItems = 0;
+                    int figiInvalidItems = 0;
+                    Instant figiStartTime = Instant.now();
+                    
                     try {
                         System.out.println("Обрабатываем инструмент: " + figi);
                         
@@ -83,6 +94,10 @@ public class MinuteCandleService {
                         if (candles == null || candles.isEmpty()) {
                             System.out.println("Нет данных для инструмента: " + figi);
                             missingFromApi++;
+                            
+                            // Логируем отсутствие данных для FIGI
+                            logFigiProcessing(taskId, figi, "NO_DATA", "Нет данных в API для инструмента " + figi, 
+                                figiStartTime, 0, 0, 0, 0);
                             continue;
                         }
 
@@ -97,20 +112,33 @@ public class MinuteCandleService {
                                 // Проверяем, существует ли уже такая свеча
                                 if (!minuteCandleRepository.existsByFigiAndTime(figi, entity.getTime())) {
                                     minuteCandleRepository.save(entity);
+                                    figiNewItems++;
                                     newItemsSaved++;
                                     savedItems.add(figi + ":" + entity.getTime());
                                 } else {
+                                    figiExistingItems++;
                                     existingItemsSkipped++;
                                 }
                             } catch (Exception e) {
                                 System.err.println("Ошибка сохранения свечи для " + figi + ": " + e.getMessage());
+                                figiInvalidItems++;
                                 invalidItemsFiltered++;
                             }
                         }
 
+                        // Логируем успешную обработку FIGI
+                        logFigiProcessing(taskId, figi, "SUCCESS", 
+                            "Успешно обработан инструмент " + figi + ". Получено " + candles.size() + " свечей", 
+                            figiStartTime, candles.size(), figiNewItems, figiExistingItems, figiInvalidItems);
+
                     } catch (Exception e) {
                         System.err.println("Ошибка обработки инструмента " + figi + ": " + e.getMessage());
                         invalidItemsFiltered++;
+                        
+                        // Логируем ошибку обработки FIGI
+                        logFigiProcessing(taskId, figi, "ERROR", 
+                            "Ошибка обработки инструмента " + figi + ": " + e.getMessage(), 
+                            figiStartTime, 0, 0, 0, 0);
                     }
                 }
 
@@ -185,5 +213,35 @@ public class MinuteCandleService {
             candle.open(),
             candle.isComplete()
         );
+    }
+
+    /**
+     * Логирует обработку конкретного FIGI в system_logs
+     */
+    private void logFigiProcessing(String taskId, String figi, String status, String message, 
+                                 Instant startTime, int totalCandles, int newItems, int existingItems, int invalidItems) {
+        try {
+            SystemLogEntity figiLog = new SystemLogEntity();
+            figiLog.setTaskId(taskId);
+            figiLog.setEndpoint("/api/data-loading/candles/futures/minute/FIGI_PROCESSING");
+            figiLog.setMethod("POST");
+            figiLog.setStatus(status);
+            figiLog.setMessage(message + 
+                (totalCandles > 0 ? " | Всего свечей: " + totalCandles : "") +
+                (newItems > 0 ? " | Новых: " + newItems : "") +
+                (existingItems > 0 ? " | Существующих: " + existingItems : "") +
+                (invalidItems > 0 ? " | Неверных: " + invalidItems : "") +
+                " | FIGI: " + figi);
+            figiLog.setStartTime(startTime);
+            figiLog.setEndTime(Instant.now());
+            figiLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
+            
+            systemLogRepository.save(figiLog);
+            System.out.println("Лог обработки FIGI сохранен: " + figi + " (" + status + ")");
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка сохранения лога обработки FIGI " + figi + ": " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
