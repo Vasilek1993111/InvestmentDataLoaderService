@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-public class EveningSessionService {
+public class EveningSessionSchedulerService {
 
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
@@ -33,7 +33,7 @@ public class EveningSessionService {
     private final CandleRepository candleRepository;
     private final ClosePriceEveningSessionRepository closePriceEveningSessionRepository;
 
-    public EveningSessionService(ShareRepository shareRepository, 
+    public EveningSessionSchedulerService(ShareRepository shareRepository, 
                                FutureRepository futureRepository,
                                IndicativeRepository indicativeRepository,
                                CandleRepository candleRepository,
