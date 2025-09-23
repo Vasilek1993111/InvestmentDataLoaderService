@@ -1,12 +1,12 @@
-# Загрузка минутных свечей
+# API минутных свечей
 
 ## Обзор
 
-Система использует оптимизированную загрузку минутных свечей в базу данных с параллельной обработкой. Это значительно повышает производительность при обработке большого количества инструментов.
+Система предоставляет REST API для работы с минутными свечами, включая загрузку в базу данных с параллельной обработкой и получение данных без сохранения. Все POST методы используют оптимизированную параллельную обработку для максимальной производительности.
 
-## Новые эндпоинты
+## Эндпоинты
 
-### Общие методы
+### POST методы (загрузка в БД с параллельной обработкой)
 
 #### POST /api/candles/minute
 Загрузка минутных свечей за сегодня
@@ -15,7 +15,8 @@
 ```json
 {
   "instruments": ["BBG004730N88", "BBG004730ZJ9"],
-  "assetType": ["SHARES", "FUTURES"]
+  "assetType": ["SHARES", "FUTURES"],
+  "date": "2024-01-01"
 }
 ```
 
@@ -29,7 +30,7 @@
   "instruments": ["BBG004730N88", "BBG004730ZJ9"],
   "assetTypes": ["SHARES", "FUTURES"],
   "status": "STARTED",
-  "startTime": "2024-01-01T10:00:00Z",
+  "startTime": "2024-01-01T10:00:00Z"
 }
 ```
 
@@ -41,16 +42,83 @@
 
 **Запрос и ответ:** аналогично предыдущему методу
 
-### Методы по типам активов
-
 #### POST /api/candles/minute/shares/{date}
 Загрузка минутных свечей всех акций за дату
+
+**Параметры:**
+- `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "message": "Загрузка минутных свечей акций запущена",
+  "taskId": "uuid-task-id",
+  "endpoint": "/api/candles/minute/shares/2024-01-01",
+  "date": "2024-01-01",
+  "instrumentsCount": 150,
+  "status": "STARTED",
+  "startTime": "2024-01-01T10:00:00Z"
+}
+```
 
 #### POST /api/candles/minute/futures/{date}
 Загрузка минутных свечей всех фьючерсов за дату
 
 #### POST /api/candles/minute/indicatives/{date}
-Загрузка минутных свечей всех индикативов за дату
+Загрузка минутных свечей всех индикативных инструментов за дату
+
+### GET методы (получение данных без сохранения)
+
+#### GET /api/candles/minute/shares/{date}
+Получение минутных свечей всех акций за дату
+
+**Параметры:**
+- `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "date": "2024-01-01",
+  "assetType": "SHARES",
+  "candles": [
+    {
+      "figi": "BBG004730N88",
+      "ticker": "SBER",
+      "name": "Сбербанк",
+      "open": 250.50,
+      "close": 251.20,
+      "high": 251.50,
+      "low": 250.30,
+      "volume": 1000,
+      "time": "2024-01-01T09:00:00Z",
+      "isComplete": true,
+      "priceChange": 0.70,
+      "priceChangePercent": 0.28,
+      "candleType": "BULLISH",
+      "bodySize": 0.70,
+      "upperShadow": 0.30,
+      "lowerShadow": 0.20,
+      "highLowRange": 1.20,
+      "averagePrice": 250.88
+    }
+  ],
+  "totalCandles": 58500,
+  "totalInstruments": 150,
+  "processedInstruments": 150,
+  "successfulInstruments": 145,
+  "noDataInstruments": 3,
+  "errorInstruments": 2,
+  "totalVolume": 58500000,
+  "averagePrice": 250.75
+}
+```
+
+#### GET /api/candles/minute/futures/{date}
+Получение минутных свечей всех фьючерсов за дату
+
+#### GET /api/candles/minute/indicatives/{date}
+Получение минутных свечей всех индикативных инструментов за дату
 
 ## Архитектура обработки
 
@@ -96,18 +164,43 @@
 - Время выполнения операций
 - Ошибки и исключения
 
-### Обратная совместимость
+### Примеры использования
 
-Старые эндпоинты остаются доступными:
-- `/api/candles/minute` - обычная загрузка
-- `/api/candles/minute/{date}` - обычная загрузка за дату
-- `/api/candles/minute/shares/{date}` - обычная загрузка акций
-- `/api/candles/minute/futures/{date}` - обычная загрузка фьючерсов
-- `/api/candles/minute/indicatives/{date}` - обычная загрузка индикативов
+```bash
+# Загрузка минутных свечей за сегодня
+curl -X POST http://localhost:8080/api/candles/minute \
+  -H "Content-Type: application/json" \
+  -d '{"assetType": ["SHARES", "FUTURES"]}'
 
-## Рекомендации по использованию
+# Загрузка минутных свечей акций за конкретную дату
+curl -X POST http://localhost:8080/api/candles/minute/shares/2024-01-01
 
-1. **Для больших объемов данных** используйте параллельные методы (`/parallel/`)
-2. **Для небольших наборов инструментов** можно использовать обычные методы
-3. **Мониторинг производительности** через логи системы
-4. **Настройка пулов потоков** в зависимости от нагрузки сервера
+# Получение минутных свечей акций за дату
+curl -X GET http://localhost:8080/api/candles/minute/shares/2024-01-01
+
+# Загрузка минутных свечей фьючерсов
+curl -X POST http://localhost:8080/api/candles/minute/futures/2024-01-01
+
+# Загрузка минутных свечей индикативов
+curl -X POST http://localhost:8080/api/candles/minute/indicatives/2024-01-01
+```
+
+### Коды ответов
+
+- **200 OK** - Успешное получение данных (GET методы)
+- **202 Accepted** - Загрузка запущена (POST методы)
+- **400 Bad Request** - Неверные параметры запроса
+- **500 Internal Server Error** - Внутренняя ошибка сервера
+
+### Обработка ошибок
+
+Все ошибки логируются и возвращаются в стандартном формате:
+
+```json
+{
+  "success": false,
+  "message": "Ошибка запуска загрузки: [описание ошибки]",
+  "taskId": "uuid-task-id",
+  "status": "ERROR"
+}
+```

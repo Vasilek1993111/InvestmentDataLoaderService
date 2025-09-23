@@ -1,12 +1,12 @@
-# Загрузка дневных свечей
+# API дневных свечей
 
 ## Обзор
 
-Система использует оптимизированную загрузку дневных свечей в базу данных с параллельной обработкой. Это значительно повышает производительность при обработке большого количества инструментов.
+Система предоставляет REST API для работы с дневными свечами, включая загрузку в базу данных с параллельной обработкой и получение данных без сохранения. Все POST методы используют оптимизированную параллельную обработку для максимальной производительности.
 
 ## Эндпоинты
 
-### Общие методы
+### POST методы (загрузка в БД с параллельной обработкой)
 
 #### POST /api/candles/daily
 Загрузка дневных свечей за сегодня
@@ -42,10 +42,25 @@
 
 **Запрос и ответ:** аналогично предыдущему методу
 
-### Методы по типам активов
-
 #### POST /api/candles/daily/shares/{date}
 Загрузка дневных свечей всех акций за дату
+
+**Параметры:**
+- `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "message": "Загрузка дневных свечей акций запущена",
+  "taskId": "uuid-task-id",
+  "endpoint": "/api/candles/daily/shares/2024-01-01",
+  "date": "2024-01-01",
+  "instrumentsCount": 150,
+  "status": "STARTED",
+  "startTime": "2024-01-01T10:00:00Z"
+}
+```
 
 #### POST /api/candles/daily/futures/{date}
 Загрузка дневных свечей всех фьючерсов за дату
@@ -53,14 +68,136 @@
 #### POST /api/candles/daily/indicatives/{date}
 Загрузка дневных свечей всех индикативов за дату
 
-### Методы для конкретных инструментов
-
 #### POST /api/candles/instrument/daily/{figi}/{date}
 Загрузка дневных свечей конкретного инструмента за дату
 
 **Параметры:**
 - `figi` - идентификатор инструмента
 - `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "message": "Сохранение дневных свечей инструмента BBG004730N88 за 2024-01-01 запущено",
+  "taskId": "uuid-task-id",
+  "endpoint": "/api/candles/instrument/daily/BBG004730N88/2024-01-01",
+  "figi": "BBG004730N88",
+  "date": "2024-01-01",
+  "status": "STARTED",
+  "startTime": "2024-01-01T10:00:00Z"
+}
+```
+
+### GET методы (получение данных без сохранения)
+
+#### GET /api/candles/daily/shares/{date}
+Получение дневных свечей всех акций за дату
+
+**Параметры:**
+- `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "date": "2024-01-01",
+  "assetType": "SHARES",
+  "candles": [
+    {
+      "figi": "BBG004730N88",
+      "ticker": "SBER",
+      "name": "Сбербанк",
+      "time": "2024-01-01T00:00:00Z",
+      "open": 250.50,
+      "close": 255.30,
+      "high": 256.00,
+      "low": 249.80,
+      "volume": 1000000,
+      "isComplete": true,
+      "priceChange": 4.80,
+      "priceChangePercent": 1.92,
+      "candleType": "BULLISH",
+      "bodySize": 4.80,
+      "upperShadow": 0.70,
+      "lowerShadow": 0.70,
+      "highLowRange": 6.20,
+      "averagePrice": 252.90
+    }
+  ],
+  "totalCandles": 150,
+  "totalInstruments": 150,
+  "processedInstruments": 150,
+  "successfulInstruments": 145,
+  "noDataInstruments": 3,
+  "errorInstruments": 2,
+  "totalVolume": 150000000,
+  "averagePrice": 250.75
+}
+```
+
+#### GET /api/candles/daily/futures/{date}
+Получение дневных свечей всех фьючерсов за дату
+
+#### GET /api/candles/daily/indicatives/{date}
+Получение дневных свечей всех индикативов за дату
+
+#### GET /api/candles/instrument/daily/{figi}/{date}
+Получение дневных свечей конкретного инструмента за дату
+
+**Параметры:**
+- `figi` - идентификатор инструмента
+- `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "figi": "BBG004730N88",
+  "date": "2024-01-01",
+  "candles": [
+    {
+      "figi": "BBG004730N88",
+      "ticker": null,
+      "name": null,
+      "time": "2024-01-01T00:00:00Z",
+      "open": 250.50,
+      "close": 255.30,
+      "high": 256.00,
+      "low": 249.80,
+      "volume": 1000000,
+      "isComplete": true,
+      "priceChange": 4.80,
+      "priceChangePercent": 1.92,
+      "candleType": "BULLISH",
+      "bodySize": 4.80,
+      "upperShadow": 0.70,
+      "lowerShadow": 0.70,
+      "highLowRange": 6.20,
+      "averagePrice": 252.90
+    }
+  ],
+  "totalCandles": 1,
+  "totalVolume": 1000000,
+  "averagePrice": 252.90
+}
+```
+
+### Синхронные методы (для обратной совместимости)
+
+#### POST /api/candles/daily/shares/{date}/sync
+Синхронная загрузка дневных свечей акций за дату
+
+**Параметры:**
+- `date` - дата в формате YYYY-MM-DD
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "message": "Загружено дневных свечей акций за 2024-01-01: Всего инструментов=150, Обработано=150, Новых=1200, Существующих=300, Невалидных=5, Отсутствующих=10",
+  "taskId": "uuid-task-id",
+  "startTime": "2024-01-01T10:00:00"
+}
+```
 
 ## Архитектура обработки
 
