@@ -1,7 +1,7 @@
 package com.example.InvestmentDataLoaderService.component;
 
 import com.example.InvestmentDataLoaderService.dto.*;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.TradingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +33,7 @@ class TradingControllerComponentTest {
     private WebApplicationContext webApplicationContext;
 
     @MockBean
-    private TInvestService tInvestService;
+    private TradingService tradingService;
 
 
     private MockMvc mockMvc;
@@ -49,7 +49,7 @@ class TradingControllerComponentTest {
         List<AccountDto> accounts = Arrays.asList(
                 new AccountDto("acc1", "Account 1", "BROKER")
         );
-        when(tInvestService.getAccounts()).thenReturn(accounts);
+        when(tradingService.getAccounts()).thenReturn(accounts);
 
         // When & Then
         mockMvc.perform(get("/api/trading/accounts"))
@@ -63,7 +63,7 @@ class TradingControllerComponentTest {
         // Given
         TradingDayDto day = new TradingDayDto("2025-01-01", true, "09:00", "19:00");
         List<TradingScheduleDto> schedules = Arrays.asList(new TradingScheduleDto("MOEX", Arrays.asList(day)));
-        when(tInvestService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
+        when(tradingService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
                 .thenReturn(schedules);
 
         // When & Then
@@ -91,7 +91,7 @@ class TradingControllerComponentTest {
         List<TradingStatusDto> statuses = Arrays.asList(
                 new TradingStatusDto("BBG004730N88", "SECURITY_TRADING_STATUS_NORMAL_TRADING")
         );
-        when(tInvestService.getTradingStatuses(anyList())).thenReturn(statuses);
+        when(tradingService.getTradingStatuses(anyList())).thenReturn(statuses);
 
         // When & Then
         mockMvc.perform(get("/api/trading/statuses")

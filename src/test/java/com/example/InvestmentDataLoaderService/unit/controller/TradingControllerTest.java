@@ -2,7 +2,7 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 
 import com.example.InvestmentDataLoaderService.controller.TradingController;
 import com.example.InvestmentDataLoaderService.dto.*;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.TradingService;
 import io.qameta.allure.*;
 import io.qameta.allure.SeverityLevel;
 import org.junit.jupiter.api.Tag;
@@ -57,7 +57,7 @@ class TradingControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private TInvestService tInvestService;
+    private TradingService tradingService;
 
 
     private List<AccountDto> accounts;
@@ -103,7 +103,7 @@ class TradingControllerTest {
     @TmsLink("TMS-ACCOUNTS-001")
     void getAccounts_ShouldReturnAccounts() throws Exception {
         // Given
-        when(tInvestService.getAccounts()).thenReturn(accounts);
+        when(tradingService.getAccounts()).thenReturn(accounts);
         
         attachTestData("Expected Accounts Count", accounts.size());
         attachTestData("Test Account Types", accounts.stream().map(AccountDto::type).distinct().toList());
@@ -126,7 +126,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$[3].type").value("BROKER"))
                 .andReturn();
 
-        verify(tInvestService, times(1)).getAccounts();
+        verify(tradingService, times(1)).getAccounts();
         
         String responseBody = result.getResponse().getContentAsString();
         attachTestData("Full Response Body", responseBody);
@@ -159,7 +159,7 @@ class TradingControllerTest {
                 "to", toDate
         ));
         
-        when(tInvestService.getTradingSchedules(eq(exchange), any(Instant.class), any(Instant.class)))
+        when(tradingService.getTradingSchedules(eq(exchange), any(Instant.class), any(Instant.class)))
                 .thenReturn(schedules);
 
         // When & Then
@@ -184,7 +184,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$[1].exchange").value("SPB"))
                 .andReturn();
 
-        verify(tInvestService, times(1)).getTradingSchedules(eq(exchange), any(Instant.class), any(Instant.class));
+        verify(tradingService, times(1)).getTradingSchedules(eq(exchange), any(Instant.class), any(Instant.class));
         
         String responseBody = result.getResponse().getContentAsString();
         attachTestData("Full Response Body", responseBody);
@@ -206,7 +206,7 @@ class TradingControllerTest {
     @Tag("schedules")
     void getTradingSchedulesForPeriod_ShouldWrapSchedules() throws Exception {
         // Given
-        when(tInvestService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
+        when(tradingService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
                 .thenReturn(schedules);
 
         // When & Then
@@ -223,7 +223,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$.to").value("2025-01-03T00:00:00Z"))
                 .andExpect(jsonPath("$.exchange").value("MOEX"));
 
-        verify(tInvestService).getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class));
+        verify(tradingService).getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class));
     }
 
     @Test
@@ -235,7 +235,7 @@ class TradingControllerTest {
     @Tag("statuses")
     void getTradingStatuses_ShouldReturnStatuses() throws Exception {
         // Given
-        when(tInvestService.getTradingStatuses(anyList())).thenReturn(statuses);
+        when(tradingService.getTradingStatuses(anyList())).thenReturn(statuses);
 
         // When & Then
         mockMvc.perform(get("/api/trading/statuses")
@@ -246,7 +246,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
                 .andExpect(jsonPath("$[1].figi").value("BBG004S681W1"));
 
-        verify(tInvestService).getTradingStatuses(anyList());
+        verify(tradingService).getTradingStatuses(anyList());
     }
 
     @Test
@@ -258,7 +258,7 @@ class TradingControllerTest {
     @Tag("statuses")
     void getDetailedTradingStatuses_ShouldReturnWrappedStatuses() throws Exception {
         // Given
-        when(tInvestService.getTradingStatuses(anyList())).thenReturn(statuses);
+        when(tradingService.getTradingStatuses(anyList())).thenReturn(statuses);
 
         // When & Then
         mockMvc.perform(get("/api/trading/statuses/detailed")
@@ -271,7 +271,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.requested_instruments").value(2));
 
-        verify(tInvestService).getTradingStatuses(anyList());
+        verify(tradingService).getTradingStatuses(anyList());
     }
 
     @Test
@@ -283,7 +283,7 @@ class TradingControllerTest {
     @Tag("trading-days")
     void getTradingDays_ShouldReturnAggregatedDays() throws Exception {
         // Given
-        when(tInvestService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
+        when(tradingService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
                 .thenReturn(schedules);
 
         // When & Then
@@ -298,7 +298,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$.non_trading_days_count").value(2))
                 .andExpect(jsonPath("$.total_days").value(8));
 
-        verify(tInvestService).getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class));
+        verify(tradingService).getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class));
     }
 
     @Test
@@ -310,7 +310,7 @@ class TradingControllerTest {
     @Tag("stats")
     void getTradingStats_ShouldReturnComputedStats() throws Exception {
         // Given
-        when(tInvestService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
+        when(tradingService.getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class)))
                 .thenReturn(schedules);
 
         // When & Then
@@ -326,7 +326,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$.total_days").value(8))
                 .andExpect(jsonPath("$.trading_percentage").value(75.0));
 
-        verify(tInvestService).getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class));
+        verify(tradingService).getTradingSchedules(eq("MOEX"), any(Instant.class), any(Instant.class));
     }
 
     @Test
@@ -363,7 +363,7 @@ class TradingControllerTest {
     @TmsLink("TMS-ACCOUNTS-002")
     void getAccounts_ShouldReturnEmptyList_WhenNoAccounts() throws Exception {
         // Given
-        when(tInvestService.getAccounts()).thenReturn(Arrays.asList());
+        when(tradingService.getAccounts()).thenReturn(Arrays.asList());
         
         attachTestData("Expected Empty List", "No accounts available");
 
@@ -377,7 +377,7 @@ class TradingControllerTest {
                 .andExpect(jsonPath("$.length()").value(0))
                 .andReturn();
 
-        verify(tInvestService, times(1)).getAccounts();
+        verify(tradingService, times(1)).getAccounts();
         
         String responseBody = result.getResponse().getContentAsString();
         attachTestData("Empty Response Body", responseBody);
@@ -464,7 +464,7 @@ class TradingControllerTest {
     void getAccounts_ShouldHandleServiceError() throws Exception {
         // Given
         String errorMessage = "Database connection failed";
-        when(tInvestService.getAccounts()).thenThrow(new RuntimeException(errorMessage));
+        when(tradingService.getAccounts()).thenThrow(new RuntimeException(errorMessage));
         
         attachTestData("Expected Error", errorMessage);
 
@@ -475,7 +475,7 @@ class TradingControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andReturn();
 
-        verify(tInvestService, times(1)).getAccounts();
+        verify(tradingService, times(1)).getAccounts();
         
         String responseBody = result.getResponse().getContentAsString();
         attachTestData("Error Response Body", responseBody);
@@ -535,13 +535,13 @@ class TradingControllerTest {
     @Description("Конфигурация мок-объектов с детальным логированием вызовов")
     private void setupDetailedMocks() {
         // Настройка мока для получения аккаунтов
-        when(tInvestService.getAccounts()).thenAnswer(invocation -> {
+        when(tradingService.getAccounts()).thenAnswer(invocation -> {
             attachTestData("Mock: getAccounts() called", accounts);
             return accounts;
         });
 
         // Настройка мока для получения торговых расписаний
-        when(tInvestService.getTradingSchedules(anyString(), any(Instant.class), any(Instant.class)))
+        when(tradingService.getTradingSchedules(anyString(), any(Instant.class), any(Instant.class)))
                 .thenAnswer(invocation -> {
                     String exchange = invocation.getArgument(0);
                     Instant from = invocation.getArgument(1);
@@ -558,7 +558,7 @@ class TradingControllerTest {
                 });
 
         // Настройка мока для получения статусов торгов
-        when(tInvestService.getTradingStatuses(anyList())).thenAnswer(invocation -> {
+        when(tradingService.getTradingStatuses(anyList())).thenAnswer(invocation -> {
             List<String> instrumentIds = invocation.getArgument(0);
             
             Map<String, Object> callDetails = new HashMap<>();

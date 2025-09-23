@@ -1,48 +1,19 @@
 package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
-import ru.tinkoff.piapi.contract.v1.UsersServiceGrpc.UsersServiceBlockingStub;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class TInvestService {
 
-    private final UsersServiceBlockingStub usersService;
     private final MarketDataService marketDataService;
-    private final TradingService tradingService;
 
-    public TInvestService(UsersServiceBlockingStub usersService,
-                          MarketDataService marketDataService,
-                          TradingService tradingService) {
-        this.usersService = usersService;
+    public TInvestService(MarketDataService marketDataService) {
         this.marketDataService = marketDataService;
-        this.tradingService = tradingService;
     }
 
-    // === МЕТОДЫ ДЛЯ РАБОТЫ С АККАУНТАМИ ===
-
-    public List<AccountDto> getAccounts() {
-        var res = usersService.getAccounts(ru.tinkoff.piapi.contract.v1.GetAccountsRequest.newBuilder().build());
-        List<AccountDto> list = new ArrayList<>();
-        for (var a : res.getAccountsList()) {
-            list.add(new AccountDto(a.getId(), a.getName(), a.getType().name()));
-        }
-        return list;
-    }
-
-
-    // === ДЕЛЕГИРОВАНИЕ К TRADING SERVICE ===
-
-    public List<TradingScheduleDto> getTradingSchedules(String exchange, java.time.Instant from, java.time.Instant to) {
-        return tradingService.getTradingSchedules(exchange, from, to);
-    }
-
-    public List<TradingStatusDto> getTradingStatuses(List<String> instrumentIds) {
-        return tradingService.getTradingStatuses(instrumentIds);
-    }
 
     // === ДЕЛЕГИРОВАНИЕ К MARKET DATA SERVICE ===
 

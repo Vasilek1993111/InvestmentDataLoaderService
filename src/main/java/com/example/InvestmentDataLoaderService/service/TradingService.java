@@ -1,30 +1,45 @@
 package com.example.InvestmentDataLoaderService.service;
 
-import com.example.InvestmentDataLoaderService.dto.TradingScheduleDto;
-import com.example.InvestmentDataLoaderService.dto.TradingStatusDto;
-import com.example.InvestmentDataLoaderService.dto.TradingDayDto;
+import com.example.InvestmentDataLoaderService.dto.*;
 import com.google.protobuf.Timestamp;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
 import ru.tinkoff.piapi.contract.v1.MarketDataServiceGrpc.MarketDataServiceBlockingStub;
+import ru.tinkoff.piapi.contract.v1.UsersServiceGrpc.UsersServiceBlockingStub;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 public class TradingService {
 
     private final InstrumentsServiceBlockingStub instrumentsService;
     private final MarketDataServiceBlockingStub marketDataService;
+    private final UsersServiceBlockingStub usersService;
 
     public TradingService(InstrumentsServiceBlockingStub instrumentsService,
-                         MarketDataServiceBlockingStub marketDataService) {
+                         MarketDataServiceBlockingStub marketDataService,
+                         UsersServiceBlockingStub usersService) {
         this.instrumentsService = instrumentsService;
         this.marketDataService = marketDataService;
+        this.usersService = usersService;
+    }
+
+    // === МЕТОДЫ ДЛЯ РАБОТЫ С АККАУНТАМИ ===
+
+    public List<AccountDto> getAccounts() {
+        var res = usersService.getAccounts(ru.tinkoff.piapi.contract.v1.GetAccountsRequest.newBuilder().build());
+        List<AccountDto> list = new ArrayList<>();
+        for (var a : res.getAccountsList()) {
+            list.add(new AccountDto(a.getId(), a.getName(), a.getType().name()));
+        }
+        return list;
     }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ТОРГОВЫМИ РАСПИСАНИЯМИ ===
@@ -74,5 +89,89 @@ public class TradingService {
             list.add(new TradingStatusDto(s.getFigi(), s.getTradingStatus().name()));
         }
         return list;
+    }
+
+    public Map<String, Object> getTradingStatusesDetailed(List<String> instrumentIds) {
+        List<TradingStatusDto> statuses = getTradingStatuses(instrumentIds);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", statuses);
+        response.put("count", statuses.size());
+        response.put("requested_instruments", instrumentIds.size());
+        response.put("instruments", instrumentIds);
+        
+        return response;
+    }
+
+    // === МЕТОДЫ ДЛЯ АНАЛИЗА ТОРГОВЫХ ДНЕЙ ===
+
+    public Map<String, Object> getTradingDays(String exchange, Instant from, Instant to) {
+        List<TradingScheduleDto> schedules = getTradingSchedules(exchange, from, to);
+        
+        // Группируем по дням и определяем торговые дни
+        Map<String, Object> tradingDays = new HashMap<>();
+        int tradingDaysCount = 0;
+        int nonTradingDaysCount = 0;
+        
+        for (TradingScheduleDto schedule : schedules) {
+            for (TradingDayDto day : schedule.days()) {
+                if (day.isTradingDay()) {
+                    tradingDaysCount++;
+                    tradingDays.put(day.date(), "trading");
+                } else {
+                    nonTradingDaysCount++;
+                    tradingDays.put(day.date(), "non-trading");
+                }
+            }
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("trading_days", tradingDays);
+        response.put("trading_days_count", tradingDaysCount);
+        response.put("non_trading_days_count", nonTradingDaysCount);
+        response.put("total_days", tradingDaysCount + nonTradingDaysCount);
+        response.put("from", from.toString());
+        response.put("to", to.toString());
+        response.put("exchange", exchange);
+        
+        return response;
+    }
+
+    // === МЕТОДЫ ДЛЯ СТАТИСТИКИ ТОРГОВ ===
+
+    public Map<String, Object> getTradingStats(String exchange, Instant from, Instant to) {
+        List<TradingScheduleDto> schedules = getTradingSchedules(exchange, from, to);
+        
+        // Анализируем расписания
+        long tradingDays = 0;
+        long nonTradingDays = 0;
+        
+        for (TradingScheduleDto schedule : schedules) {
+            for (TradingDayDto day : schedule.days()) {
+                if (day.isTradingDay()) {
+                    tradingDays++;
+                } else {
+                    nonTradingDays++;
+                }
+            }
+        }
+        
+        long totalDays = tradingDays + nonTradingDays;
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("period", Map.of(
+            "from", from.toString(),
+            "to", to.toString(),
+            "exchange", exchange != null ? exchange : "all"
+        ));
+        response.put("trading_days", tradingDays);
+        response.put("non_trading_days", nonTradingDays);
+        response.put("total_days", totalDays);
+        response.put("trading_percentage", totalDays > 0 ? (double) tradingDays / totalDays * 100 : 0);
+        
+        return response;
     }
 }
