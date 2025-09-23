@@ -2,6 +2,9 @@
 -- Проверка соответствия объемов дневных и минутных свечей для АКЦИЙ
 -- Дата: 2025-09-19
 
+
+--Рабочие дни c 7:00 до 23:50
+--Выходные дни с 09:59 до 18:59
 WITH shares_figi AS (
     -- Получаем список FIGI акций
     SELECT figi
@@ -20,11 +23,12 @@ WITH shares_figi AS (
          FROM daily_candles dc
                   INNER JOIN shares_figi sf ON dc.figi = sf.figi
          WHERE dc.is_complete = true  -- Только завершенные свечи
-           AND DATE(dc.time AT TIME ZONE 'Europe/Moscow') >= '2025-09-18'
-           AND DATE(dc.time AT TIME ZONE 'Europe/Moscow') < '2025-09-19'
+           AND DATE(dc.time AT TIME ZONE 'Europe/Moscow') >= '2025-09-11'
+           AND DATE(dc.time AT TIME ZONE 'Europe/Moscow') < '2025-09-12'
      ),
      minute_candles_data AS (
          -- Агрегируем данные минутных свечей за каждый день для акций
+         -- Для выходных дней учитываем только период с 10:00 до 19:00 по МСК
          SELECT
              mc.figi,
              DATE(mc.time AT TIME ZONE 'Europe/Moscow') as trade_date,
@@ -37,8 +41,23 @@ WITH shares_figi AS (
          FROM minute_candles mc
                   INNER JOIN shares_figi sf ON mc.figi = sf.figi
          WHERE mc.is_complete = true  -- Только завершенные свечи
-           AND DATE(mc.time AT TIME ZONE 'Europe/Moscow') >= '2025-09-18'
-           AND DATE(mc.time AT TIME ZONE 'Europe/Moscow') < '2025-09-19'
+           AND DATE(mc.time AT TIME ZONE 'Europe/Moscow') >= '2025-09-11'
+           AND DATE(mc.time AT TIME ZONE 'Europe/Moscow') < '2025-09-12'
+           -- Для выходных дней (суббота=6, воскресенье=0) фильтруем время с 10:00 до 19:00 по МСК
+           AND (
+             EXTRACT(DOW FROM mc.time AT TIME ZONE 'Europe/Moscow') NOT IN (0, 6) -- Рабочие дни
+                 OR (
+                 EXTRACT(DOW FROM mc.time AT TIME ZONE 'Europe/Moscow') IN (0, 6) -- Выходные дни
+                     AND (
+                     EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') > 9
+                         OR (EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') = 9 AND EXTRACT(MINUTE FROM mc.time AT TIME ZONE 'Europe/Moscow') >= 59)
+                     )
+                     AND (
+                     EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') < 18
+                         OR (EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') = 18 AND EXTRACT(MINUTE FROM mc.time AT TIME ZONE 'Europe/Moscow') <= 59)
+                     )
+                 )
+             )
          GROUP BY mc.figi, DATE(mc.time AT TIME ZONE 'Europe/Moscow')
      ),
      comparison AS (
@@ -188,7 +207,7 @@ SELECT
         END as overall_status
 
 FROM comparison
--- where figi IN ('BBG000MZL0Y6','BBG00475KKY8','TCS90A0JQUZ6','TCS00A107RM8')
+--where figi IN ('TCS00A107J11')
 ORDER BY
     overall_status,
     figi,
@@ -235,6 +254,21 @@ minute_candles_data AS (
     WHERE mc.is_complete = true  -- Только завершенные свечи
       AND DATE(mc.time AT TIME ZONE 'Europe/Moscow') >= '2025-09-19'
       AND DATE(mc.time AT TIME ZONE 'Europe/Moscow') < '2025-09-20'
+          -- Для выходных дней (суббота=6, воскресенье=0) фильтруем время с 09:59 до 18:59 по МСК
+      AND (
+          EXTRACT(DOW FROM mc.time AT TIME ZONE 'Europe/Moscow') NOT IN (0, 6) -- Рабочие дни
+          OR (
+              EXTRACT(DOW FROM mc.time AT TIME ZONE 'Europe/Moscow') IN (0, 6) -- Выходные дни
+              AND (
+                  EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') > 9
+                  OR (EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') = 9 AND EXTRACT(MINUTE FROM mc.time AT TIME ZONE 'Europe/Moscow') >= 59)
+              )
+              AND (
+                  EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') < 18
+                  OR (EXTRACT(HOUR FROM mc.time AT TIME ZONE 'Europe/Moscow') = 18 AND EXTRACT(MINUTE FROM mc.time AT TIME ZONE 'Europe/Moscow') <= 59)
+              )
+          )
+      )
     GROUP BY mc.figi, DATE(mc.time AT TIME ZONE 'Europe/Moscow')
 ),
 comparison AS (
