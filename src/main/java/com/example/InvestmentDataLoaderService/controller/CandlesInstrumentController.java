@@ -3,7 +3,9 @@ package com.example.InvestmentDataLoaderService.controller;
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
 import com.example.InvestmentDataLoaderService.repository.*;
-import com.example.InvestmentDataLoaderService.service.*;
+import com.example.InvestmentDataLoaderService.service.MinuteCandleService;
+import com.example.InvestmentDataLoaderService.service.DailyCandleService;
+import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import com.example.InvestmentDataLoaderService.util.MinuteCandleMapper;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -25,18 +27,18 @@ public class CandlesInstrumentController {
 
     private final MinuteCandleService minuteCandleService;
     private final DailyCandleService dailyCandleService;
-    private final MarketDataService marketDataService;
+    private final TinkoffApiClient tinkoffApiClient;
     private final SystemLogRepository systemLogRepository;
 
     public CandlesInstrumentController(
             MinuteCandleService minuteCandleService,
             DailyCandleService dailyCandleService,
-            MarketDataService marketDataService,
+            TinkoffApiClient tinkoffApiClient,
             SystemLogRepository systemLogRepository
     ) {
         this.minuteCandleService = minuteCandleService;
         this.dailyCandleService = dailyCandleService;
-        this.marketDataService = marketDataService;
+        this.tinkoffApiClient = tinkoffApiClient;
         this.systemLogRepository = systemLogRepository;
     }
 
@@ -77,7 +79,7 @@ public class CandlesInstrumentController {
             System.out.println("Дата: " + date);
 
             // Получаем минутные свечи из API
-            var candles = marketDataService.getCandles(figi, date, "CANDLE_INTERVAL_1_MIN");
+            var candles = tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_1_MIN");
 
             if (candles == null || candles.isEmpty()) {
                 Map<String, Object> response = new HashMap<>();
@@ -311,7 +313,7 @@ public class CandlesInstrumentController {
             System.out.println("Дата: " + date);
 
             // Получаем дневные свечи из API
-            var candles = marketDataService.getCandles(figi, date, "CANDLE_INTERVAL_DAY");
+            var candles = tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_DAY");
 
             if (candles == null || candles.isEmpty()) {
                 Map<String, Object> response = new HashMap<>();

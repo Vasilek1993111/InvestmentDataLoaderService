@@ -3,7 +3,8 @@ package com.example.InvestmentDataLoaderService.controller;
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
 import com.example.InvestmentDataLoaderService.repository.*;
-import com.example.InvestmentDataLoaderService.service.*;
+import com.example.InvestmentDataLoaderService.service.DailyCandleService;
+import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 public class CandlesDailyController {
 
     private final DailyCandleService dailyCandleService;
-    private final MarketDataService marketDataService;
+    private final TinkoffApiClient tinkoffApiClient;
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final IndicativeRepository indicativeRepository;
@@ -32,14 +33,14 @@ public class CandlesDailyController {
 
     public CandlesDailyController(
             DailyCandleService dailyCandleService,
-            MarketDataService marketDataService,
+            TinkoffApiClient tinkoffApiClient,
             ShareRepository shareRepository,
             FutureRepository futureRepository,
             IndicativeRepository indicativeRepository,
             SystemLogRepository systemLogRepository
     ) {
         this.dailyCandleService = dailyCandleService;
-        this.marketDataService = marketDataService;
+        this.tinkoffApiClient = tinkoffApiClient;
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.indicativeRepository = indicativeRepository;
@@ -260,7 +261,7 @@ public class CandlesDailyController {
                     System.out.println("Получаем свечи для акции: " + share.getTicker() + " (" + share.getFigi() + ")");
 
                     // Получаем дневные свечи из API
-                    var candles = marketDataService.getCandles(share.getFigi(), date, "CANDLE_INTERVAL_DAY");
+                    var candles = tinkoffApiClient.getCandles(share.getFigi(), date, "CANDLE_INTERVAL_DAY");
 
                     if (candles != null && !candles.isEmpty()) {
                         System.out.println("Получено " + candles.size() + " свечей для " + share.getTicker());
@@ -812,7 +813,7 @@ public class CandlesDailyController {
                     System.out.println("Получаем свечи для фьючерса: " + future.getTicker() + " (" + future.getFigi() + ")");
 
                     // Получаем дневные свечи из API
-                    var candles = marketDataService.getCandles(future.getFigi(), date, "CANDLE_INTERVAL_DAY");
+                    var candles = tinkoffApiClient.getCandles(future.getFigi(), date, "CANDLE_INTERVAL_DAY");
 
                     if (candles != null && !candles.isEmpty()) {
                         System.out.println("Получено " + candles.size() + " свечей для " + future.getTicker());
@@ -1066,7 +1067,7 @@ public class CandlesDailyController {
                     System.out.println("Получаем свечи для индикатива: " + indicative.getTicker() + " (" + indicative.getFigi() + ")");
 
                     // Получаем дневные свечи из API
-                    var candles = marketDataService.getCandles(indicative.getFigi(), date, "CANDLE_INTERVAL_DAY");
+                    var candles = tinkoffApiClient.getCandles(indicative.getFigi(), date, "CANDLE_INTERVAL_DAY");
 
                     if (candles != null && !candles.isEmpty()) {
                         System.out.println("Получено " + candles.size() + " свечей для " + indicative.getTicker());

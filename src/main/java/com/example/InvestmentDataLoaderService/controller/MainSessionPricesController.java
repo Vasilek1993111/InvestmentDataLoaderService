@@ -7,7 +7,7 @@ import com.example.InvestmentDataLoaderService.entity.MinuteCandleEntity;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceEntity;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceKey;
 import com.example.InvestmentDataLoaderService.exception.DataLoadException;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.ClosePriceService;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
@@ -36,18 +36,18 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/main-session-prices")
 public class MainSessionPricesController {
 
-    private final TInvestService service;
+    private final ClosePriceService closePriceService;
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final MinuteCandleRepository minuteCandleRepository;
     private final ClosePriceRepository closePriceRepository;
 
-    public MainSessionPricesController(TInvestService service,
+    public MainSessionPricesController(ClosePriceService closePriceService,
                                       ShareRepository shareRepository,
                                       FutureRepository futureRepository,
                                       MinuteCandleRepository minuteCandleRepository,
                                       ClosePriceRepository closePriceRepository) {
-        this.service = service;
+        this.closePriceService = closePriceService;
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.minuteCandleRepository = minuteCandleRepository;
@@ -279,7 +279,7 @@ public class MainSessionPricesController {
             if (request == null) {
                 request = new ClosePriceRequestDto();
             }
-            SaveResponseDto response = service.saveClosePrices(request);
+            SaveResponseDto response = closePriceService.saveClosePrices(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             // Исключение будет обработано GlobalExceptionHandler
@@ -295,7 +295,7 @@ public class MainSessionPricesController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            List<ClosePriceDto> allClosePrices = service.getClosePricesForAllShares();
+            List<ClosePriceDto> allClosePrices = closePriceService.getClosePricesForAllShares();
             
             // Фильтруем неверные цены (с датой 1970-01-01)
             List<ClosePriceDto> validClosePrices = allClosePrices.stream()
@@ -324,7 +324,7 @@ public class MainSessionPricesController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            List<ClosePriceDto> allClosePrices = service.getClosePricesForAllFutures();
+            List<ClosePriceDto> allClosePrices = closePriceService.getClosePricesForAllFutures();
             
             // Фильтруем неверные цены (с датой 1970-01-01)
             List<ClosePriceDto> validClosePrices = allClosePrices.stream()
@@ -353,7 +353,7 @@ public class MainSessionPricesController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            List<ClosePriceDto> allClosePrices = service.getClosePrices(List.of(figi), null);
+            List<ClosePriceDto> allClosePrices = closePriceService.getClosePrices(List.of(figi), null);
             
             // Фильтруем неверные цены (с датой 1970-01-01)
             List<ClosePriceDto> validClosePrices = allClosePrices.stream()

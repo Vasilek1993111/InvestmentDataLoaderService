@@ -9,6 +9,7 @@ import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +32,7 @@ public class MinuteCandleService {
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final IndicativeRepository indicativeRepository;
-    private final MarketDataService marketDataService;
+    private final TinkoffApiClient tinkoffApiClient;
     private final SystemLogRepository systemLogRepository;
     private final Executor minuteCandleExecutor;
     private final Executor apiDataExecutor;
@@ -42,7 +43,7 @@ public class MinuteCandleService {
             ShareRepository shareRepository,
             FutureRepository futureRepository,
             IndicativeRepository indicativeRepository,
-            MarketDataService marketDataService,
+            TinkoffApiClient tinkoffApiClient,
             SystemLogRepository systemLogRepository,
             @Qualifier("minuteCandleExecutor") Executor minuteCandleExecutor,
             @Qualifier("apiDataExecutor") Executor apiDataExecutor,
@@ -51,7 +52,7 @@ public class MinuteCandleService {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.indicativeRepository = indicativeRepository;
-        this.marketDataService = marketDataService;
+        this.tinkoffApiClient = tinkoffApiClient;
         this.systemLogRepository = systemLogRepository;
         this.minuteCandleExecutor = minuteCandleExecutor;
         this.apiDataExecutor = apiDataExecutor;
@@ -188,7 +189,7 @@ public class MinuteCandleService {
                 CompletableFuture<List<com.example.InvestmentDataLoaderService.dto.CandleDto>> apiTask = 
                     CompletableFuture.supplyAsync(() -> {
                         try {
-                            return marketDataService.getCandles(figi, date, "CANDLE_INTERVAL_1_MIN");
+                            return tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_1_MIN");
                         } catch (Exception e) {
                             System.err.println("Ошибка получения данных из API для " + figi + ": " + e.getMessage());
                             return null;

@@ -10,7 +10,7 @@ import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.repository.LastPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.LastTradeService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -28,16 +28,16 @@ public class LastTradesService {
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final LastPriceRepository lastPriceRepository;
-    private final TInvestService tInvestService;
+    private final LastTradeService lastTradeService;
 
     public LastTradesService(ShareRepository shareRepository, 
                            FutureRepository futureRepository,
                            LastPriceRepository lastPriceRepository,
-                           TInvestService tInvestService) {
+                           LastTradeService lastTradeService) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.lastPriceRepository = lastPriceRepository;
-        this.tInvestService = tInvestService;
+        this.lastTradeService = lastTradeService;
     }
 
     /**
@@ -203,7 +203,7 @@ public class LastTradesService {
             System.out.println("[" + taskId + "] Загрузка обезличенных сделок для " + figi + " за дату: " + date);
             
             // Вызываем T-Invest API для получения обезличенных сделок
-            List<LastTradeDto> tradesFromApi = tInvestService.getLastTrades(figi, date, "TRADE_SOURCE_ALL");
+            List<LastTradeDto> tradesFromApi = lastTradeService.getLastTrades(figi, date, "TRADE_SOURCE_ALL");
             
             // Получаем валюту инструмента из базы данных
             String currency = "RUB"; // По умолчанию
@@ -243,7 +243,7 @@ public class LastTradesService {
             System.out.println("[" + taskId + "] Загрузка обезличенных сделок за последний час для " + figi);
             
             // Вызываем T-Invest API для получения обезличенных сделок за последний час
-            List<LastTradeDto> tradesFromApi = tInvestService.getLastTradesForLastHour(figi, "TRADE_SOURCE_ALL");
+            List<LastTradeDto> tradesFromApi = lastTradeService.getLastTradesForLastHour(figi, "TRADE_SOURCE_ALL");
             
             // Получаем валюту инструмента из базы данных
             String currency = "RUB"; // По умолчанию
