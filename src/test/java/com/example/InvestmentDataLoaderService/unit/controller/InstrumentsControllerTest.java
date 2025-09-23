@@ -2,16 +2,12 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 
 import com.example.InvestmentDataLoaderService.controller.InstrumentsController;
 import com.example.InvestmentDataLoaderService.dto.*;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
-import com.example.InvestmentDataLoaderService.repository.ShareRepository;
-import com.example.InvestmentDataLoaderService.repository.FutureRepository;
-import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.InvestmentDataLoaderService.service.InstrumentService;
 import io.qameta.allure.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -19,7 +15,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -41,663 +39,1300 @@ class InstrumentsControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private TInvestService tInvestService;
-
-    @MockBean
-    private ShareRepository shareRepository;
-
-    @MockBean
-    private FutureRepository futureRepository;
-
-    @MockBean
-    private IndicativeRepository indicativeRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    private ShareDto testShare;
-    private FutureDto testFuture;
-    private IndicativeDto testIndicative;
-    private SaveResponseDto testSaveResponse;
+    private InstrumentService instrumentService;
 
     @BeforeEach
-    @Step("Подготовка тестовых данных для инструментов")
-    @DisplayName("Подготовка тестовых данных")
-    @Description("Инициализация тестовых данных для тестов инструментов")
-    @Tag("setup")
+    @Step("Подготовка тестовых данных для InstrumentsController")
     void setUp() {
-        testShare = new ShareDto(
-            "BBG004730N88",
-            "SBER",
-            "Сбербанк",
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr",
-            "Financials",
+        
+        reset(instrumentService);
+    }
+
+   
+    private List<ShareDto> createMockShares() {
+        return Arrays.asList(
+            new ShareDto(
+                "BBG004730N88", 
+                "SBER", 
+                "ПАО Сбербанк", 
+                "RUB", 
+                "MOEX", 
+                "Financial", 
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            ),
+            new ShareDto(
+                "BBG004730ZJ9", 
+                "GAZP", 
+                "ПАО Газпром", 
+                "RUB", 
+                "MOEX", 
+                "Energy", 
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            ),
+            new ShareDto(
+                "BBG004730N88", 
+                "LKOH", 
+                "ПАО Лукойл", 
+                "RUB", 
+                "MOEX", 
+                "Energy", 
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            )
+        );
+    }
+
+    private ShareDto createMockShare() {
+        return new ShareDto(
+            "BBG004730N88", 
+            "SBER", 
+            "ПАО Сбербанк", 
+            "RUB", 
+            "MOEX", 
+            "Financial", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING"
         );
+    }
 
-        testFuture = new FutureDto(
-            "FUTSBER0324",
-            "SBER-3.24",
-            "FUTURES",
-            "SBER",
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr"
+   
+    private List<FutureDto> createMockFutures() {
+        return Arrays.asList(
+            new FutureDto(
+                "FUTSI0624000", 
+                "SI0624", 
+                "COMMODITY", 
+                "Silver", 
+                "USD", 
+                "MOEX"
+            ),
+            new FutureDto(
+                "FUTGZ0624000", 
+                "GZ0624", 
+                "COMMODITY", 
+                "Gold", 
+                "USD", 
+                "MOEX"
+            )
         );
+    }
 
-        testIndicative = new IndicativeDto(
-            "BBG004730ZJ9",
-            "RTSI",
-            "Индекс РТС",
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr",
-            "SPBXM",
-            "test-uid",
-            true,
+   
+    private FutureDto createMockFuture() {
+        return new FutureDto(
+            "FUTSI0624000", 
+            "SI0624", 
+            "COMMODITY", 
+            "Silver", 
+            "USD", 
+            "MOEX"
+        );
+    }
+
+    private List<IndicativeDto> createMockIndicatives() {
+        return Arrays.asList(
+            new IndicativeDto(
+                "BBG0013HGFT4", 
+                "USD000UTSTOM", 
+                "Доллар США / Российский рубль", 
+                "RUB", 
+                "MOEX", 
+                "CURRENCY", 
+                "USD000UTSTOM", 
+                true, 
+                true
+            ),
+            new IndicativeDto(
+                "BBG0013HGFT5", 
+                "EUR000UTSTOM", 
+                "Евро / Российский рубль", 
+                "RUB", 
+                "MOEX", 
+                "CURRENCY", 
+                "EUR000UTSTOM", 
+                true, 
+                true
+            )
+        );
+    }
+
+   
+    private IndicativeDto createMockIndicative() {
+        return new IndicativeDto(
+            "BBG0013HGFT4", 
+            "USD000UTSTOM", 
+            "Доллар США / Российский рубль", 
+            "RUB", 
+            "MOEX", 
+            "CURRENCY", 
+            "USD000UTSTOM", 
+            true, 
             true
         );
+    }
 
-        testSaveResponse = new SaveResponseDto(
+    
+    private SaveResponseDto createMockSaveResponse() {
+        return new SaveResponseDto(
             true,
-            "Успешно загружено 1 новых акций",
-            1,
-            1,
+            "Успешно сохранено 5 новых инструментов из 10 найденных",
+            10,
+            5,
+            5,
             0,
-            0, // invalidItemsFiltered
-            0, // missingFromApi
-            Arrays.asList(testShare)
+            0,
+            Arrays.asList("item1", "item2", "item3", "item4", "item5")
         );
+    }
+
+    
+    private Map<String, Long> createMockInstrumentCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        counts.put("shares", 150L);
+        counts.put("futures", 45L);
+        counts.put("indicatives", 12L);
+        counts.put("total", 207L);
+        return counts;
     }
 
     // ==================== ТЕСТЫ ДЛЯ АКЦИЙ ====================
 
     @Test
-    @DisplayName("Получение акций - валидные параметры")
-    @Description("Тест проверяет корректность получения акций с валидными параметрами фильтрации")
+    @DisplayName("Получение списка акций через API - успешный случай")
+    @Description("Тест проверяет корректность получения списка акций через API с применением фильтров")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares Management")
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("shares")
-    @Tag("get")
-    @Tag("valid-parameters")
-    void getShares_ShouldReturnShares_WhenValidParameters() throws Exception {
-        // Given
-        List<ShareDto> expectedShares = Arrays.asList(testShare);
-        when(tInvestService.getShares(anyString(), anyString(), anyString(), anyString(), anyString()))
-            .thenReturn(expectedShares);
+    @Tag("unit")
+    void getShares_ShouldReturnSharesList_WhenApiSourceIsUsed() throws Exception {
+        // Given 
+        when(instrumentService.getShares(
+            eq("INSTRUMENT_STATUS_ACTIVE"),
+            eq("MOEX"),
+            eq("RUB"),
+            isNull(),
+            isNull()
+        )).thenReturn(createMockShares());
+        
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("exchange", "MOEX")
+                .param("currency", "RUB")
+                .param("status", "INSTRUMENT_STATUS_ACTIVE")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
+                .andExpect(jsonPath("$[0].currency").value("RUB"))
+                .andExpect(jsonPath("$[0].exchange").value("MOEX"))
+                .andExpect(jsonPath("$[0].sector").value("Financial"))
+                .andExpect(jsonPath("$[0].tradingStatus").value("SECURITY_TRADING_STATUS_NORMAL_TRADING"))
+                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                .andExpect(jsonPath("$[2].ticker").value("LKOH"));
+
+        // Verify 
+        verify(instrumentService).getShares(
+            eq("INSTRUMENT_STATUS_ACTIVE"),
+            eq("MOEX"),
+            eq("RUB"),
+            isNull(),
+            isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("Получение списка акций через API - без параметров")
+    @Description("Тест проверяет поведение API при передаче пустых параметров запроса")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("unit")
+    void getShares_ShouldReturnSharesList_WhenNoParametersProvided() throws Exception {
+        // Given 
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(createMockShares());
 
         // When & Then
         mockMvc.perform(get("/api/instruments/shares")
-                .param("status", "INSTRUMENT_STATUS_BASE")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
-                .param("currency", "RUB")
-                .param("ticker", "SBER")
-                .param("figi", "BBG004730N88"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
-            .andExpect(jsonPath("$[0].ticker").value("SBER"))
-            .andExpect(jsonPath("$[0].name").value("Сбербанк"))
-            .andExpect(jsonPath("$[0].currency").value("RUB"))
-            .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
-            .andExpect(jsonPath("$[0].sector").value("Financials"))
-            .andExpect(jsonPath("$[0].tradingStatus").value("SECURITY_TRADING_STATUS_NORMAL_TRADING"));
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                .andExpect(jsonPath("$[2].ticker").value("LKOH"));
 
-        verify(tInvestService).getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", 
-            "RUB", "SBER", "BBG004730N88");
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test
-    @DisplayName("Получение акций - без параметров")
-    @Description("Тест проверяет корректность получения всех акций без параметров фильтрации")
-    @Severity(SeverityLevel.NORMAL)
-    @Story("Shares Management")
+    @DisplayName("Получение списка акций с несуществующим источником данных")
+    @Description("Тест проверяет поведение контроллера при передаче несуществующего источника данных")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("shares")
-    @Tag("get")
-    @Tag("no-parameters")
-    void getShares_ShouldReturnShares_WhenNoParameters() throws Exception {
-        // Given
-        List<ShareDto> expectedShares = Arrays.asList(testShare);
-        when(tInvestService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(expectedShares);
+    @Tag("negative")
+    void getShares_ShouldReturnSharesList_WhenInvalidSourceProvided() throws Exception {
+        // Given - настройка мока для некорректного источника (по умолчанию используется API)
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(createMockShares());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/shares"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$[0].figi").value("BBG004730N88"));
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "invalid")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"));
 
-        verify(tInvestService).getShares(null, null, null, null, null);
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test
-    @DisplayName("Получение акции по идентификатору - найден по FIGI")
+    @DisplayName("Получение списка акций через API с параметром в верхнем регистре")
+    @Description("Тест проверяет поведение контроллера при передаче параметра API в верхнем регистре")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("case-sensitivity")
+    void getShares_ShouldReturnSharesList_WhenApiParameterInUpperCase() throws Exception {
+        // Given - настройка мока для API в верхнем регистре
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(createMockShares());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "API")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"));
+
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    @DisplayName("Получение списка акций через API с несуществующим FIGI")
+    @Description("Тест проверяет поведение контроллера при передаче несуществующего FIGI")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("figi")
+    void getShares_ShouldReturnEmptyList_WhenInvalidFigiProvided() throws Exception {
+        // Given - настройка мока для возврата пустого списка при некорректном FIGI
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI")))
+            .thenReturn(Arrays.asList());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("figi", "INVALID_FIGI")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI"));
+    }
+
+    @Test
+    @DisplayName("Получение списка акций через API с FIGI в некорректном формате")
+    @Description("Тест проверяет поведение контроллера при передаче FIGI в некорректном формате")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("figi")
+    void getShares_ShouldHandleInvalidFigiFormat_WhenFigiIsMalformed() throws Exception {
+        // Given - настройка мока для возврата пустого списка при некорректном формате FIGI
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#")))
+            .thenReturn(Arrays.asList());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("figi", "MALFORMED_FIGI_123!@#")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#"));
+    }
+
+   
+
+    @Test
+    @DisplayName("Получение списка акций через API с очень длинным FIGI")
+    @Description("Тест проверяет поведение контроллера при передаче FIGI превышающего допустимую длину")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("boundary")
+    void getShares_ShouldHandleVeryLongFigi_WhenFigiExceedsMaxLength() throws Exception {
+        // Given - создание очень длинного FIGI (более 1000 символов)
+        String veryLongFigi = "BBG004730N88" + "A".repeat(1000);
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq(veryLongFigi)))
+            .thenReturn(Arrays.asList());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("figi", veryLongFigi)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(veryLongFigi));
+    }
+
+    @Test
+    @DisplayName("Получение списка акций через API с пустым FIGI")
+    @Description("Тест проверяет поведение контроллера при передаче пустого FIGI")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("empty-value")
+    void getShares_ShouldHandleEmptyFigi_WhenFigiIsEmpty() throws Exception {
+        // Given - настройка мока для возврата всех акций при пустом FIGI
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("")))
+            .thenReturn(createMockShares());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("figi", "")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$[1].figi").value("BBG004730ZJ9"))
+                .andExpect(jsonPath("$[2].figi").value("BBG004730N88"));
+
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(""));
+    }
+
+    @Test
+    @DisplayName("Получение списка акций через API с некорректным ticker")
+    @Description("Тест проверяет поведение контроллера при передаче некорректного ticker")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("invalid-value")
+    void getShares_ShouldHandleInvalidTicker_WhenTickerIsEmpty() throws Exception {
+        // Given - настройка мока для возврата всех акций при invalid ticker
+        when(instrumentService.getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull()))
+            .thenReturn(Arrays.asList());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("ticker", "INVALID_TICKER")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // Verify
+        verify(instrumentService).getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull());
+    }
+    // ==================== ТЕСТЫ ДЛЯ Получение акции из базы данных ====================
+
+    @Test
+    @DisplayName("Получение акции из базы данных через database - успешный случай")
+    @Description("Тест проверяет корректность получения акции из базы данных через database")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares database")
+    @Tag("database")
+    @Tag("shares")
+    @Tag("unit")
+    void getSharesFromDatabase_ShouldReturnSharesList_WhenApiSourceIsUsed() throws Exception {
+        // Given - настройка мока для акций
+        when(instrumentService.getSharesFromDatabase(eq(new ShareFilterDto(
+            null,
+            "MOEX",
+            null,
+            null,
+            null,
+            null,
+            null
+        ))))
+            .thenReturn(createMockShares());
+
+            mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "database")
+                .param("exchange", "MOEX"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
+                .andExpect(jsonPath("$[0].currency").value("RUB"))
+                .andExpect(jsonPath("$[0].exchange").value("MOEX"))
+                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                .andExpect(jsonPath("$[2].ticker").value("LKOH"))
+                .andExpect(jsonPath("$[1].exchange").value("MOEX"))
+                .andExpect(jsonPath("$[2].exchange").value("MOEX"));
+
+   
+
+    }
+    // ==================== ТЕСТЫ ДЛЯ ПОЛУЧЕНИЯ АКЦИИ ПО IDENTIFIER ====================
+
+    @Test
+    @DisplayName("Получение акции по FIGI - успешный случай")
     @Description("Тест проверяет корректность получения акции по FIGI")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares Management")
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("shares")
-    @Tag("get-by-id")
+    @Tag("identifier")
     @Tag("figi")
-    @Tag("success")
-    void getShareByIdentifier_ShouldReturnShare_WhenFoundByFigi() throws Exception {
-        // Given
-        when(tInvestService.getShareByFigi("BBG004730N88")).thenReturn(testShare);
-        when(tInvestService.getShareByTicker(anyString())).thenReturn(null);
+    void getShareByIdentifier_ShouldReturnShare_WhenValidFigiProvided() throws Exception {
+        // Given - настройка мока для поиска по FIGI
+        when(instrumentService.getShareByFigi("BBG004730N88"))
+            .thenReturn(createMockShare());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/shares/BBG004730N88"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("BBG004730N88"))
-            .andExpect(jsonPath("$.ticker").value("SBER"));
+        mockMvc.perform(get("/api/instruments/shares/BBG004730N88")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$.ticker").value("SBER"))
+                .andExpect(jsonPath("$.name").value("ПАО Сбербанк"))
+                .andExpect(jsonPath("$.currency").value("RUB"))
+                .andExpect(jsonPath("$.exchange").value("MOEX"));
 
-        verify(tInvestService).getShareByFigi("BBG004730N88");
-        verify(tInvestService, never()).getShareByTicker(anyString());
+        // Verify
+        verify(instrumentService).getShareByFigi("BBG004730N88");
+        verify(instrumentService, never()).getShareByTicker(any());
     }
 
     @Test
-    @DisplayName("Получение акции по идентификатору - найден по тикеру")
+    @DisplayName("Получение акции по тикеру - успешный случай")
     @Description("Тест проверяет корректность получения акции по тикеру")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares Management")
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("shares")
-    @Tag("get-by-id")
+    @Tag("identifier")
     @Tag("ticker")
-    @Tag("success")
-    void getShareByIdentifier_ShouldReturnShare_WhenFoundByTicker() throws Exception {
-        // Given
-        when(tInvestService.getShareByTicker("SBER")).thenReturn(testShare);
+    void getShareByIdentifier_ShouldReturnShare_WhenValidTickerProvided() throws Exception {
+        // Given - настройка мока для поиска по тикеру (тикер короткий, поэтому сначала поиск по FIGI не выполняется)
+        when(instrumentService.getShareByTicker("SBER"))
+            .thenReturn(createMockShare());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/shares/SBER"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("BBG004730N88"))
-            .andExpect(jsonPath("$.ticker").value("SBER"));
+        mockMvc.perform(get("/api/instruments/shares/SBER")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$.ticker").value("SBER"))
+                .andExpect(jsonPath("$.name").value("ПАО Сбербанк"));
 
-        verify(tInvestService, never()).getShareByFigi(anyString());
-        verify(tInvestService).getShareByTicker("SBER");
+        // Verify - тикер короткий, поэтому поиск по FIGI не выполняется
+        verify(instrumentService, never()).getShareByFigi(any());
+        verify(instrumentService).getShareByTicker("SBER");
     }
 
     @Test
-    @DisplayName("Получение акции по идентификатору - не найдена")
-    @Description("Тест проверяет корректность обработки случая когда акция не найдена")
+    @DisplayName("Получение акции по несуществующему identifier - 404")
+    @Description("Тест проверяет поведение контроллера при поиске несуществующей акции")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Shares Management")
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("shares")
-    @Tag("get-by-id")
-    @Tag("not-found")
-    void getShareByIdentifier_ShouldReturnNotFound_WhenShareNotFound() throws Exception {
-        // Given
-        when(tInvestService.getShareByTicker("UNKNOWN")).thenReturn(null);
+    @Tag("identifier")
+    @Tag("negative")
+    void getShareByIdentifier_ShouldReturn404_WhenShareNotFound() throws Exception {
+        // Given - настройка мока для несуществующей акции
+        when(instrumentService.getShareByFigi("INVALID_FIGI"))
+            .thenReturn(null);
+        when(instrumentService.getShareByTicker("INVALID_TICKER"))
+            .thenReturn(null);
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/shares/UNKNOWN"))
-            .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/instruments/shares/INVALID_FIGI")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
 
-        verify(tInvestService, never()).getShareByFigi(anyString());
-        verify(tInvestService).getShareByTicker("UNKNOWN");
+
+        mockMvc.perform(get("/api/instruments/shares/INVALID_TICKER")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound());
+
+        // Verify
+        verify(instrumentService).getShareByFigi("INVALID_FIGI");
+        verify(instrumentService).getShareByTicker("INVALID_TICKER");
     }
 
     @Test
-    @DisplayName("Сохранение акций - валидный фильтр")
-    @Description("Тест проверяет корректность сохранения акций с валидным фильтром")
-    @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares Management")
+    @DisplayName("Получение акции по FIGI с подчеркиванием")
+    @Description("Тест проверяет определение FIGI по наличию подчеркивания")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
+    @Tag("shares")
+    @Tag("identifier")
+    @Tag("figi")
+    void getShareByIdentifier_ShouldSearchByFigi_WhenContainsUnderscore() throws Exception {
+        // Given - настройка мока для FIGI с подчеркиванием
+        when(instrumentService.getShareByFigi("BBG_004730_N88"))
+            .thenReturn(createMockShare());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares/BBG_004730_N88")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$.ticker").value("SBER"));
+
+        // Verify
+        verify(instrumentService).getShareByFigi("BBG_004730_N88");
+        verify(instrumentService, never()).getShareByTicker(any());
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ СОХРАНЕНИЯ АКЦИЙ ====================
+
+    @Test
+    @DisplayName("Сохранение акций по фильтру - успешный случай")
+    @Description("Тест проверяет корректность сохранения акций по фильтру")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares API")
+    @Tag("api")
     @Tag("shares")
     @Tag("save")
-    @Tag("valid-filter")
-    void saveShares_ShouldReturnSaveResponse_WhenValidFilter() throws Exception {
-        // Given
+    @Tag("post")
+    void saveShares_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
+        // Given - настройка мока для сохранения акций
         ShareFilterDto filter = new ShareFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_BASE");
-        filter.setExchange("moex_mrng_evng_e_wknd_dlr");
+        filter.setExchange("MOEX");
         filter.setCurrency("RUB");
-        filter.setTicker("SBER");
-
-        when(tInvestService.saveShares(any(ShareFilterDto.class))).thenReturn(testSaveResponse);
+        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
+        
+        when(instrumentService.saveShares(any(ShareFilterDto.class)))
+            .thenReturn(createMockSaveResponse());
 
         // When & Then
         mockMvc.perform(post("/api/instruments/shares")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(filter)))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("Успешно загружено 1 новых акций"))
-            .andExpect(jsonPath("$.totalRequested").value(1))
-            .andExpect(jsonPath("$.newItemsSaved").value(1))
-            .andExpect(jsonPath("$.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.savedItems").isArray())
-            .andExpect(jsonPath("$.savedItems[0].figi").value("BBG004730N88"));
+                .content("{\"exchange\":\"MOEX\",\"currency\":\"RUB\",\"status\":\"INSTRUMENT_STATUS_ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
+                .andExpect(jsonPath("$.totalRequested").value(10))
+                .andExpect(jsonPath("$.newItemsSaved").value(5))
+                .andExpect(jsonPath("$.existingItemsSkipped").value(5));
 
-        verify(tInvestService).saveShares(any(ShareFilterDto.class));
+        // Verify
+        verify(instrumentService).saveShares(any(ShareFilterDto.class));
+    }
+
+    @Test
+    @DisplayName("Сохранение акций с пустым фильтром")
+    @Description("Тест проверяет поведение контроллера при сохранении с пустым фильтром")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("save")
+    @Tag("negative")
+    void saveShares_ShouldHandleEmptyFilter_WhenEmptyFilterProvided() throws Exception {
+        // Given - настройка мока для пустого фильтра
+        when(instrumentService.saveShares(any(ShareFilterDto.class)))
+            .thenReturn(createMockSaveResponse());
+
+        // When & Then
+        mockMvc.perform(post("/api/instruments/shares")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Verify
+        verify(instrumentService).saveShares(any(ShareFilterDto.class));
     }
 
     // ==================== ТЕСТЫ ДЛЯ ФЬЮЧЕРСОВ ====================
 
     @Test
-    @DisplayName("Получение фьючерсов - валидные параметры")
-    @Description("Тест проверяет корректность получения фьючерсов с валидными параметрами фильтрации")
+    @DisplayName("Получение списка фьючерсов через API - успешный случай")
+    @Description("Тест проверяет корректность получения списка фьючерсов через API")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Futures Management")
+    @Story("Futures API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("futures")
-    @Tag("get")
-    @Tag("valid-parameters")
-    void getFutures_ShouldReturnFutures_WhenValidParameters() throws Exception {
-        // Given
-        List<FutureDto> expectedFutures = Arrays.asList(testFuture);
-        when(tInvestService.getFutures(anyString(), anyString(), anyString(), anyString(), anyString()))
-            .thenReturn(expectedFutures);
+    @Tag("unit")
+    void getFutures_ShouldReturnFuturesList_WhenApiSourceIsUsed() throws Exception {
+        
+        when(instrumentService.getFutures(
+            eq("INSTRUMENT_STATUS_ACTIVE"),
+            eq("MOEX"),
+            eq("USD"),
+            isNull(),
+            eq("COMMODITY")
+        )).thenReturn(createMockFutures());
 
         // When & Then
         mockMvc.perform(get("/api/instruments/futures")
-                .param("status", "INSTRUMENT_STATUS_BASE")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
-                .param("currency", "RUB")
-                .param("ticker", "SBER-3.24")
-                .param("assetType", "FUTURES"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$[0].figi").value("FUTSBER0324"))
-            .andExpect(jsonPath("$[0].ticker").value("SBER-3.24"))
-            .andExpect(jsonPath("$[0].assetType").value("FUTURES"))
-            .andExpect(jsonPath("$[0].basicAsset").value("SBER"))
-            .andExpect(jsonPath("$[0].currency").value("RUB"))
-            .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"));
+                .param("status", "INSTRUMENT_STATUS_ACTIVE")
+                .param("exchange", "MOEX")
+                .param("currency", "USD")
+                .param("assetType", "COMMODITY")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].figi").value("FUTSI0624000"))
+                .andExpect(jsonPath("$[0].ticker").value("SI0624"))
+                .andExpect(jsonPath("$[0].assetType").value("COMMODITY"))
+                .andExpect(jsonPath("$[1].ticker").value("GZ0624"));
 
-        verify(tInvestService).getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", 
-            "RUB", "SBER-3.24", "FUTURES");
+        // Verify
+        verify(instrumentService).getFutures(
+            eq("INSTRUMENT_STATUS_ACTIVE"),
+            eq("MOEX"),
+            eq("USD"),
+            isNull(),
+            eq("COMMODITY")
+        );
     }
 
     @Test
-    @DisplayName("Получение фьючерса по идентификатору - найден по FIGI")
+    @DisplayName("Получение фьючерса по FIGI - успешный случай")
     @Description("Тест проверяет корректность получения фьючерса по FIGI")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Futures Management")
+    @Story("Futures API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("futures")
-    @Tag("get-by-id")
+    @Tag("identifier")
     @Tag("figi")
-    @Tag("success")
-    void getFutureByIdentifier_ShouldReturnFuture_WhenFoundByFigi() throws Exception {
-        // Given
-        when(tInvestService.getFutureByFigi("FUTSBER0324")).thenReturn(testFuture);
-        when(tInvestService.getFutureByTicker(anyString())).thenReturn(null);
+    void getFutureByIdentifier_ShouldReturnFuture_WhenValidFigiProvided() throws Exception {
+        // Given - настройка мока для поиска фьючерса по FIGI
+        when(instrumentService.getFutureByFigi("FUTSI0624000"))
+            .thenReturn(createMockFuture());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/futures/FUTSBER0324"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("FUTSBER0324"))
-            .andExpect(jsonPath("$.ticker").value("SBER-3.24"));
+        mockMvc.perform(get("/api/instruments/futures/FUTSI0624000")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
+                .andExpect(jsonPath("$.ticker").value("SI0624"))
+                .andExpect(jsonPath("$.assetType").value("COMMODITY"))
+                .andExpect(jsonPath("$.basicAsset").value("Silver"))
+                .andExpect(jsonPath("$.currency").value("USD"))
+                .andExpect(jsonPath("$.exchange").value("MOEX"));
 
-        verify(tInvestService).getFutureByFigi("FUTSBER0324");
-        verify(tInvestService, never()).getFutureByTicker(anyString());
+        // Verify
+        verify(instrumentService).getFutureByFigi("FUTSI0624000");
+        verify(instrumentService, never()).getFutureByTicker(any());
     }
 
     @Test
-    @DisplayName("Получение фьючерса по идентификатору - найден по тикеру с дефисом")
-    @Description("Тест проверяет корректность получения фьючерса по тикеру с дефисом")
-    @Severity(SeverityLevel.NORMAL)
-    @Story("Futures Management")
-    @Tag("api")
-    @Tag("instruments")
-    @Tag("futures")
-    @Tag("get-by-id")
-    @Tag("ticker-with-dash")
-    @Tag("success")
-    void getFutureByIdentifier_ShouldReturnFuture_WhenFoundByTickerWithDash() throws Exception {
-        // Given
-        when(tInvestService.getFutureByFigi("SBER-3.24")).thenReturn(testFuture);
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/futures/SBER-3.24"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("FUTSBER0324"))
-            .andExpect(jsonPath("$.ticker").value("SBER-3.24"));
-
-        verify(tInvestService).getFutureByFigi("SBER-3.24");
-        verify(tInvestService, never()).getFutureByTicker(anyString());
-    }
-
-    @Test
-    @DisplayName("Получение фьючерса по идентификатору - найден по тикеру")
+    @DisplayName("Получение фьючерса по тикеру - успешный случай")
     @Description("Тест проверяет корректность получения фьючерса по тикеру")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Futures Management")
+    @Story("Futures API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("futures")
-    @Tag("get-by-id")
+    @Tag("identifier")
     @Tag("ticker")
-    @Tag("success")
-    void getFutureByIdentifier_ShouldReturnFuture_WhenFoundByTicker() throws Exception {
-        // Given
-        when(tInvestService.getFutureByTicker("SBER0324")).thenReturn(testFuture);
+    void getFutureByIdentifier_ShouldReturnFuture_WhenValidTickerProvided() throws Exception {
+        // Given - настройка мока для поиска фьючерса по тикеру (тикер короткий, поэтому сначала поиск по FIGI не выполняется)
+        when(instrumentService.getFutureByTicker("SI0624"))
+            .thenReturn(createMockFuture());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/futures/SBER0324"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("FUTSBER0324"))
-            .andExpect(jsonPath("$.ticker").value("SBER-3.24"));
+        mockMvc.perform(get("/api/instruments/futures/SI0624")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
+                .andExpect(jsonPath("$.ticker").value("SI0624"))
+                .andExpect(jsonPath("$.assetType").value("COMMODITY"));
 
-        verify(tInvestService, never()).getFutureByFigi(anyString());
-        verify(tInvestService).getFutureByTicker("SBER0324");
+        // Verify - тикер короткий, поэтому поиск по FIGI не выполняется
+        verify(instrumentService, never()).getFutureByFigi(any());
+        verify(instrumentService).getFutureByTicker("SI0624");
     }
 
     @Test
-    @DisplayName("Получение фьючерса по идентификатору - не найден")
-    @Description("Тест проверяет корректность обработки случая когда фьючерс не найден")
+    @DisplayName("Получение фьючерса по несуществующему identifier - 404")
+    @Description("Тест проверяет поведение контроллера при поиске несуществующего фьючерса")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Futures Management")
+    @Story("Futures API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("futures")
-    @Tag("get-by-id")
-    @Tag("not-found")
-    void getFutureByIdentifier_ShouldReturnNotFound_WhenFutureNotFound() throws Exception {
-        // Given
-        when(tInvestService.getFutureByTicker("UNKNOWN")).thenReturn(null);
+    @Tag("identifier")
+    @Tag("negative")
+    void getFutureByIdentifier_ShouldReturn404_WhenFutureNotFound() throws Exception {
+        // Given - настройка мока для несуществующего фьючерса
+        when(instrumentService.getFutureByFigi("INVALID_FUTURE"))
+            .thenReturn(null);
+        when(instrumentService.getFutureByTicker("INVALID_FUTURE"))
+            .thenReturn(null);
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/futures/UNKNOWN"))
-            .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/instruments/futures/INVALID_FUTURE")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
 
-        verify(tInvestService, never()).getFutureByFigi(anyString());
-        verify(tInvestService).getFutureByTicker("UNKNOWN");
+        // Verify
+        verify(instrumentService).getFutureByFigi("INVALID_FUTURE");
+        verify(instrumentService).getFutureByTicker("INVALID_FUTURE");
     }
 
     @Test
-    @DisplayName("Сохранение фьючерсов - валидный фильтр")
-    @Description("Тест проверяет корректность сохранения фьючерсов с валидным фильтром")
+    @DisplayName("Сохранение фьючерсов по фильтру - успешный случай")
+    @Description("Тест проверяет корректность сохранения фьючерсов по фильтру")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Futures Management")
+    @Story("Futures API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("futures")
     @Tag("save")
-    @Tag("valid-filter")
-    void saveFutures_ShouldReturnSaveResponse_WhenValidFilter() throws Exception {
-        // Given
-        FutureFilterDto filter = new FutureFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_BASE");
-        filter.setExchange("moex_mrng_evng_e_wknd_dlr");
-        filter.setCurrency("RUB");
-        filter.setTicker("SBER-3.24");
-        filter.setAssetType("FUTURES");
-
-        SaveResponseDto futureSaveResponse = new SaveResponseDto(
-            true,
-            "Успешно загружено 1 новых фьючерсов",
-            1,
-            1,
-            0,
-            0, // invalidItemsFiltered
-            0, // missingFromApi
-            Arrays.asList(testFuture)
-        );
-
-        when(tInvestService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
+    @Tag("post")
+    void saveFutures_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
+        // Given - настройка мока для сохранения фьючерсов
+        when(instrumentService.saveFutures(any(FutureFilterDto.class)))
+            .thenReturn(createMockSaveResponse());
 
         // When & Then
         mockMvc.perform(post("/api/instruments/futures")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(filter)))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("Успешно загружено 1 новых фьючерсов"))
-            .andExpect(jsonPath("$.totalRequested").value(1))
-            .andExpect(jsonPath("$.newItemsSaved").value(1))
-            .andExpect(jsonPath("$.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.savedItems").isArray())
-            .andExpect(jsonPath("$.savedItems[0].figi").value("FUTSBER0324"));
+                .content("{\"exchange\":\"MOEX\",\"currency\":\"USD\",\"assetType\":\"COMMODITY\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
+                .andExpect(jsonPath("$.totalRequested").value(10))
+                .andExpect(jsonPath("$.newItemsSaved").value(5));
 
-        verify(tInvestService).saveFutures(any(FutureFilterDto.class));
+        // Verify
+        verify(instrumentService).saveFutures(any(FutureFilterDto.class));
     }
 
     // ==================== ТЕСТЫ ДЛЯ ИНДИКАТИВОВ ====================
 
     @Test
-    @DisplayName("Получение индикативов - валидные параметры")
-    @Description("Тест проверяет корректность получения индикативов с валидными параметрами фильтрации")
+    @DisplayName("Получение списка индикативов через API - успешный случай")
+    @Description("Тест проверяет корректность получения списка индикативов через API")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Indicatives Management")
+    @Story("Indicatives API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("indicatives")
-    @Tag("get")
-    @Tag("valid-parameters")
-    void getIndicatives_ShouldReturnIndicatives_WhenValidParameters() throws Exception {
-        // Given
-        List<IndicativeDto> expectedIndicatives = Arrays.asList(testIndicative);
-        when(tInvestService.getIndicatives(anyString(), anyString(), anyString(), anyString()))
-            .thenReturn(expectedIndicatives);
+    @Tag("unit")
+    void getIndicatives_ShouldReturnIndicativesList_WhenApiSourceIsUsed() throws Exception {
+        // Given - настройка мока для индикативов
+        when(instrumentService.getIndicatives(
+            eq("MOEX"),
+            eq("RUB"),
+            isNull(),
+            isNull()
+        )).thenReturn(createMockIndicatives());
 
         // When & Then
         mockMvc.perform(get("/api/instruments/indicatives")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
+                .param("exchange", "MOEX")
                 .param("currency", "RUB")
-                .param("ticker", "RTSI")
-                .param("figi", "BBG004730ZJ9"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$[0].figi").value("BBG004730ZJ9"))
-            .andExpect(jsonPath("$[0].ticker").value("RTSI"))
-            .andExpect(jsonPath("$[0].name").value("Индекс РТС"))
-            .andExpect(jsonPath("$[0].currency").value("RUB"))
-            .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
-            .andExpect(jsonPath("$[0].classCode").value("SPBXM"))
-            .andExpect(jsonPath("$[0].uid").value("test-uid"))
-            .andExpect(jsonPath("$[0].sellAvailableFlag").value(true))
-            .andExpect(jsonPath("$[0].buyAvailableFlag").value(true));
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].figi").value("BBG0013HGFT4"))
+                .andExpect(jsonPath("$[0].ticker").value("USD000UTSTOM"))
+                .andExpect(jsonPath("$[1].ticker").value("EUR000UTSTOM"));
 
-        verify(tInvestService).getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
+        // Verify
+        verify(instrumentService).getIndicatives(
+            eq("MOEX"),
+            eq("RUB"),
+            isNull(),
+            isNull()
+        );
     }
 
     @Test
-    @DisplayName("Получение индикатива по идентификатору - найден по FIGI")
+    @DisplayName("Получение индикатива по FIGI - успешный случай")
     @Description("Тест проверяет корректность получения индикатива по FIGI")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Indicatives Management")
+    @Story("Indicatives API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("indicatives")
-    @Tag("get-by-id")
+    @Tag("identifier")
     @Tag("figi")
-    @Tag("success")
-    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenFoundByFigi() throws Exception {
-        // Given
-        when(tInvestService.getIndicativeBy("BBG004730ZJ9")).thenReturn(testIndicative);
-        when(tInvestService.getIndicativeByTicker(anyString())).thenReturn(null);
+    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidFigiProvided() throws Exception {
+        // Given - настройка мока для поиска индикатива по FIGI
+        when(instrumentService.getIndicativeBy("BBG0013HGFT4"))
+            .thenReturn(createMockIndicative());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives/BBG004730ZJ9"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("BBG004730ZJ9"))
-            .andExpect(jsonPath("$.ticker").value("RTSI"));
+        mockMvc.perform(get("/api/instruments/indicatives/BBG0013HGFT4")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"))
+                .andExpect(jsonPath("$.currency").value("RUB"))
+                .andExpect(jsonPath("$.exchange").value("MOEX"))
+                .andExpect(jsonPath("$.classCode").value("CURRENCY"))
+                .andExpect(jsonPath("$.sellAvailableFlag").value(true))
+                .andExpect(jsonPath("$.buyAvailableFlag").value(true));
 
-        verify(tInvestService).getIndicativeBy("BBG004730ZJ9");
-        verify(tInvestService, never()).getIndicativeByTicker(anyString());
+        // Verify
+        verify(instrumentService).getIndicativeBy("BBG0013HGFT4");
+        verify(instrumentService, never()).getIndicativeByTicker(any());
     }
 
     @Test
-    @DisplayName("Получение индикатива по идентификатору - найден по тикеру")
+    @DisplayName("Получение индикатива по тикеру - успешный случай")
     @Description("Тест проверяет корректность получения индикатива по тикеру")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Indicatives Management")
+    @Story("Indicatives API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("indicatives")
-    @Tag("get-by-id")
+    @Tag("identifier")
     @Tag("ticker")
-    @Tag("success")
-    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenFoundByTicker() throws Exception {
-        // Given
-        when(tInvestService.getIndicativeByTicker("RTSI")).thenReturn(testIndicative);
+    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidTickerProvided() throws Exception {
+        // Given - настройка мока для поиска индикатива по тикеру
+        when(instrumentService.getIndicativeBy("USD000UTSTOM"))
+            .thenReturn(null);
+        when(instrumentService.getIndicativeByTicker("USD000UTSTOM"))
+            .thenReturn(createMockIndicative());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives/RTSI"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.figi").value("BBG004730ZJ9"))
-            .andExpect(jsonPath("$.ticker").value("RTSI"));
+        mockMvc.perform(get("/api/instruments/indicatives/USD000UTSTOM")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
 
-        verify(tInvestService, never()).getIndicativeBy(anyString());
-        verify(tInvestService).getIndicativeByTicker("RTSI");
+        // Verify
+        verify(instrumentService).getIndicativeBy("USD000UTSTOM");
+        verify(instrumentService).getIndicativeByTicker("USD000UTSTOM");
     }
 
     @Test
-    @DisplayName("Получение индикатива по идентификатору - не найден")
-    @Description("Тест проверяет корректность обработки случая когда индикатив не найден")
+    @DisplayName("Получение индикатива по несуществующему identifier - 404")
+    @Description("Тест проверяет поведение контроллера при поиске несуществующего индикатива")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Indicatives Management")
+    @Story("Indicatives API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("indicatives")
-    @Tag("get-by-id")
-    @Tag("not-found")
-    void getIndicativeByIdentifier_ShouldReturnNotFound_WhenIndicativeNotFound() throws Exception {
-        // Given
-        when(tInvestService.getIndicativeByTicker("UNKNOWN")).thenReturn(null);
+    @Tag("identifier")
+    @Tag("negative")
+    void getIndicativeByIdentifier_ShouldReturn404_WhenIndicativeNotFound() throws Exception {
+        // Given - настройка мока для несуществующего индикатива
+        when(instrumentService.getIndicativeBy("INVALID_INDICATIVE"))
+            .thenReturn(null);
+        when(instrumentService.getIndicativeByTicker("INVALID_INDICATIVE"))
+            .thenReturn(null);
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives/UNKNOWN"))
-            .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/instruments/indicatives/INVALID_INDICATIVE")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
 
-        verify(tInvestService, never()).getIndicativeBy(anyString());
-        verify(tInvestService).getIndicativeByTicker("UNKNOWN");
+        // Verify
+        verify(instrumentService).getIndicativeBy("INVALID_INDICATIVE");
+        verify(instrumentService).getIndicativeByTicker("INVALID_INDICATIVE");
     }
 
     @Test
-    @DisplayName("Сохранение индикативов - валидный фильтр")
-    @Description("Тест проверяет корректность сохранения индикативов с валидным фильтром")
+    @DisplayName("Сохранение индикативов по фильтру - успешный случай")
+    @Description("Тест проверяет корректность сохранения индикативов по фильтру")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Indicatives Management")
+    @Story("Indicatives API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("indicatives")
     @Tag("save")
-    @Tag("valid-filter")
-    void saveIndicatives_ShouldReturnSaveResponse_WhenValidFilter() throws Exception {
-        // Given
-        IndicativeFilterDto filter = new IndicativeFilterDto();
-        filter.setExchange("moex_mrng_evng_e_wknd_dlr");
-        filter.setCurrency("RUB");
-        filter.setTicker("RTSI");
-        filter.setFigi("BBG004730ZJ9");
-
-        SaveResponseDto indicativeSaveResponse = new SaveResponseDto(
-            true,
-            "Успешно загружено 1 новых индикативных инструментов",
-            1,
-            1,
-            0,
-            0, // invalidItemsFiltered
-            0, // missingFromApi
-            Arrays.asList(testIndicative)
-        );
-
-        when(tInvestService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+    @Tag("post")
+    void saveIndicatives_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
+        // Given - настройка мока для сохранения индикативов
+        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class)))
+            .thenReturn(createMockSaveResponse());
 
         // When & Then
         mockMvc.perform(post("/api/instruments/indicatives")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(filter)))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("Успешно загружено 1 новых индикативных инструментов"))
-            .andExpect(jsonPath("$.totalRequested").value(1))
-            .andExpect(jsonPath("$.newItemsSaved").value(1))
-            .andExpect(jsonPath("$.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.savedItems").isArray())
-            .andExpect(jsonPath("$.savedItems[0].figi").value("BBG004730ZJ9"));
+                .content("{\"exchange\":\"MOEX\",\"currency\":\"RUB\",\"ticker\":\"USD000UTSTOM\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
+                .andExpect(jsonPath("$.totalRequested").value(10))
+                .andExpect(jsonPath("$.newItemsSaved").value(5));
 
-        verify(tInvestService).saveIndicatives(any(IndicativeFilterDto.class));
+        // Verify
+        verify(instrumentService).saveIndicatives(any(IndicativeFilterDto.class));
     }
 
     // ==================== ТЕСТЫ ДЛЯ СТАТИСТИКИ ====================
 
     @Test
-    @DisplayName("Получение статистики инструментов - с данными")
-    @Description("Тест проверяет корректность получения статистики количества инструментов")
-    @Severity(SeverityLevel.NORMAL)
-    @Story("Instruments Statistics")
+    @DisplayName("Получение статистики инструментов")
+    @Description("Тест проверяет корректность получения статистики по количеству инструментов")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Statistics API")
     @Tag("api")
-    @Tag("instruments")
     @Tag("statistics")
-    @Tag("count")
-    @Tag("with-data")
-    void getInstrumentsCount_ShouldReturnCounts_WhenRepositoriesHaveData() throws Exception {
-        // Given
-        when(shareRepository.count()).thenReturn(100L);
-        when(futureRepository.count()).thenReturn(50L);
-        when(indicativeRepository.count()).thenReturn(25L);
+    @Tag("unit")
+    void getInstrumentCounts_ShouldReturnStatistics_WhenRequested() throws Exception {
+        // Given - настройка мока для статистики
+        when(instrumentService.getInstrumentCounts())
+            .thenReturn(createMockInstrumentCounts());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/count"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.shares").value(100))
-            .andExpect(jsonPath("$.futures").value(50))
-            .andExpect(jsonPath("$.indicatives").value(25))
-            .andExpect(jsonPath("$.total").value(175));
+        mockMvc.perform(get("/api/instruments/count")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.shares").value(150))
+                .andExpect(jsonPath("$.futures").value(45))
+                .andExpect(jsonPath("$.indicatives").value(12))
+                .andExpect(jsonPath("$.total").value(207));
 
-        verify(shareRepository).count();
-        verify(futureRepository).count();
-        verify(indicativeRepository).count();
+        // Verify
+        verify(instrumentService).getInstrumentCounts();
+    }
+
+    // ==================== ДОПОЛНИТЕЛЬНЫЕ НЕГАТИВНЫЕ ТЕСТЫ ====================
+
+    @Test
+    @DisplayName("Получение списка акций с некорректным статусом")
+    @Description("Тест проверяет поведение контроллера при передаче некорректного статуса")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("status")
+    void getShares_ShouldHandleInvalidStatus_WhenInvalidStatusProvided() throws Exception {
+        // Given - настройка мока для некорректного статуса
+        when(instrumentService.getShares(
+            eq("INVALID_STATUS"),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull()
+        )).thenReturn(createMockShares());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("status", "INVALID_STATUS")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3));
+
+        // Verify
+        verify(instrumentService).getShares(
+            eq("INVALID_STATUS"),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull()
+        );
     }
 
     @Test
-    @DisplayName("Получение статистики инструментов - пустые репозитории")
-    @Description("Тест проверяет корректность получения статистики когда репозитории пусты")
+    @DisplayName("Получение списка акций с некорректной биржей")
+    @Description("Тест проверяет поведение контроллера при передаче некорректной биржи")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Instruments Statistics")
+    @Story("Shares API")
     @Tag("api")
-    @Tag("instruments")
-    @Tag("statistics")
-    @Tag("count")
-    @Tag("empty-repositories")
-    void getInstrumentsCount_ShouldReturnZeroCounts_WhenRepositoriesEmpty() throws Exception {
-        // Given
-        when(shareRepository.count()).thenReturn(0L);
-        when(futureRepository.count()).thenReturn(0L);
-        when(indicativeRepository.count()).thenReturn(0L);
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("exchange")
+    void getShares_ShouldHandleInvalidExchange_WhenInvalidExchangeProvided() throws Exception {
+        // Given - настройка мока для некорректной биржи
+        when(instrumentService.getShares(
+            isNull(),
+            eq("INVALID_EXCHANGE"),
+            isNull(),
+            isNull(),
+            isNull()
+        )).thenReturn(Arrays.asList());
 
         // When & Then
-        mockMvc.perform(get("/api/instruments/count"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.shares").value(0))
-            .andExpect(jsonPath("$.futures").value(0))
-            .andExpect(jsonPath("$.indicatives").value(0))
-            .andExpect(jsonPath("$.total").value(0));
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("exchange", "INVALID_EXCHANGE")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
 
-        verify(shareRepository).count();
-        verify(futureRepository).count();
-        verify(indicativeRepository).count();
+        // Verify
+        verify(instrumentService).getShares(
+            isNull(),
+            eq("INVALID_EXCHANGE"),
+            isNull(),
+            isNull(),
+            isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("Получение списка акций с некорректной валютой")
+    @Description("Тест проверяет поведение контроллера при передаче некорректной валюты")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("validation")
+    @Tag("currency")
+    void getShares_ShouldHandleInvalidCurrency_WhenInvalidCurrencyProvided() throws Exception {
+        // Given - настройка мока для некорректной валюты
+        when(instrumentService.getShares(
+            isNull(),
+            isNull(),
+            eq("INVALID_CURRENCY"),
+            isNull(),
+            isNull()
+        )).thenReturn(Arrays.asList());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
+                .param("currency", "INVALID_CURRENCY")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // Verify
+        verify(instrumentService).getShares(
+            isNull(),
+            isNull(),
+            eq("INVALID_CURRENCY"),
+            isNull(),
+            isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("Получение списка акций через database с параметрами")
+    @Description("Тест проверяет корректность получения акций из БД с параметрами")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares database")
+    @Tag("database")
+    @Tag("shares")
+    @Tag("filter")
+    void getSharesFromDatabase_ShouldReturnSharesList_WhenParametersProvided() throws Exception {
+        // Given - настройка мока для БД с параметрами
+        when(instrumentService.getSharesFromDatabase(any(ShareFilterDto.class)))
+            .thenReturn(createMockShares());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "database")
+                .param("exchange", "MOEX")
+                .param("currency", "RUB")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                .andExpect(jsonPath("$[2].ticker").value("LKOH"));
+
+        // Verify
+        verify(instrumentService).getSharesFromDatabase(any(ShareFilterDto.class));
+    }
+
+    @Test
+    @DisplayName("Получение списка фьючерсов без параметров")
+    @Description("Тест проверяет поведение API фьючерсов при отсутствии параметров")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Futures API")
+    @Tag("api")
+    @Tag("futures")
+    @Tag("no-params")
+    void getFutures_ShouldReturnFuturesList_WhenNoParametersProvided() throws Exception {
+        // Given - настройка мока для фьючерсов без параметров
+        when(instrumentService.getFutures(isNull(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(createMockFutures());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/futures")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].ticker").value("SI0624"))
+                .andExpect(jsonPath("$[1].ticker").value("GZ0624"));
+
+        // Verify
+        verify(instrumentService).getFutures(isNull(), isNull(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    @DisplayName("Получение списка индикативов без параметров")
+    @Description("Тест проверяет поведение API индикативов при отсутствии параметров")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Indicatives API")
+    @Tag("api")
+    @Tag("indicatives")
+    @Tag("no-params")
+    void getIndicatives_ShouldReturnIndicativesList_WhenNoParametersProvided() throws Exception {
+        // Given - настройка мока для индикативов без параметров
+        when(instrumentService.getIndicatives(isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(createMockIndicatives());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/indicatives")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].ticker").value("USD000UTSTOM"))
+                .andExpect(jsonPath("$[1].ticker").value("EUR000UTSTOM"));
+
+        // Verify
+        verify(instrumentService).getIndicatives(isNull(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    @DisplayName("Получение акции по FIGI с дефисом")
+    @Description("Тест проверяет определение FIGI по наличию дефиса")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Shares API")
+    @Tag("api")
+    @Tag("shares")
+    @Tag("identifier")
+    @Tag("figi")
+    void getShareByIdentifier_ShouldSearchByFigi_WhenContainsDash() throws Exception {
+        // Given - настройка мока для FIGI с дефисом
+        when(instrumentService.getShareByFigi("BBG-004730-N88"))
+            .thenReturn(createMockShare());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/shares/BBG-004730-N88")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                .andExpect(jsonPath("$.ticker").value("SBER"));
+
+        // Verify
+        verify(instrumentService).getShareByFigi("BBG-004730-N88");
+        verify(instrumentService, never()).getShareByTicker(any());
+    }
+
+    @Test
+    @DisplayName("Получение фьючерса по FIGI с дефисом")
+    @Description("Тест проверяет определение FIGI фьючерса по наличию дефиса")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Futures API")
+    @Tag("api")
+    @Tag("futures")
+    @Tag("identifier")
+    @Tag("figi")
+    void getFutureByIdentifier_ShouldSearchByFigi_WhenContainsDash() throws Exception {
+        // Given - настройка мока для FIGI фьючерса с дефисом
+        when(instrumentService.getFutureByFigi("FUT-SI0624-000"))
+            .thenReturn(createMockFuture());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/futures/FUT-SI0624-000")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
+                .andExpect(jsonPath("$.ticker").value("SI0624"))
+                .andExpect(jsonPath("$.assetType").value("COMMODITY"));
+
+        // Verify
+        verify(instrumentService).getFutureByFigi("FUT-SI0624-000");
+        verify(instrumentService, never()).getFutureByTicker(any());
+    }
+
+    @Test
+    @DisplayName("Получение индикатива по FIGI с дефисом")
+    @Description("Тест проверяет определение FIGI индикатива по наличию дефиса")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("Indicatives API")
+    @Tag("api")
+    @Tag("indicatives")
+    @Tag("identifier")
+    @Tag("figi")
+    void getIndicativeByIdentifier_ShouldSearchByFigi_WhenContainsDash() throws Exception {
+        // Given - настройка мока для FIGI индикатива с дефисом
+        when(instrumentService.getIndicativeBy("BBG-0013HG-FT4"))
+            .thenReturn(createMockIndicative());
+
+        // When & Then
+        mockMvc.perform(get("/api/instruments/indicatives/BBG-0013HG-FT4")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+
+        // Verify
+        verify(instrumentService).getIndicativeBy("BBG-0013HG-FT4");
+        verify(instrumentService, never()).getIndicativeByTicker(any());
     }
 }
