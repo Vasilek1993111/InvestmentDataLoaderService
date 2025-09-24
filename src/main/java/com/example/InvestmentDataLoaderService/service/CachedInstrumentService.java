@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -102,16 +103,44 @@ public class CachedInstrumentService {
         
         // Получаем все записи из кэша через ключи
         try {
-            // Используем стандартный ключ для получения всех акций
-            String cacheKey = "|||"; // Пустые параметры для получения всех акций
-            Cache.ValueWrapper wrapper = cache.get(cacheKey);
-            if (wrapper != null && wrapper.get() instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<ShareDto> shares = (List<ShareDto>) wrapper.get();
-                if (shares != null) {
-                    allShares.addAll(shares);
+            // Пробуем разные ключи для получения акций
+            String[] possibleKeys = {
+                "|||", // Пустые параметры
+                "|moex_mrng_evng_e_wknd_dlr|||", // Ключ из CacheController
+                "|moex_mrng_evng_e_wknd_dlr|||", // Другой возможный ключ
+            };
+            
+            for (String cacheKey : possibleKeys) {
+                Cache.ValueWrapper wrapper = cache.get(cacheKey);
+                if (wrapper != null && wrapper.get() instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<ShareDto> shares = (List<ShareDto>) wrapper.get();
+                    if (shares != null && !shares.isEmpty()) {
+                        allShares.addAll(shares);
+                        System.out.println("Найдено " + shares.size() + " акций в кэше с ключом: " + cacheKey);
+                        break; // Используем первый найденный ключ
+                    }
                 }
             }
+            
+            // Если не нашли по стандартным ключам, пробуем получить все записи из кэша
+            if (allShares.isEmpty() && cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache) {
+                com.github.benmanes.caffeine.cache.Cache<?, ?> caffeineCache = 
+                    (com.github.benmanes.caffeine.cache.Cache<?, ?>) cache.getNativeCache();
+                
+                for (Map.Entry<?, ?> entry : caffeineCache.asMap().entrySet()) {
+                    if (entry.getValue() instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<ShareDto> shares = (List<ShareDto>) entry.getValue();
+                        if (shares != null && !shares.isEmpty()) {
+                            allShares.addAll(shares);
+                            System.out.println("Найдено " + shares.size() + " акций в кэше с ключом: " + entry.getKey());
+                            break; // Используем первый найденный список
+                        }
+                    }
+                }
+            }
+            
         } catch (Exception e) {
             System.err.println("Ошибка получения акций из кэша: " + e.getMessage());
         }
@@ -132,16 +161,43 @@ public class CachedInstrumentService {
         
         // Получаем все записи из кэша через ключи
         try {
-            // Используем стандартный ключ для получения всех фьючерсов
-            String cacheKey = "||||"; // Пустые параметры для получения всех фьючерсов
-            Cache.ValueWrapper wrapper = cache.get(cacheKey);
-            if (wrapper != null && wrapper.get() instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<FutureDto> futures = (List<FutureDto>) wrapper.get();
-                if (futures != null) {
-                    allFutures.addAll(futures);
+            // Пробуем разные ключи для получения фьючерсов
+            String[] possibleKeys = {
+                "||||", // Пустые параметры
+                "||||", // Другой возможный ключ
+            };
+            
+            for (String cacheKey : possibleKeys) {
+                Cache.ValueWrapper wrapper = cache.get(cacheKey);
+                if (wrapper != null && wrapper.get() instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<FutureDto> futures = (List<FutureDto>) wrapper.get();
+                    if (futures != null && !futures.isEmpty()) {
+                        allFutures.addAll(futures);
+                        System.out.println("Найдено " + futures.size() + " фьючерсов в кэше с ключом: " + cacheKey);
+                        break; // Используем первый найденный ключ
+                    }
                 }
             }
+            
+            // Если не нашли по стандартным ключам, пробуем получить все записи из кэша
+            if (allFutures.isEmpty() && cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache) {
+                com.github.benmanes.caffeine.cache.Cache<?, ?> caffeineCache = 
+                    (com.github.benmanes.caffeine.cache.Cache<?, ?>) cache.getNativeCache();
+                
+                for (Map.Entry<?, ?> entry : caffeineCache.asMap().entrySet()) {
+                    if (entry.getValue() instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<FutureDto> futures = (List<FutureDto>) entry.getValue();
+                        if (futures != null && !futures.isEmpty()) {
+                            allFutures.addAll(futures);
+                            System.out.println("Найдено " + futures.size() + " фьючерсов в кэше с ключом: " + entry.getKey());
+                            break; // Используем первый найденный список
+                        }
+                    }
+                }
+            }
+            
         } catch (Exception e) {
             System.err.println("Ошибка получения фьючерсов из кэша: " + e.getMessage());
         }
@@ -219,11 +275,31 @@ public class CachedInstrumentService {
      */
     public String getCacheInfo() {
         try {
-            int sharesCount = getSharesFromCache().size();
-            int futuresCount = getFuturesFromCache().size();
+            List<ShareDto> shares = getSharesFromCache();
+            List<FutureDto> futures = getFuturesFromCache();
             
-            return String.format("Кэш: %d акций, %d фьючерсов", sharesCount, futuresCount);
+            int sharesCount = shares.size();
+            int futuresCount = futures.size();
+            
+            String info = String.format("Кэш: %d акций, %d фьючерсов", sharesCount, futuresCount);
+            
+            // Добавляем отладочную информацию
+            if (sharesCount > 0) {
+                System.out.println("DEBUG: Найдено " + sharesCount + " акций в кэше");
+            } else {
+                System.out.println("DEBUG: Акции в кэше не найдены");
+            }
+            
+            if (futuresCount > 0) {
+                System.out.println("DEBUG: Найдено " + futuresCount + " фьючерсов в кэше");
+            } else {
+                System.out.println("DEBUG: Фьючерсы в кэше не найдены");
+            }
+            
+            return info;
         } catch (Exception e) {
+            System.err.println("Ошибка получения информации о кэше: " + e.getMessage());
+            e.printStackTrace();
             return "Ошибка получения информации о кэше: " + e.getMessage();
         }
     }

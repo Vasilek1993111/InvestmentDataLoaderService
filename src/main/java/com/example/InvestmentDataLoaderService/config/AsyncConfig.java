@@ -206,4 +206,88 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * Executor для высокоскоростной загрузки LastTrades от Т-Инвест
+     * Оптимизирован для максимальной пропускной способности API запросов
+     */
+    @Bean("lastTradesApiExecutor")
+    public Executor lastTradesApiExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        int processors = Runtime.getRuntime().availableProcessors();
+        
+        // Агрессивные настройки для максимальной скорости загрузки LastTrades
+        executor.setCorePoolSize(Math.max(8, processors * 2));
+        executor.setMaxPoolSize(Math.max(16, processors * 4));
+        executor.setQueueCapacity(2000);
+        executor.setThreadNamePrefix("LastTradesApi-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(120);
+        
+        // Политика отказа для максимальной пропускной способности
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        
+        // Оптимизация для быстрой обработки
+        executor.setKeepAliveSeconds(30);
+        executor.setAllowCoreThreadTimeOut(false);
+        
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * Executor для высокоскоростной записи LastTrades в БД
+     * Оптимизирован для batch операций с максимальной производительностью
+     */
+    @Bean("lastTradesBatchExecutor")
+    public Executor lastTradesBatchExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        int processors = Runtime.getRuntime().availableProcessors();
+        
+        // Настройки для максимальной скорости записи LastTrades
+        executor.setCorePoolSize(Math.max(6, processors));
+        executor.setMaxPoolSize(Math.max(12, processors * 2));
+        executor.setQueueCapacity(5000);
+        executor.setThreadNamePrefix("LastTradesBatch-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(180);
+        
+        // Политика отказа для batch операций
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        
+        // Оптимизация для быстрой записи
+        executor.setKeepAliveSeconds(45);
+        executor.setAllowCoreThreadTimeOut(false);
+        
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * Executor для параллельной обработки LastTrades по инструментам
+     * Оптимизирован для одновременной обработки множества инструментов
+     */
+    @Bean("lastTradesProcessingExecutor")
+    public Executor lastTradesProcessingExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        int processors = Runtime.getRuntime().availableProcessors();
+        
+        // Настройки для параллельной обработки LastTrades
+        executor.setCorePoolSize(Math.max(10, processors * 3));
+        executor.setMaxPoolSize(Math.max(20, processors * 6));
+        executor.setQueueCapacity(10000);
+        executor.setThreadNamePrefix("LastTradesProc-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(300);
+        
+        // Политика отказа для обработки
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        
+        // Оптимизация для параллельной обработки
+        executor.setKeepAliveSeconds(60);
+        executor.setAllowCoreThreadTimeOut(true);
+        
+        executor.initialize();
+        return executor;
+    }
 }
