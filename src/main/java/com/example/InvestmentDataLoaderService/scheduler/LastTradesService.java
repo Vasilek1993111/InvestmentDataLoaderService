@@ -11,6 +11,7 @@ import com.example.InvestmentDataLoaderService.repository.LastPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.service.LastTradeService;
+import com.example.InvestmentDataLoaderService.service.CachedInstrumentService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -29,15 +30,18 @@ public class LastTradesService {
     private final FutureRepository futureRepository;
     private final LastPriceRepository lastPriceRepository;
     private final LastTradeService lastTradeService;
+    private final CachedInstrumentService cachedInstrumentService;
 
     public LastTradesService(ShareRepository shareRepository, 
                            FutureRepository futureRepository,
                            LastPriceRepository lastPriceRepository,
-                           LastTradeService lastTradeService) {
+                           LastTradeService lastTradeService,
+                           CachedInstrumentService cachedInstrumentService) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.lastPriceRepository = lastPriceRepository;
         this.lastTradeService = lastTradeService;
+        this.cachedInstrumentService = cachedInstrumentService;
     }
 
     /**
@@ -79,9 +83,10 @@ public class LastTradesService {
         try {
             System.out.println("[" + taskId + "] Начало обработки обезличенных сделок за " + date);
             
-            // Получаем все акции и фьючерсы из БД
-            List<ShareEntity> shares = shareRepository.findAll();
-            List<FutureEntity> futures = futureRepository.findAll();
+            // Получаем все акции и фьючерсы из кэша (с fallback на БД)
+            List<ShareEntity> shares = cachedInstrumentService.getAllShares();
+            List<FutureEntity> futures = cachedInstrumentService.getAllFutures();
+            System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
             System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций и " + futures.size() + " фьючерсов для обработки");
             
             List<LastTradesResponseDto> savedItems = new ArrayList<>();
@@ -205,15 +210,52 @@ public class LastTradesService {
             // Вызываем T-Invest API для получения обезличенных сделок
             List<LastTradeDto> tradesFromApi = lastTradeService.getLastTrades(figi, date, "TRADE_SOURCE_ALL");
             
-            // Получаем валюту инструмента из базы данных
+            // Получаем валюту инструмента из кэша (с fallback на БД)
             String currency = "RUB"; // По умолчанию
-            ShareEntity share = shareRepository.findById(figi).orElse(null);
-            if (share != null) {
-                currency = share.getCurrency();
-            } else {
-                FutureEntity future = futureRepository.findById(figi).orElse(null);
-                if (future != null) {
-                    currency = future.getCurrency();
+            try {
+                // Сначала пытаемся найти в кэше
+                if (cachedInstrumentService.isInstrumentInCache(figi)) {
+                    List<ShareEntity> shares = cachedInstrumentService.getAllShares();
+                    ShareEntity share = shares.stream()
+                            .filter(s -> s.getFigi().equals(figi))
+                            .findFirst()
+                            .orElse(null);
+                    
+                    if (share != null) {
+                        currency = share.getCurrency();
+                    } else {
+                        List<FutureEntity> futures = cachedInstrumentService.getAllFutures();
+                        FutureEntity future = futures.stream()
+                                .filter(f -> f.getFigi().equals(figi))
+                                .findFirst()
+                                .orElse(null);
+                        if (future != null) {
+                            currency = future.getCurrency();
+                        }
+                    }
+                } else {
+                    // Fallback на БД
+                    ShareEntity share = shareRepository.findById(figi).orElse(null);
+                    if (share != null) {
+                        currency = share.getCurrency();
+                    } else {
+                        FutureEntity future = futureRepository.findById(figi).orElse(null);
+                        if (future != null) {
+                            currency = future.getCurrency();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка получения валюты из кэша, используем БД: " + e.getMessage());
+                // Fallback на БД
+                ShareEntity share = shareRepository.findById(figi).orElse(null);
+                if (share != null) {
+                    currency = share.getCurrency();
+                } else {
+                    FutureEntity future = futureRepository.findById(figi).orElse(null);
+                    if (future != null) {
+                        currency = future.getCurrency();
+                    }
                 }
             }
             
@@ -245,15 +287,52 @@ public class LastTradesService {
             // Вызываем T-Invest API для получения обезличенных сделок за последний час
             List<LastTradeDto> tradesFromApi = lastTradeService.getLastTradesForLastHour(figi, "TRADE_SOURCE_ALL");
             
-            // Получаем валюту инструмента из базы данных
+            // Получаем валюту инструмента из кэша (с fallback на БД)
             String currency = "RUB"; // По умолчанию
-            ShareEntity share = shareRepository.findById(figi).orElse(null);
-            if (share != null) {
-                currency = share.getCurrency();
-            } else {
-                FutureEntity future = futureRepository.findById(figi).orElse(null);
-                if (future != null) {
-                    currency = future.getCurrency();
+            try {
+                // Сначала пытаемся найти в кэше
+                if (cachedInstrumentService.isInstrumentInCache(figi)) {
+                    List<ShareEntity> shares = cachedInstrumentService.getAllShares();
+                    ShareEntity share = shares.stream()
+                            .filter(s -> s.getFigi().equals(figi))
+                            .findFirst()
+                            .orElse(null);
+                    
+                    if (share != null) {
+                        currency = share.getCurrency();
+                    } else {
+                        List<FutureEntity> futures = cachedInstrumentService.getAllFutures();
+                        FutureEntity future = futures.stream()
+                                .filter(f -> f.getFigi().equals(figi))
+                                .findFirst()
+                                .orElse(null);
+                        if (future != null) {
+                            currency = future.getCurrency();
+                        }
+                    }
+                } else {
+                    // Fallback на БД
+                    ShareEntity share = shareRepository.findById(figi).orElse(null);
+                    if (share != null) {
+                        currency = share.getCurrency();
+                    } else {
+                        FutureEntity future = futureRepository.findById(figi).orElse(null);
+                        if (future != null) {
+                            currency = future.getCurrency();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка получения валюты из кэша, используем БД: " + e.getMessage());
+                // Fallback на БД
+                ShareEntity share = shareRepository.findById(figi).orElse(null);
+                if (share != null) {
+                    currency = share.getCurrency();
+                } else {
+                    FutureEntity future = futureRepository.findById(figi).orElse(null);
+                    if (future != null) {
+                        currency = future.getCurrency();
+                    }
                 }
             }
             
@@ -403,40 +482,43 @@ public class LastTradesService {
                 System.out.println("[" + taskId + "] Загружаем обезличенные сделки для всех инструментов");
                 instrumentsToProcess = new ArrayList<>();
                 
-                // Добавляем все акции
-                List<ShareEntity> shares = shareRepository.findAll();
+                // Добавляем все акции из кэша
+                List<ShareEntity> shares = cachedInstrumentService.getAllShares();
                 for (ShareEntity share : shares) {
                     instrumentsToProcess.add(share.getFigi());
                 }
                 
-                // Добавляем все фьючерсы
-                List<FutureEntity> futures = futureRepository.findAll();
+                // Добавляем все фьючерсы из кэша
+                List<FutureEntity> futures = cachedInstrumentService.getAllFutures();
                 for (FutureEntity future : futures) {
                     instrumentsToProcess.add(future.getFigi());
                 }
                 
+                System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
                 System.out.println("[" + taskId + "] Найдено " + instrumentsToProcess.size() + " инструментов для обработки");
             } else if (request.isLoadAllShares()) {
                 System.out.println("[" + taskId + "] Загружаем обезличенные сделки для всех акций");
                 instrumentsToProcess = new ArrayList<>();
                 
-                // Добавляем только акции
-                List<ShareEntity> shares = shareRepository.findAll();
+                // Добавляем только акции из кэша
+                List<ShareEntity> shares = cachedInstrumentService.getAllShares();
                 for (ShareEntity share : shares) {
                     instrumentsToProcess.add(share.getFigi());
                 }
                 
+                System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
                 System.out.println("[" + taskId + "] Найдено " + instrumentsToProcess.size() + " акций для обработки");
             } else if (request.isLoadAllFutures()) {
                 System.out.println("[" + taskId + "] Загружаем обезличенные сделки для всех фьючерсов");
                 instrumentsToProcess = new ArrayList<>();
                 
-                // Добавляем только фьючерсы
-                List<FutureEntity> futures = futureRepository.findAll();
+                // Добавляем только фьючерсы из кэша
+                List<FutureEntity> futures = cachedInstrumentService.getAllFutures();
                 for (FutureEntity future : futures) {
                     instrumentsToProcess.add(future.getFigi());
                 }
                 
+                System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
                 System.out.println("[" + taskId + "] Найдено " + instrumentsToProcess.size() + " фьючерсов для обработки");
             } else {
                 instrumentsToProcess = request.getFigis();
