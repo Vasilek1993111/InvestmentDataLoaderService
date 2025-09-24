@@ -19,30 +19,6 @@ public class VolumeAggregationController {
     @Autowired
     private VolumeAggregationSchedulerService volumeAggregationService;
     
-    /**
-     * Ручное обновление данных за сегодня
-     */
-    @PostMapping("/refresh-today")
-    public ResponseEntity<Map<String, Object>> refreshTodayData() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            volumeAggregationService.refreshTodayDataManually();
-            
-            response.put("success", true);
-            response.put("message", "Данные за сегодня успешно обновлены");
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка обновления данных за сегодня: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
     
     /**
      * Ручное полное обновление материализованного представления
@@ -74,33 +50,9 @@ public class VolumeAggregationController {
      */
     @PostMapping("/refresh")
     public ResponseEntity<Map<String, Object>> refreshAggregation() {
-        return refreshTodayData();
+        return refreshFullAggregation();
     }
     
-    /**
-     * Получение статистики за сегодня
-     */
-    @GetMapping("/stats-today")
-    public ResponseEntity<Map<String, Object>> getTodayStats() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            volumeAggregationService.printTodayStats();
-            
-            response.put("success", true);
-            response.put("message", "Статистика за сегодня выведена в консоль");
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка получения статистики за сегодня: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
     
     /**
      * Получение статистики по материализованному представлению
@@ -193,10 +145,9 @@ public class VolumeAggregationController {
         
         try {
             Map<String, Object> scheduleInfo = new HashMap<>();
-            scheduleInfo.put("minute_refresh", "0 * * * * * (каждую минуту)");
-            scheduleInfo.put("daily_full_refresh", "0 0 2 * * * (каждый день в 2:00)");
+            scheduleInfo.put("daily_full_refresh", "0 20 2 * * * (каждый день в 2:20)");
             scheduleInfo.put("timezone", "Europe/Moscow");
-            scheduleInfo.put("description", "Материализованное представление обновляется каждую минуту для актуальных данных");
+            scheduleInfo.put("description", "Материализованное представление обновляется раз в день в 2:20");
             
             response.put("success", true);
             response.put("data", scheduleInfo);

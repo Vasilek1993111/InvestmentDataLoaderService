@@ -217,6 +217,13 @@ public class DailyCandleService {
                 
                 for (var candle : candles) {
                     try {
+                        // Фильтруем незакрытые свечи (is_complete=false)
+                        if (!candle.isComplete()) {
+                            System.out.println("Пропускаем незакрытую свечу для " + figi + " в " + candle.time());
+                            invalidItemsFiltered.incrementAndGet();
+                            continue;
+                        }
+                        
                         DailyCandleEntity entity = convertToEntity(candle, figi);
                         
                         // Проверяем, существует ли уже такая свеча

@@ -31,31 +31,6 @@ public class AnalyticsController {
 
     // ==================== АГРЕГАЦИЯ ОБЪЕМОВ ====================
 
-    /**
-     * Ручное обновление дневной агрегации объемов
-     */
-    @PostMapping("/volume-aggregation/refresh-today")
-    public ResponseEntity<Map<String, Object>> refreshTodayVolumeAggregation() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            volumeAggregationService.refreshTodayDataManually();
-            
-            response.put("success", true);
-            response.put("message", "Дневная агрегация объемов успешно обновлена");
-            response.put("type", "today");
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка обновления дневной агрегации: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
     
     /**
      * Ручное полное обновление агрегации объемов
@@ -88,36 +63,11 @@ public class AnalyticsController {
      */
     @PostMapping("/volume-aggregation/refresh")
     public ResponseEntity<Map<String, Object>> refreshVolumeAggregation() {
-        return refreshTodayVolumeAggregation();
+        return refreshFullVolumeAggregation();
     }
 
     // ==================== СТАТИСТИКА ====================
 
-    /**
-     * Получение статистики за сегодня
-     */
-    @GetMapping("/volume-aggregation/stats-today")
-    public ResponseEntity<Map<String, Object>> getTodayStats() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            volumeAggregationService.printTodayStats();
-            
-            response.put("success", true);
-            response.put("message", "Статистика за сегодня выведена в консоль");
-            response.put("type", "today");
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка получения статистики за сегодня: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
     
     /**
      * Получение общей статистики агрегации
@@ -244,10 +194,9 @@ public class AnalyticsController {
         
         try {
             Map<String, Object> scheduleInfo = new HashMap<>();
-            scheduleInfo.put("daily_refresh", "0 * * * * * (каждую минуту)");
             scheduleInfo.put("full_refresh", "0 20 2 * * * (каждый день в 2:20)");
             scheduleInfo.put("timezone", "Europe/Moscow");
-            scheduleInfo.put("description", "Дневное представление обновляется каждую минуту, общее - в 2:20");
+            scheduleInfo.put("description", "Материализованное представление обновляется раз в день в 2:20");
             
             response.put("success", true);
             response.put("data", scheduleInfo);
@@ -323,32 +272,6 @@ public class AnalyticsController {
         }
     }
     
-    /**
-     * Получение аналитики по торговым сессиям за сегодня
-     */
-    @GetMapping("/session-analytics/today")
-    public ResponseEntity<Map<String, Object>> getTodaySessionAnalytics(
-            @RequestParam(required = false) String figi) {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            List<SessionAnalyticsDto> analytics = aggregationService.getTodaySessionAnalytics(figi);
-            
-            response.put("success", true);
-            response.put("data", analytics);
-            response.put("count", analytics.size());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка получения дневной сессионной аналитики: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
     
     /**
      * Получение сводной статистики по сессиям за период

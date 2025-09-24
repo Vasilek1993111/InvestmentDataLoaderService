@@ -21,30 +21,6 @@ public class VolumeAggregationSchedulerService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
     
-    /**
-     * Обновление дневного материализованного представления каждую минуту
-     * Обновляет только данные за текущий день для быстрого доступа
-     * Запускается в 0 секунд каждой минуты
-     */
-    @Scheduled(cron = "0 * * * * *", zone = "Europe/Moscow")
-    public void refreshTodayVolumeAggregation() {
-        String taskId = "TODAY_VOLUME_AGG_" + UUID.randomUUID().toString().substring(0, 8);
-        
-        try {
-            System.out.println("=== ОБНОВЛЕНИЕ ДНЕВНОГО ПРЕДСТАВЛЕНИЯ ===");
-            System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
-            
-            // Обновляем дневное материализованное представление
-            refreshTodayData(taskId);
-            
-            System.out.println("[" + taskId + "] Дневное представление успешно обновлено");
-            System.out.println("=== ЗАВЕРШЕНИЕ ОБНОВЛЕНИЯ ===");
-            
-        } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка обновления дневного представления: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
     
     /**
      * Обновление общего материализованного представления раз в день в 2:20
@@ -73,28 +49,6 @@ public class VolumeAggregationSchedulerService {
         }
     }
     
-    /**
-     * Ручное обновление данных за сегодня
-     */
-    @Transactional
-    public void refreshTodayDataManually() {
-        String taskId = "MANUAL_TODAY_AGG_" + UUID.randomUUID().toString().substring(0, 8);
-        
-        try {
-            System.out.println("=== РУЧНОЕ ОБНОВЛЕНИЕ ДАННЫХ ЗА СЕГОДНЯ ===");
-            System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
-            
-            refreshTodayData(taskId);
-            
-            System.out.println("[" + taskId + "] Данные за сегодня успешно обновлены вручную");
-            System.out.println("=== ЗАВЕРШЕНИЕ РУЧНОГО ОБНОВЛЕНИЯ ===");
-            
-        } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка ручного обновления: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        }
-    }
     
     /**
      * Ручное полное обновление материализованного представления
@@ -119,28 +73,6 @@ public class VolumeAggregationSchedulerService {
         }
     }
     
-    /**
-     * Обновление дневного материализованного представления
-     */
-    @Transactional
-    public void refreshTodayData(String taskId) {
-        try {
-            System.out.println("[" + taskId + "] Начинаем обновление дневного представления...");
-            
-            // Вызываем функцию для обновления дневного представления
-            String updateTodaySql = "SELECT invest.update_today_volume_aggregation()";
-            jdbcTemplate.execute(updateTodaySql);
-            
-            System.out.println("[" + taskId + "] Дневное представление обновлено");
-            
-            // Получаем статистику по сегодняшним данным
-            printTodayStats(taskId);
-            
-        } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка при обновлении дневного представления: " + e.getMessage());
-            throw e;
-        }
-    }
     
     /**
      * Обновление общего материализованного представления
@@ -202,52 +134,6 @@ public class VolumeAggregationSchedulerService {
         printAggregationStats("STATS");
     }
     
-    /**
-     * Получение статистики по сегодняшним данным
-     */
-    public void printTodayStats() {
-        printTodayStats("TODAY_STATS");
-    }
-    
-    /**
-     * Получение статистики по сегодняшним данным с taskId
-     */
-    private void printTodayStats(String taskId) {
-        try {
-            String todayStatsSql = """
-                SELECT 
-                    COUNT(*) as today_records,
-                    COUNT(DISTINCT figi) as today_instruments,
-                    SUM(morning_session_volume) as today_morning_volume,
-                    SUM(main_session_volume) as today_main_volume,
-                    SUM(evening_session_volume) as today_evening_volume,
-                    SUM(weekend_session_volume) as today_weekend_volume,
-                    SUM(total_volume) as today_total_volume,
-                    AVG(morning_session_volume) as avg_today_morning_volume,
-                    AVG(main_session_volume) as avg_today_main_volume,
-                    AVG(evening_session_volume) as avg_today_evening_volume,
-                    AVG(weekend_session_volume) as avg_today_weekend_volume,
-                    AVG(total_volume) as avg_today_daily_volume,
-                    MAX(last_updated) as last_updated
-                FROM invest.today_volume_aggregation
-                """;
-            
-            var stats = jdbcTemplate.queryForMap(todayStatsSql);
-            
-            System.out.println("[" + taskId + "] === СТАТИСТИКА ЗА СЕГОДНЯ (ДНЕВНОЕ ПРЕДСТАВЛЕНИЕ) ===");
-            System.out.println("[" + taskId + "] Записей за сегодня: " + stats.get("today_records"));
-            System.out.println("[" + taskId + "] Инструментов за сегодня: " + stats.get("today_instruments"));
-            System.out.println("[" + taskId + "] Утренний объем: " + stats.get("today_morning_volume"));
-            System.out.println("[" + taskId + "] Основной объем: " + stats.get("today_main_volume"));
-            System.out.println("[" + taskId + "] Вечерний объем: " + stats.get("today_evening_volume"));
-            System.out.println("[" + taskId + "] Выходной объем: " + stats.get("today_weekend_volume"));
-            System.out.println("[" + taskId + "] Общий объем за сегодня: " + stats.get("today_total_volume"));
-            System.out.println("[" + taskId + "] Последнее обновление: " + stats.get("last_updated"));
-            
-        } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка получения статистики за сегодня: " + e.getMessage());
-        }
-    }
     
     /**
      * Получение статистики по материализованному представлению с taskId

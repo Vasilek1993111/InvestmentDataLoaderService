@@ -617,39 +617,6 @@ public class AggregationService {
         }
     }
     
-    /**
-     * Получение аналитики по торговым сессиям за сегодня
-     */
-    public List<SessionAnalyticsDto> getTodaySessionAnalytics(String figi) {
-        try {
-            String sql = "SELECT * FROM invest.get_today_session_analytics(?)";
-            
-            return jdbcTemplate.query(sql, (rs, rowNum) -> new SessionAnalyticsDto(
-                rs.getString("figi"),
-                rs.getDate("trade_date").toLocalDate(),
-                rs.getLong("total_volume"),
-                rs.getLong("total_candles"),
-                rs.getBigDecimal("avg_volume_per_candle"),
-                rs.getLong("morning_session_volume"),
-                rs.getLong("morning_session_candles"),
-                rs.getBigDecimal("morning_avg_volume_per_candle"),
-                rs.getLong("main_session_volume"),
-                rs.getLong("main_session_candles"),
-                rs.getBigDecimal("main_avg_volume_per_candle"),
-                rs.getLong("evening_session_volume"),
-                rs.getLong("evening_session_candles"),
-                rs.getBigDecimal("evening_avg_volume_per_candle"),
-                rs.getLong("weekend_session_volume"),
-                rs.getLong("weekend_session_candles"),
-                rs.getBigDecimal("weekend_avg_volume_per_candle")
-            ), figi);
-            
-        } catch (Exception e) {
-            System.err.println("Ошибка получения дневной сессионной аналитики: " + e.getMessage());
-            e.printStackTrace();
-            return Collections.emptyList();
-        }
-    }
     
     /**
      * Получение сводной статистики по сессиям за период
