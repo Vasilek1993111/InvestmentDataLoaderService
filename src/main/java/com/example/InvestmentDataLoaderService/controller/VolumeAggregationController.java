@@ -21,36 +21,28 @@ public class VolumeAggregationController {
     
     
     /**
-     * Ручное полное обновление материализованного представления
+     * Ручное обновление материализованного представления
      */
-    @PostMapping("/refresh-full")
-    public ResponseEntity<Map<String, Object>> refreshFullAggregation() {
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, Object>> refreshAggregation() {
         Map<String, Object> response = new HashMap<>();
         
         try {
             volumeAggregationService.refreshMaterializedViewManually();
             
             response.put("success", true);
-            response.put("message", "Материализованное представление полностью обновлено");
+            response.put("message", "Материализованное представление обновлено");
             response.put("timestamp", LocalDateTime.now());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
-            response.put("message", "Ошибка полного обновления: " + e.getMessage());
+            response.put("message", "Ошибка обновления: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now());
             
             return ResponseEntity.status(500).body(response);
         }
-    }
-    
-    /**
-     * Ручное обновление материализованного представления (совместимость)
-     */
-    @PostMapping("/refresh")
-    public ResponseEntity<Map<String, Object>> refreshAggregation() {
-        return refreshFullAggregation();
     }
     
     
@@ -79,36 +71,6 @@ public class VolumeAggregationController {
         }
     }
     
-    /**
-     * Получение детальной статистики по сессиям
-     */
-    @GetMapping("/detailed-stats")
-    public ResponseEntity<Map<String, Object>> getDetailedStats() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            Map<String, Object> stats = volumeAggregationService.getDetailedStats();
-            
-            if (stats != null) {
-                response.put("success", true);
-                response.put("data", stats);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.ok(response);
-            } else {
-                response.put("success", false);
-                response.put("message", "Не удалось получить детальную статистику");
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.status(500).body(response);
-            }
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка получения детальной статистики: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
     
     /**
      * Проверка существования материализованного представления
@@ -136,31 +98,4 @@ public class VolumeAggregationController {
         }
     }
     
-    /**
-     * Получение информации о расписании обновлений
-     */
-    @GetMapping("/schedule-info")
-    public ResponseEntity<Map<String, Object>> getScheduleInfo() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            Map<String, Object> scheduleInfo = new HashMap<>();
-            scheduleInfo.put("daily_full_refresh", "0 20 2 * * * (каждый день в 2:20)");
-            scheduleInfo.put("timezone", "Europe/Moscow");
-            scheduleInfo.put("description", "Материализованное представление обновляется раз в день в 2:20");
-            
-            response.put("success", true);
-            response.put("data", scheduleInfo);
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка получения информации о расписании: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(500).body(response);
-        }
-    }
 }

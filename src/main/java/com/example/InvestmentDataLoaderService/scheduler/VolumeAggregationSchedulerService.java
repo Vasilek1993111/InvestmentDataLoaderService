@@ -35,10 +35,7 @@ public class VolumeAggregationSchedulerService {
             System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Обновляем общее материализованное представление
-            refreshGeneralData(taskId);
-            
-            // Получаем статистику после обновления
-            printAggregationStats(taskId);
+            refreshMaterializedView(taskId);
             
             System.out.println("[" + taskId + "] Общее представление обновлено");
             System.out.println("=== ЗАВЕРШЕНИЕ ОБНОВЛЕНИЯ ===");
@@ -58,7 +55,7 @@ public class VolumeAggregationSchedulerService {
         String taskId = "MANUAL_FULL_AGG_" + UUID.randomUUID().toString().substring(0, 8);
         
         try {
-            System.out.println("=== РУЧНОЕ ПОЛНОЕ ОБНОВЛЕНИЕ МАТЕРИАЛИЗОВАННОГО ПРЕДСТАВЛЕНИЯ ===");
+            System.out.println("=== РУЧНОЕ ОБНОВЛЕНИЕ МАТЕРИАЛИЗОВАННОГО ПРЕДСТАВЛЕНИЯ ===");
             System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             refreshMaterializedView(taskId);
@@ -74,25 +71,6 @@ public class VolumeAggregationSchedulerService {
     }
     
     
-    /**
-     * Обновление общего материализованного представления
-     */
-    @Transactional
-    public void refreshGeneralData(String taskId) {
-        try {
-            System.out.println("[" + taskId + "] Начинаем обновление общего представления...");
-            
-            // Вызываем функцию для обновления общего представления
-            String updateGeneralSql = "SELECT invest.update_daily_volume_aggregation()";
-            jdbcTemplate.execute(updateGeneralSql);
-            
-            System.out.println("[" + taskId + "] Общее представление обновлено");
-            
-        } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка при обновлении общего представления: " + e.getMessage());
-            throw e;
-        }
-    }
     
     /**
      * Обновление общего материализованного представления с полным пересчетом
@@ -118,7 +96,7 @@ public class VolumeAggregationSchedulerService {
             
             System.out.println("[" + taskId + "] Общее представление обновлено");
             
-            // Получаем статистику обновления
+            // Получаем статистику после обновления
             printAggregationStats(taskId);
             
         } catch (Exception e) {
