@@ -1,4 +1,4 @@
-package com.example.InvestmentDataLoaderService.scheduler;
+package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.LastTradeDto;
 import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;

@@ -1,6 +1,7 @@
 package com.example.InvestmentDataLoaderService.scheduler;
 
 import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
+import com.example.InvestmentDataLoaderService.service.LastTradesService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 

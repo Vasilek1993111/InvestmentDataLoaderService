@@ -1,7 +1,7 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
-import com.example.InvestmentDataLoaderService.scheduler.LastTradesService;
+import com.example.InvestmentDataLoaderService.service.LastTradesService;
 import com.example.InvestmentDataLoaderService.service.CachedInstrumentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
