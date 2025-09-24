@@ -2,7 +2,7 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 
 import com.example.InvestmentDataLoaderService.controller.InstrumentsController;
 import com.example.InvestmentDataLoaderService.dto.*;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.InstrumentService;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
@@ -41,7 +41,7 @@ class InstrumentsControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private TInvestService tInvestService;
+    private InstrumentService tInvestService;
 
     @MockBean
     private ShareRepository shareRepository;

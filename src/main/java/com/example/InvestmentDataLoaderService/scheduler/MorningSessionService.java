@@ -288,7 +288,7 @@ public class MorningSessionService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );
@@ -367,7 +367,7 @@ public class MorningSessionService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );

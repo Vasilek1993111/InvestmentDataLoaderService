@@ -3,7 +3,7 @@ package com.example.InvestmentDataLoaderService.component;
 import com.example.InvestmentDataLoaderService.dto.ClosePriceDto;
 import com.example.InvestmentDataLoaderService.dto.ClosePriceRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +35,7 @@ class DataLoadingControllerClosePricesComponentTest {
     private WebApplicationContext webApplicationContext;
 
     @MockBean
-    private TInvestService service;
+    private MainSessionPriceService service;
 
     @Autowired
     private ObjectMapper objectMapper;

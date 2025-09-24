@@ -224,7 +224,7 @@ public class TestDataFactory {
             0,
             0,
             0,
-            0, // invalidItemsFiltered
+            0,
             0, // missingFromApi
             Arrays.asList()
         );

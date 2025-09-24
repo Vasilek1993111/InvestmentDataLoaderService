@@ -20,6 +20,11 @@ public interface MinuteCandleRepository extends JpaRepository<MinuteCandleEntity
     boolean existsByFigiAndTime(String figi, Instant time);
     
     /**
+     * Находит минутную свечу по FIGI и времени
+     */
+    MinuteCandleEntity findByFigiAndTime(String figi, Instant time);
+    
+    /**
      * Находит все минутные свечи для конкретного инструмента в заданном временном диапазоне
      */
     @Query("SELECT c FROM MinuteCandleEntity c WHERE c.figi = :figi AND c.time >= :startTime AND c.time <= :endTime ORDER BY c.time")

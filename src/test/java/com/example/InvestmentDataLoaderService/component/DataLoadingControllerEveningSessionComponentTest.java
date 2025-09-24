@@ -4,8 +4,8 @@ import com.example.InvestmentDataLoaderService.dto.ClosePriceDto;
 import com.example.InvestmentDataLoaderService.dto.ClosePriceEveningSessionRequestDto;
 import com.example.InvestmentDataLoaderService.dto.ClosePriceEveningSessionDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
-import com.example.InvestmentDataLoaderService.scheduler.EveningSessionService;
+import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
+import com.example.InvestmentDataLoaderService.scheduler.EveningSessionSchedulerService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,10 +38,10 @@ class DataLoadingControllerEveningSessionComponentTest {
     private WebApplicationContext webApplicationContext;
 
     @MockBean
-    private TInvestService service;
+    private MainSessionPriceService mainSessionPriceService;
 
     @MockBean
-    private EveningSessionService eveningSessionService;
+    private EveningSessionSchedulerService eveningSessionService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -89,7 +89,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void loadEveningSessionPricesToday_WithFullSpringContext_ShouldReturnSuccessResponse() throws Exception {
         // Given
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenReturn(sampleSaveResponse);
 
         // When & Then
@@ -114,7 +114,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void loadEveningSessionPricesToday_WithServiceError_ShouldHandleGracefully() throws Exception {
         // Given
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenThrow(new RuntimeException("Database connection failed"));
 
         // When & Then
@@ -135,7 +135,7 @@ class DataLoadingControllerEveningSessionComponentTest {
         ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
         request.setInstruments(List.of("BBG004730N88", "BBG004730ZJ9"));
 
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenReturn(sampleSaveResponse);
 
         // When & Then
@@ -155,7 +155,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void saveEveningSessionPrices_WithNullRequest_ShouldCreateEmptyRequest() throws Exception {
         // Given
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenReturn(sampleSaveResponse);
 
         // When & Then
@@ -170,7 +170,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void saveEveningSessionPrices_WithEmptyRequest_ShouldProcessCorrectly() throws Exception {
         // Given
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenReturn(sampleSaveResponse);
 
         // When & Then
@@ -201,7 +201,7 @@ class DataLoadingControllerEveningSessionComponentTest {
             List.of(sampleEveningSessionDto)
         );
 
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenReturn(largeResponse);
 
         // When & Then
@@ -275,7 +275,7 @@ class DataLoadingControllerEveningSessionComponentTest {
             new ClosePriceDto("BBG004730N88", "2024-01-15", BigDecimal.valueOf(250.75), BigDecimal.valueOf(251.00)),
             new ClosePriceDto("BBG004730ZJ9", "2024-01-15", BigDecimal.valueOf(180.50), BigDecimal.valueOf(181.00))
         );
-        when(service.getClosePricesForAllShares()).thenReturn(mockClosePrices);
+        when(mainSessionPriceService.getClosePricesForAllShares()).thenReturn(mockClosePrices);
 
         // When & Then
         mockMvc.perform(get("/api/data-loading/evening-session-prices/shares"))
@@ -299,7 +299,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void getEveningSessionPricesForShares_WithServiceError_ShouldHandleGracefully() throws Exception {
         // Given
-        when(service.getClosePricesForAllShares())
+        when(mainSessionPriceService.getClosePricesForAllShares())
             .thenThrow(new RuntimeException("API connection failed"));
 
         // When & Then
@@ -321,7 +321,7 @@ class DataLoadingControllerEveningSessionComponentTest {
             new ClosePriceDto("FUTSILV-3.24", "2024-01-15", BigDecimal.valueOf(75000.00), BigDecimal.valueOf(75100.00)),
             new ClosePriceDto("FUTGOLD-3.24", "2024-01-15", BigDecimal.valueOf(250000.00), BigDecimal.valueOf(250500.00))
         );
-        when(service.getClosePricesForAllFutures()).thenReturn(mockClosePrices);
+        when(mainSessionPriceService.getClosePricesForAllFutures()).thenReturn(mockClosePrices);
 
         // When & Then
         mockMvc.perform(get("/api/data-loading/evening-session-prices/futures"))
@@ -345,7 +345,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void getEveningSessionPricesForFutures_WithServiceError_ShouldHandleGracefully() throws Exception {
         // Given
-        when(service.getClosePricesForAllFutures())
+        when(mainSessionPriceService.getClosePricesForAllFutures())
             .thenThrow(new RuntimeException("API connection failed"));
 
         // When & Then
@@ -364,7 +364,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     void getEveningSessionPriceByFigi_WithValidFigi_ShouldReturnSuccessResponse() throws Exception {
         // Given
         String figi = "BBG004730N88";
-        when(service.getClosePrices(eq(List.of(figi)), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of(figi)), eq(null)))
             .thenReturn(List.of(sampleClosePrice));
 
         // When & Then
@@ -384,7 +384,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     void getEveningSessionPriceByFigi_WithEmptyResult_ShouldReturnNotFoundResponse() throws Exception {
         // Given
         String figi = "INVALID_FIGI";
-        when(service.getClosePrices(eq(List.of(figi)), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of(figi)), eq(null)))
             .thenReturn(List.of());
 
         // When & Then
@@ -401,7 +401,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     void getEveningSessionPriceByFigi_WithServiceException_ShouldReturnErrorResponse() throws Exception {
         // Given
         String figi = "BBG004730N88";
-        when(service.getClosePrices(eq(List.of(figi)), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of(figi)), eq(null)))
             .thenThrow(new RuntimeException("API connection failed"));
 
         // When & Then
@@ -423,9 +423,9 @@ class DataLoadingControllerEveningSessionComponentTest {
         ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
         request.setInstruments(List.of(figi));
 
-        when(service.getClosePrices(eq(List.of(figi)), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of(figi)), eq(null)))
             .thenReturn(List.of(sampleClosePrice));
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenReturn(sampleSaveResponse);
 
         // Test GET endpoint
@@ -453,7 +453,7 @@ class DataLoadingControllerEveningSessionComponentTest {
         ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
         request.setInstruments(List.of("BBG004730N88"));
 
-        when(service.saveClosePricesEveningSession(any(ClosePriceEveningSessionRequestDto.class)))
+        when(eveningSessionService.fetchAndStoreEveningSessionPricesForDate(any(LocalDate.class)))
             .thenThrow(new RuntimeException("Service error"));
 
         // When & Then
@@ -480,7 +480,7 @@ class DataLoadingControllerEveningSessionComponentTest {
             .andExpect(jsonPath("$.error").value("RuntimeException"));
 
         // Test with empty FIGI
-        when(service.getClosePrices(eq(List.of("")), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of("")), eq(null)))
             .thenReturn(List.of());
 
         mockMvc.perform(get("/api/data-loading/evening-session-prices/{figi}", ""))
@@ -493,7 +493,7 @@ class DataLoadingControllerEveningSessionComponentTest {
     @Test
     void eveningSessionEndpoints_ShouldReturnProperTimestamps() throws Exception {
         // Given
-        when(service.getClosePrices(eq(List.of("BBG004730N88")), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of("BBG004730N88")), eq(null)))
             .thenReturn(List.of(sampleClosePrice));
 
         // When & Then
@@ -512,7 +512,7 @@ class DataLoadingControllerEveningSessionComponentTest {
             new ClosePriceDto("BBG004S685M2", "2024-01-15", BigDecimal.valueOf(320.25), BigDecimal.valueOf(321.00)), // валидная
             new ClosePriceDto("BBG004S68JR9", "1970-01-01", BigDecimal.valueOf(150.00), BigDecimal.valueOf(151.00))  // невалидная (1970-01-01)
         );
-        when(service.getClosePricesForAllShares()).thenReturn(mockClosePrices);
+        when(mainSessionPriceService.getClosePricesForAllShares()).thenReturn(mockClosePrices);
 
         // When & Then
         mockMvc.perform(get("/api/data-loading/evening-session-prices/shares"))
@@ -543,7 +543,7 @@ class DataLoadingControllerEveningSessionComponentTest {
             new ClosePriceDto("FUTSBRF-9.24", "2024-01-15", BigDecimal.valueOf(97.00), BigDecimal.valueOf(98.00)), // валидная
             new ClosePriceDto("FUTSBRF-12.24", "1970-01-01", BigDecimal.valueOf(98.75), BigDecimal.valueOf(99.00)) // невалидная (1970-01-01)
         );
-        when(service.getClosePricesForAllFutures()).thenReturn(mockClosePrices);
+        when(mainSessionPriceService.getClosePricesForAllFutures()).thenReturn(mockClosePrices);
 
         // When & Then
         mockMvc.perform(get("/api/data-loading/evening-session-prices/futures"))
@@ -572,7 +572,7 @@ class DataLoadingControllerEveningSessionComponentTest {
         List<ClosePriceDto> invalidPrices = List.of(
             new ClosePriceDto(figi, "1970-01-01", BigDecimal.valueOf(250.75), BigDecimal.valueOf(251.00)) // невалидная дата
         );
-        when(service.getClosePrices(eq(List.of(figi)), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of(figi)), eq(null)))
             .thenReturn(invalidPrices);
 
         // When & Then - после фильтрации список будет пустым
@@ -592,7 +592,7 @@ class DataLoadingControllerEveningSessionComponentTest {
         List<ClosePriceDto> pricesWithoutEveningSession = List.of(
             new ClosePriceDto(figi, "2024-01-15", BigDecimal.valueOf(250.75), null) // без eveningSessionPrice
         );
-        when(service.getClosePrices(eq(List.of(figi)), eq(null)))
+        when(mainSessionPriceService.getClosePrices(eq(List.of(figi)), eq(null)))
             .thenReturn(pricesWithoutEveningSession);
 
         // When & Then - после фильтрации список будет пустым

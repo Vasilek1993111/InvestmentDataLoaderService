@@ -351,4 +351,5 @@ public class InstrumentsController {
         Map<String, Long> counts = instrumentService.getInstrumentCounts();
         return ResponseEntity.ok(counts);
     }
+
 }

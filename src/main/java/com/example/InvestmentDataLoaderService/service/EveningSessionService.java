@@ -18,16 +18,16 @@ import java.util.List;
 @Service
 public class EveningSessionService {
 
-    private final ClosePriceService closePriceService;
+    private final MainSessionPriceService mainSessionPriceService;
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
     private final ClosePriceEveningSessionRepository closePriceEveningSessionRepo;
 
-    public EveningSessionService(ClosePriceService closePriceService,
+    public EveningSessionService(MainSessionPriceService mainSessionPriceService,
                                ShareRepository shareRepo,
                                FutureRepository futureRepo,
                                ClosePriceEveningSessionRepository closePriceEveningSessionRepo) {
-        this.closePriceService = closePriceService;
+        this.mainSessionPriceService = mainSessionPriceService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
         this.closePriceEveningSessionRepo = closePriceEveningSessionRepo;
@@ -82,7 +82,7 @@ public class EveningSessionService {
             for (int i = 0; i < instrumentIds.size(); i += batchSize) {
                 int toIndex = Math.min(i + batchSize, instrumentIds.size());
                 List<String> batch = instrumentIds.subList(i, toIndex);
-                List<ClosePriceDto> prices = closePriceService.getClosePrices(batch, null);
+                List<ClosePriceDto> prices = mainSessionPriceService.getClosePrices(batch, null);
                 closePricesFromApi.addAll(prices);
                 System.out.println("Получено цен для батча evening session (" + batch.size() + "): " + prices.size());
                 try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }

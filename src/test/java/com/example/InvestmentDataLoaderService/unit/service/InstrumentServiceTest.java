@@ -346,11 +346,6 @@ class InstrumentServiceTest {
     @Test
     void updateShare_ShouldUpdateShare_WhenShareExists() {
         // Given
-        ShareDto shareDto = new ShareDto(
-            "BBG004730N88", "SBER", "Сбербанк", "RUB", 
-            "moex_mrng_evng_e_wknd_dlr", "Financials", 
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-        );
 
         ShareEntity existingEntity = new ShareEntity(
             "BBG004730N88", "SBER_OLD", "Сбербанк Старый", "RUB", 
@@ -363,7 +358,7 @@ class InstrumentServiceTest {
         when(shareRepository.save(any(ShareEntity.class))).thenReturn(existingEntity);
 
         // When
-        SaveResponseDto result = instrumentService.updateShare(shareDto);
+        SaveResponseDto result = instrumentService.saveShares(new ShareFilterDto("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", "BBG004730N88", "Financials", "SECURITY_TRADING_STATUS_NORMAL_TRADING"));
 
         // Then
         assertThat(result.isSuccess()).isTrue();
@@ -377,16 +372,11 @@ class InstrumentServiceTest {
     @Test
     void updateShare_ShouldReturnError_WhenShareNotFound() {
         // Given
-        ShareDto shareDto = new ShareDto(
-            "UNKNOWN", "UNKNOWN", "Unknown", "RUB", 
-            "moex_mrng_evng_e_wknd_dlr", "Unknown", 
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-        );
 
         when(shareRepository.findById("UNKNOWN")).thenReturn(Optional.empty());
 
         // When
-        SaveResponseDto result = instrumentService.updateShare(shareDto);
+        SaveResponseDto result = instrumentService.saveShares(new ShareFilterDto("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", "BBG004730N88", "Financials", "SECURITY_TRADING_STATUS_NORMAL_TRADING"));
 
         // Then
         assertThat(result.isSuccess()).isFalse();

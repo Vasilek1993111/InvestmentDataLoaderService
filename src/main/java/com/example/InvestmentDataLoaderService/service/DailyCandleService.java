@@ -240,7 +240,7 @@ public class DailyCandleService {
                             dailyCandleRepository.saveAll(entitiesToSave);
                             figiNewItems.addAndGet(entitiesToSave.size());
                             newItemsSaved.addAndGet(entitiesToSave.size());
-                            System.out.println("Сохранено " + entitiesToSave.size() + " новых свечей для " + figi);
+                            System.out.println("Сохранено " + entitiesToSave.size() + " новых дневных свечей для " + figi);
                         } catch (Exception e) {
                             System.err.println("Ошибка пакетного сохранения для " + figi + ": " + e.getMessage());
                         }
@@ -309,6 +309,7 @@ public class DailyCandleService {
             candle.isComplete()
         );
     }
+
 
     /**
      * Разбивает список на части указанного размера

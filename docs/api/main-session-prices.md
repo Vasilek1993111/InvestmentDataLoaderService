@@ -11,13 +11,13 @@ http://localhost:8087/api/main-session-prices
 
 ### Цены Закрытия Основной Сессии
 
-#### POST /api/main-session-prices/close-prices
+#### POST /api/main-session-prices/
 Загрузка цен закрытия основной сессии за сегодня. Работает только с акциями и фьючерсами, использует данные из `minute_candles`.
 
 **Параметры:** Нет
 
 ```bash
-curl -X POST "http://localhost:8087/api/main-session-prices/close-prices"
+curl -X POST "http://localhost:8087/api/main-session-prices/"
 ```
 
 **Ответ (пример):**
@@ -36,25 +36,14 @@ curl -X POST "http://localhost:8087/api/main-session-prices/close-prices"
 }
 ```
 
-#### POST /api/main-session-prices/close-prices/save
-Синхронная точечная загрузка цен закрытия по указанным инструментам.
 
-**Параметры:**
-- `request` (body) - объект запроса с параметрами загрузки
-
-```bash
-curl -X POST "http://localhost:8087/api/main-session-prices/close-prices/save" \
-  -H "Content-Type: application/json" \
-  -d '{"figis": ["BBG004730N88"], "from": "2024-01-15", "to": "2024-01-15"}'
-```
-
-#### GET /api/main-session-prices/close-prices/shares
+#### GET /api/main-session-prices/shares
 Получение цен закрытия для всех акций из T-INVEST API.
 
 **Параметры:** Нет
 
 ```bash
-curl -X GET "http://localhost:8087/api/main-session-prices/close-prices/shares"
+curl -X GET "http://localhost:8087/api/main-session-prices/shares"
 ```
 
 **Ответ (пример):**
@@ -75,23 +64,33 @@ curl -X GET "http://localhost:8087/api/main-session-prices/close-prices/shares"
 }
 ```
 
-#### GET /api/main-session-prices/close-prices/futures
+#### GET /api/main-session-prices/futures
 Получение цен закрытия для всех фьючерсов из T-INVEST API.
 
 **Параметры:** Нет
 
 ```bash
-curl -X GET "http://localhost:8087/api/main-session-prices/close-prices/futures"
+curl -X GET "http://localhost:8087/api/main-session-prices/futures"
 ```
 
-#### GET /api/main-session-prices/close-prices/{figi}
+#### GET /api/main-session-prices/{figi}
 Получение цены закрытия по конкретному инструменту из T-INVEST API.
 
 **Параметры:**
 - `figi` (path) - идентификатор инструмента
 
 ```bash
-curl -X GET "http://localhost:8087/api/main-session-prices/close-prices/BBG004730N88"
+curl -X GET "http://localhost:8087/api/main-session-prices/BBG004730N88"
+```
+
+#### POST /api/main-session-prices/instrument/{figi}
+Загрузка цены закрытия по конкретному инструменту из T-INVEST API в БД.
+
+**Параметры:**
+- `figi` (path) - идентификатор инструмента
+
+```bash
+curl -X POST "http://localhost:8087/api/main-session-prices/instrument/BBG004730N88"
 ```
 
 ### Цены Основной Сессии
@@ -154,7 +153,7 @@ curl -X POST "http://localhost:8087/api/main-session-prices/2024-01-15"
 ### Загрузка цен закрытия основной сессии за сегодня
 ```bash
 # Загрузить все цены закрытия основной сессии за сегодня
-curl -X POST "http://localhost:8087/api/main-session-prices/close-prices"
+curl -X POST "http://localhost:8087/api/main-session-prices/"
 ```
 
 ### Загрузка цен основной сессии за дату
@@ -166,5 +165,11 @@ curl -X POST "http://localhost:8087/api/main-session-prices/2024-01-15"
 ### Получение цены закрытия по инструменту
 ```bash
 # Получить цену закрытия для Сбербанка
-curl -X GET "http://localhost:8087/api/main-session-prices/close-prices/BBG004730N88"
+curl -X GET "http://localhost:8087/api/main-session-prices/BBG004730N88"
+```
+
+### Загрузка цены закрытия по инструменту
+```bash
+# Загрузить цену закрытия для Сбербанка в БД
+curl -X POST "http://localhost:8087/api/main-session-prices/instrument/BBG004730N88"
 ```

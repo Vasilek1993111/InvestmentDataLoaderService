@@ -290,7 +290,7 @@ public class EveningSessionSchedulerService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );
@@ -352,7 +352,7 @@ public class EveningSessionSchedulerService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );

@@ -2,8 +2,7 @@ package com.example.InvestmentDataLoaderService.component;
 
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
-import com.example.InvestmentDataLoaderService.service.MarketDataService;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
 import com.example.InvestmentDataLoaderService.service.TradingService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -42,16 +41,13 @@ class InstrumentsComponentTest {
     private UsersServiceBlockingStub usersService;
 
     @Mock
-    private InstrumentService instrumentService;
-
-    @Mock
-    private MarketDataService marketDataService;
+    private MainSessionPriceService mainSessionPriceService;
 
     @Mock
     private TradingService tradingService;
 
     @InjectMocks
-    private TInvestService tInvestService;
+    private InstrumentService instrumentService;
 
     @BeforeEach
     void setUp() {
@@ -81,7 +77,7 @@ class InstrumentsComponentTest {
             .thenReturn(testShare);
 
         // When - Получаем акции из API
-        List<ShareDto> apiShares = tInvestService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
+        List<ShareDto> apiShares = instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
         
         // Сохраняем акции
         ShareFilterDto filter = new ShareFilterDto();
@@ -89,13 +85,13 @@ class InstrumentsComponentTest {
         filter.setExchange("moex_mrng_evng_e_wknd_dlr");
         filter.setCurrency("RUB");
         filter.setTicker("SBER");
-        SaveResponseDto saveResult = tInvestService.saveShares(filter);
+        SaveResponseDto saveResult = instrumentService.saveShares(filter);
         
         // Получаем акцию по FIGI
-        ShareDto shareByFigi = tInvestService.getShareByFigi(testShare.figi());
+        ShareDto shareByFigi = instrumentService.getShareByFigi(testShare.figi());
         
         // Получаем акцию по тикеру
-        ShareDto shareByTicker = tInvestService.getShareByTicker(testShare.ticker());
+        ShareDto shareByTicker = instrumentService.getShareByTicker(testShare.ticker());
 
         // Then - Проверяем интеграцию
         assertThat(apiShares).hasSize(1);
@@ -135,7 +131,7 @@ class InstrumentsComponentTest {
             .thenReturn(testFuture);
 
         // When - Получаем фьючерсы из API
-        List<FutureDto> apiFutures = tInvestService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
+        List<FutureDto> apiFutures = instrumentService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
         
         // Сохраняем фьючерсы
         FutureFilterDto filter = new FutureFilterDto();
@@ -144,13 +140,13 @@ class InstrumentsComponentTest {
         filter.setCurrency("RUB");
         filter.setTicker("SBER-3.24");
         filter.setAssetType("FUTURES");
-        SaveResponseDto saveResult = tInvestService.saveFutures(filter);
+        SaveResponseDto saveResult = instrumentService.saveFutures(filter);
         
         // Получаем фьючерс по FIGI
-        FutureDto futureByFigi = tInvestService.getFutureByFigi(testFuture.figi());
+        FutureDto futureByFigi = instrumentService.getFutureByFigi(testFuture.figi());
         
         // Получаем фьючерс по тикеру
-        FutureDto futureByTicker = tInvestService.getFutureByTicker(testFuture.ticker());
+        FutureDto futureByTicker = instrumentService.getFutureByTicker(testFuture.ticker());
 
         // Then - Проверяем интеграцию
         assertThat(apiFutures).hasSize(1);
@@ -191,7 +187,7 @@ class InstrumentsComponentTest {
             .thenReturn(testIndicative);
 
         // When - Получаем индикативы из API
-        List<IndicativeDto> apiIndicatives = tInvestService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
+        List<IndicativeDto> apiIndicatives = instrumentService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
         
         // Сохраняем индикативы
         IndicativeFilterDto filter = new IndicativeFilterDto();
@@ -199,13 +195,13 @@ class InstrumentsComponentTest {
         filter.setCurrency("RUB");
         filter.setTicker("RTSI");
         filter.setFigi("BBG004730ZJ9");
-        SaveResponseDto saveResult = tInvestService.saveIndicatives(filter);
+        SaveResponseDto saveResult = instrumentService.saveIndicatives(filter);
         
         // Получаем индикатив по FIGI
-        IndicativeDto indicativeByFigi = tInvestService.getIndicativeBy(testIndicative.figi());
+        IndicativeDto indicativeByFigi = instrumentService.getIndicativeBy(testIndicative.figi());
         
         // Получаем индикатив по тикеру
-        IndicativeDto indicativeByTicker = tInvestService.getIndicativeByTicker(testIndicative.ticker());
+        IndicativeDto indicativeByTicker = instrumentService.getIndicativeByTicker(testIndicative.ticker());
 
         // Then - Проверяем интеграцию
         assertThat(apiIndicatives).hasSize(1);
@@ -233,7 +229,7 @@ class InstrumentsComponentTest {
 
         // When & Then - Проверяем, что исключение пробрасывается
         try {
-            tInvestService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
+            instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
             assertThat(false).as("Expected exception was not thrown").isTrue();
         } catch (RuntimeException e) {
             assertThat(e).isEqualTo(serviceException);
@@ -250,9 +246,9 @@ class InstrumentsComponentTest {
         when(instrumentService.getIndicativeBy("UNKNOWN")).thenReturn(null);
 
         // When
-        ShareDto shareResult = tInvestService.getShareByFigi("UNKNOWN");
-        FutureDto futureResult = tInvestService.getFutureByTicker("UNKNOWN");
-        IndicativeDto indicativeResult = tInvestService.getIndicativeBy("UNKNOWN");
+        ShareDto shareResult = instrumentService.getShareByFigi("UNKNOWN");
+        FutureDto futureResult = instrumentService.getFutureByTicker("UNKNOWN");
+        IndicativeDto indicativeResult = instrumentService.getIndicativeBy("UNKNOWN");
 
         // Then
         assertThat(shareResult).isNull();
@@ -275,9 +271,9 @@ class InstrumentsComponentTest {
             .thenReturn(Arrays.asList());
 
         // When
-        List<ShareDto> shares = tInvestService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
-        List<FutureDto> futures = tInvestService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
-        List<IndicativeDto> indicatives = tInvestService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
+        List<ShareDto> shares = instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
+        List<FutureDto> futures = instrumentService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
+        List<IndicativeDto> indicatives = instrumentService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
 
         // Then
         assertThat(shares).isEmpty();
@@ -310,7 +306,7 @@ class InstrumentsComponentTest {
             .thenReturn(testShare);
 
         // When - Получаем данные из API
-        List<ShareDto> apiShares = tInvestService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
+        List<ShareDto> apiShares = instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null);
         
         // Сохраняем данные
         ShareFilterDto filter = new ShareFilterDto();
@@ -318,10 +314,10 @@ class InstrumentsComponentTest {
         filter.setExchange("moex_mrng_evng_e_wknd_dlr");
         filter.setCurrency("RUB");
         filter.setTicker("SBER");
-        SaveResponseDto saveResult = tInvestService.saveShares(filter);
+        SaveResponseDto saveResult = instrumentService.saveShares(filter);
         
         // Получаем сохраненные данные
-        ShareDto savedShare = tInvestService.getShareByFigi(testShare.figi());
+        ShareDto savedShare = instrumentService.getShareByFigi(testShare.figi());
 
         // Then - Проверяем консистентность данных
         assertThat(apiShares.get(0).figi()).isEqualTo(savedShare.figi());

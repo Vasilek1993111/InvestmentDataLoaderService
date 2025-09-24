@@ -49,7 +49,7 @@ sequenceDiagram
 
   Note over Client,MV: Цены закрытия
   
-  Client->>API: POST /api/main-session-prices/close-prices
+  Client->>API: POST /api/main-session-prices/
   API->>Svc: loadClosePrices()
   Svc->>DB: SELECT from minute_candles
   Svc->>DB: INSERT into invest.close_prices

@@ -310,6 +310,7 @@ public class MinuteCandleService {
         );
     }
 
+
     /**
      * Разбивает список на части указанного размера
      */

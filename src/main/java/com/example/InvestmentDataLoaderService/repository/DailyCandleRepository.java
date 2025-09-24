@@ -20,6 +20,11 @@ public interface DailyCandleRepository extends JpaRepository<DailyCandleEntity, 
     boolean existsByFigiAndTime(String figi, Instant time);
     
     /**
+     * Находит дневную свечу по FIGI и времени
+     */
+    DailyCandleEntity findByFigiAndTime(String figi, Instant time);
+    
+    /**
      * Находит все дневные свечи для конкретного инструмента в заданном временном диапазоне
      */
     @Query("SELECT c FROM DailyCandleEntity c WHERE c.figi = :figi AND c.time >= :startTime AND c.time <= :endTime ORDER BY c.time")

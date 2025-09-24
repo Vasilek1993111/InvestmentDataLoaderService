@@ -1,6 +1,5 @@
 package com.example.InvestmentDataLoaderService.component;
 
-import com.example.InvestmentDataLoaderService.controller.SystemController;
 import com.example.InvestmentDataLoaderService.scheduler.VolumeAggregationSchedulerService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +16,6 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;

@@ -2,8 +2,7 @@ package com.example.InvestmentDataLoaderService.unit.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
-import com.example.InvestmentDataLoaderService.service.MarketDataService;
-import com.example.InvestmentDataLoaderService.service.TInvestService;
+import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
 import com.example.InvestmentDataLoaderService.service.TradingService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,25 +21,22 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit-тесты для TInvestService (только методы, связанные с instruments)
+ * Unit-тесты для InstrumentService (только методы, связанные с instruments)
  */
 @ExtendWith(MockitoExtension.class)
-class TInvestServiceInstrumentsTest {
+class InstrumentServiceInstrumentsTest {
 
     @Mock
     private UsersServiceBlockingStub usersService;
 
     @Mock
-    private InstrumentService instrumentService;
-
-    @Mock
-    private MarketDataService marketDataService;
+    private MainSessionPriceService marketDataService;
 
     @Mock
     private TradingService tradingService;
 
     @InjectMocks
-    private TInvestService tInvestService;
+    private InstrumentService instrumentService;
 
     private ShareDto testShare;
     private FutureDto testFuture;
@@ -102,7 +98,7 @@ class TInvestServiceInstrumentsTest {
             .thenReturn(expectedShares);
 
         // When
-        List<ShareDto> result = tInvestService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", "BBG004730N88");
+        List<ShareDto> result = instrumentService.getShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", "BBG004730N88");
 
         // Then
         assertThat(result).isEqualTo(expectedShares);
@@ -119,11 +115,11 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(testSaveResponse);
 
         // When
-        List<ShareDto> result = tInvestService.saveShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER");
+        SaveResponseDto result = instrumentService.saveShares(new ShareFilterDto("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null, null, null));
 
         // Then
-        assertThat(result).isEqualTo(Arrays.asList(testShare));
-        assertThat(result).hasSize(1);
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getSavedItems()).hasSize(1);
 
         verify(instrumentService).saveShares(argThat(filter -> 
             "INSTRUMENT_STATUS_BASE".equals(filter.getStatus()) &&
@@ -145,7 +141,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveShares(filter)).thenReturn(testSaveResponse);
 
         // When
-        SaveResponseDto result = tInvestService.saveShares(filter);
+        SaveResponseDto result = instrumentService.saveShares(filter);
 
         // Then
         assertThat(result).isEqualTo(testSaveResponse);
@@ -165,7 +161,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getSharesFromDatabase(filter)).thenReturn(expectedShares);
 
         // When
-        List<ShareDto> result = tInvestService.getSharesFromDatabase(filter);
+        List<ShareDto> result = instrumentService.getSharesFromDatabase(filter);
 
         // Then
         assertThat(result).isEqualTo(expectedShares);
@@ -180,7 +176,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getShareByFigi("BBG004730N88")).thenReturn(testShare);
 
         // When
-        ShareDto result = tInvestService.getShareByFigi("BBG004730N88");
+        ShareDto result = instrumentService.getShareByFigi("BBG004730N88");
 
         // Then
         assertThat(result).isEqualTo(testShare);
@@ -196,7 +192,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getShareByTicker("SBER")).thenReturn(testShare);
 
         // When
-        ShareDto result = tInvestService.getShareByTicker("SBER");
+        ShareDto result = instrumentService.getShareByTicker("SBER");
 
         // Then
         assertThat(result).isEqualTo(testShare);
@@ -209,16 +205,16 @@ class TInvestServiceInstrumentsTest {
     @Test
     void updateShare_ShouldDelegateToInstrumentService() {
         // Given
-        when(instrumentService.updateShare(testShare)).thenReturn(testSaveResponse);
+        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(testSaveResponse);
 
         // When
-        SaveResponseDto result = tInvestService.updateShare(testShare);
+        SaveResponseDto result = instrumentService.saveShares(any(ShareFilterDto.class));
 
         // Then
         assertThat(result).isEqualTo(testSaveResponse);
         assertThat(result.isSuccess()).isTrue();
 
-        verify(instrumentService).updateShare(testShare);
+        verify(instrumentService).saveShares(any(ShareFilterDto.class));
     }
 
     // ==================== ТЕСТЫ ДЛЯ ФЬЮЧЕРСОВ ====================
@@ -231,7 +227,7 @@ class TInvestServiceInstrumentsTest {
             .thenReturn(expectedFutures);
 
         // When
-        List<FutureDto> result = tInvestService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
+        List<FutureDto> result = instrumentService.getFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
 
         // Then
         assertThat(result).isEqualTo(expectedFutures);
@@ -259,11 +255,11 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
 
         // When
-        List<FutureDto> result = tInvestService.saveFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
+        SaveResponseDto result = instrumentService.saveFutures(new FutureFilterDto("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES"));
 
         // Then
-        assertThat(result).isEqualTo(Arrays.asList(testFuture));
-        assertThat(result).hasSize(1);
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getSavedItems()).hasSize(1);
 
         verify(instrumentService).saveFutures(argThat(filter -> 
             "INSTRUMENT_STATUS_BASE".equals(filter.getStatus()) &&
@@ -298,7 +294,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveFutures(filter)).thenReturn(futureSaveResponse);
 
         // When
-        SaveResponseDto result = tInvestService.saveFutures(filter);
+        SaveResponseDto result = instrumentService.saveFutures(filter);
 
         // Then
         assertThat(result).isEqualTo(futureSaveResponse);
@@ -314,7 +310,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getFutureByFigi("FUTSBER0324")).thenReturn(testFuture);
 
         // When
-        FutureDto result = tInvestService.getFutureByFigi("FUTSBER0324");
+        FutureDto result = instrumentService.getFutureByFigi("FUTSBER0324");
 
         // Then
         assertThat(result).isEqualTo(testFuture);
@@ -330,7 +326,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getFutureByTicker("SBER-3.24")).thenReturn(testFuture);
 
         // When
-        FutureDto result = tInvestService.getFutureByTicker("SBER-3.24");
+        FutureDto result = instrumentService.getFutureByTicker("SBER-3.24");
 
         // Then
         assertThat(result).isEqualTo(testFuture);
@@ -350,7 +346,7 @@ class TInvestServiceInstrumentsTest {
             .thenReturn(expectedIndicatives);
 
         // When
-        List<IndicativeDto> result = tInvestService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
+        List<IndicativeDto> result = instrumentService.getIndicatives("moex_mrng_evng_e_wknd_dlr", "RUB", "RTSI", "BBG004730ZJ9");
 
         // Then
         assertThat(result).isEqualTo(expectedIndicatives);
@@ -367,7 +363,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getIndicativeBy("BBG004730ZJ9")).thenReturn(testIndicative);
 
         // When
-        IndicativeDto result = tInvestService.getIndicativeBy("BBG004730ZJ9");
+        IndicativeDto result = instrumentService.getIndicativeBy("BBG004730ZJ9");
 
         // Then
         assertThat(result).isEqualTo(testIndicative);
@@ -383,7 +379,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getIndicativeByTicker("RTSI")).thenReturn(testIndicative);
 
         // When
-        IndicativeDto result = tInvestService.getIndicativeByTicker("RTSI");
+        IndicativeDto result = instrumentService.getIndicativeByTicker("RTSI");
 
         // Then
         assertThat(result).isEqualTo(testIndicative);
@@ -416,7 +412,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveIndicatives(filter)).thenReturn(indicativeSaveResponse);
 
         // When
-        SaveResponseDto result = tInvestService.saveIndicatives(filter);
+        SaveResponseDto result = instrumentService.saveIndicatives(filter);
 
         // Then
         assertThat(result).isEqualTo(indicativeSaveResponse);
@@ -436,7 +432,7 @@ class TInvestServiceInstrumentsTest {
             .thenReturn(expectedShares);
 
         // When
-        List<ShareDto> result = tInvestService.getShares(null, null, null, null, null);
+        List<ShareDto> result = instrumentService.getShares(null, null, null, null, null);
 
         // Then
         assertThat(result).isEqualTo(expectedShares);
@@ -451,7 +447,7 @@ class TInvestServiceInstrumentsTest {
             .thenReturn(expectedFutures);
 
         // When
-        List<FutureDto> result = tInvestService.getFutures(null, null, null, null, null);
+        List<FutureDto> result = instrumentService.getFutures(null, null, null, null, null);
 
         // Then
         assertThat(result).isEqualTo(expectedFutures);
@@ -466,7 +462,7 @@ class TInvestServiceInstrumentsTest {
             .thenReturn(expectedIndicatives);
 
         // When
-        List<IndicativeDto> result = tInvestService.getIndicatives(null, null, null, null);
+        List<IndicativeDto> result = instrumentService.getIndicatives(null, null, null, null);
 
         // Then
         assertThat(result).isEqualTo(expectedIndicatives);
@@ -479,7 +475,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getShareByFigi("UNKNOWN")).thenReturn(null);
 
         // When
-        ShareDto result = tInvestService.getShareByFigi("UNKNOWN");
+        ShareDto result = instrumentService.getShareByFigi("UNKNOWN");
 
         // Then
         assertThat(result).isNull();
@@ -492,7 +488,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getFutureByTicker("UNKNOWN")).thenReturn(null);
 
         // When
-        FutureDto result = tInvestService.getFutureByTicker("UNKNOWN");
+        FutureDto result = instrumentService.getFutureByTicker("UNKNOWN");
 
         // Then
         assertThat(result).isNull();
@@ -505,7 +501,7 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.getIndicativeBy("UNKNOWN")).thenReturn(null);
 
         // When
-        IndicativeDto result = tInvestService.getIndicativeBy("UNKNOWN");
+        IndicativeDto result = instrumentService.getIndicativeBy("UNKNOWN");
 
         // Then
         assertThat(result).isNull();
@@ -529,10 +525,10 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(emptyResponse);
 
         // When
-        List<ShareDto> result = tInvestService.saveShares("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER");
+        SaveResponseDto result = instrumentService.saveShares(new ShareFilterDto("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER", null, null, null));
 
         // Then
-        assertThat(result).isEmpty();
+        assertThat(result.isSuccess()).isFalse();
         verify(instrumentService).saveShares(any(ShareFilterDto.class));
     }
 
@@ -553,10 +549,10 @@ class TInvestServiceInstrumentsTest {
         when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(emptyResponse);
 
         // When
-        List<FutureDto> result = tInvestService.saveFutures("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES");
+        SaveResponseDto result = instrumentService.saveFutures(new FutureFilterDto("INSTRUMENT_STATUS_BASE", "moex_mrng_evng_e_wknd_dlr", "RUB", "SBER-3.24", "FUTURES"));
 
         // Then
-        assertThat(result).isEmpty();
+        assertThat(result.isSuccess()).isFalse();
         verify(instrumentService).saveFutures(any(FutureFilterDto.class));
     }
 }

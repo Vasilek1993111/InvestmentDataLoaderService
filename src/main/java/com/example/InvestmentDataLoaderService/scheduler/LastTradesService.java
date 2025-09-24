@@ -188,7 +188,7 @@ public class LastTradesService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );
@@ -359,7 +359,7 @@ public class LastTradesService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );
@@ -382,7 +382,7 @@ public class LastTradesService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );
@@ -513,7 +513,7 @@ public class LastTradesService {
                 0,
                 0,
                 0,
-                0, // invalidItemsFiltered
+                0,
                 0, // missingFromApi
                 new ArrayList<>()
             );

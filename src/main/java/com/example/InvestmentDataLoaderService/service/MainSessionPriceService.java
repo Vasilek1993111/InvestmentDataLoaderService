@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class ClosePriceService {
+public class MainSessionPriceService {
 
     private final MarketDataServiceBlockingStub marketDataService;
     private final ShareRepository shareRepo;
@@ -31,7 +31,7 @@ public class ClosePriceService {
     private final ClosePriceRepository closePriceRepo;
     private final IndicativeRepository indicativeRepo;
 
-    public ClosePriceService(MarketDataServiceBlockingStub marketDataService,
+    public MainSessionPriceService(MarketDataServiceBlockingStub marketDataService,
                             ShareRepository shareRepo,
                             FutureRepository futureRepo,
                             ClosePriceRepository closePriceRepo,

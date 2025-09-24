@@ -2,7 +2,7 @@ package com.example.InvestmentDataLoaderService.scheduler;
 
 import com.example.InvestmentDataLoaderService.dto.ClosePriceRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
-import com.example.InvestmentDataLoaderService.service.ClosePriceService;
+import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -11,10 +11,10 @@ import java.time.ZoneId;
 @Service
 public class ClosePriceSchedulerService {
 
-    private final ClosePriceService closePriceService;
+    private final MainSessionPriceService mainSessionPriceService;
 
-    public ClosePriceSchedulerService(ClosePriceService closePriceService) {
-        this.closePriceService = closePriceService;
+    public ClosePriceSchedulerService(MainSessionPriceService mainSessionPriceService) {
+        this.mainSessionPriceService = mainSessionPriceService;
     }
 
     @Scheduled(cron = "0 0 1 * * *", zone = "Europe/Moscow")
@@ -28,7 +28,7 @@ public class ClosePriceSchedulerService {
             ClosePriceRequestDto request = new ClosePriceRequestDto();
             
             // Вызываем метод saveClosePrices, который автоматически отберет только RUB инструменты (исключая indicatives)
-            SaveResponseDto response = closePriceService.saveClosePrices(request);
+            SaveResponseDto response = mainSessionPriceService.saveClosePrices(request);
             
             if (response.isSuccess()) {
                 System.out.println("Scheduled close prices fetch completed successfully:");
@@ -59,7 +59,7 @@ public class ClosePriceSchedulerService {
             ClosePriceRequestDto request = new ClosePriceRequestDto();
             
             // Вызываем метод saveClosePrices
-            SaveResponseDto response = closePriceService.saveClosePrices(request);
+            SaveResponseDto response = mainSessionPriceService.saveClosePrices(request);
             
             if (response.isSuccess()) {
                 System.out.println("Manual close prices fetch completed successfully:");
