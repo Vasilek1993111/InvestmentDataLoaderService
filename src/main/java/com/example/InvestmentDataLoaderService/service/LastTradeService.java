@@ -53,7 +53,6 @@ public class LastTradeService {
         
         System.out.println("Time range UTC: " + startTime + " to " + endTime);
         System.out.println("Time range Moscow: " + startTime.atZone(ZoneId.of("Europe/Moscow")) + " to " + endTime.atZone(ZoneId.of("Europe/Moscow")));
-
         // Создаем запрос
         GetLastTradesRequest request = GetLastTradesRequest.newBuilder()
                 .setInstrumentId(instrumentId)
@@ -132,7 +131,7 @@ public class LastTradeService {
         System.out.println("Trade Source: " + tradeSource);
         System.out.println("Time range: Last hour from " + oneHourAgo + " to " + now);
         System.out.println("Time range Moscow: " + oneHourAgo.atZone(ZoneId.of("Europe/Moscow")) + " to " + now.atZone(ZoneId.of("Europe/Moscow")));
-        
+
         // Создаем запрос
         GetLastTradesRequest request = GetLastTradesRequest.newBuilder()
                 .setInstrumentId(instrumentId)

@@ -2,16 +2,16 @@ package com.example.InvestmentDataLoaderService.scheduler;
 
 import com.example.InvestmentDataLoaderService.dto.ClosePriceEveningSessionDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
-import com.example.InvestmentDataLoaderService.entity.CandleEntity;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceEveningSessionEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
+import com.example.InvestmentDataLoaderService.entity.MinuteCandleEntity;
 import com.example.InvestmentDataLoaderService.repository.ClosePriceEveningSessionRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
-import com.example.InvestmentDataLoaderService.repository.CandleRepository;
+import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -30,18 +30,18 @@ public class EveningSessionSchedulerService {
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final IndicativeRepository indicativeRepository;
-    private final CandleRepository candleRepository;
+    private final MinuteCandleRepository minuteCandleRepository;
     private final ClosePriceEveningSessionRepository closePriceEveningSessionRepository;
 
     public EveningSessionSchedulerService(ShareRepository shareRepository, 
                                FutureRepository futureRepository,
                                IndicativeRepository indicativeRepository,
-                               CandleRepository candleRepository,
+                               MinuteCandleRepository minuteCandleRepository,
                                ClosePriceEveningSessionRepository closePriceEveningSessionRepository) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
         this.indicativeRepository = indicativeRepository;
-        this.candleRepository = candleRepository;
+        this.minuteCandleRepository = minuteCandleRepository;
         this.closePriceEveningSessionRepository = closePriceEveningSessionRepository;
     }
 
@@ -115,7 +115,7 @@ public class EveningSessionSchedulerService {
                         continue;
                     }
                     
-                    // Ищем последнюю свечу за указанную дату
+            // Ищем последнюю минутную свечу за указанную дату
                     BigDecimal lastClosePrice = findLastClosePriceForDate(share.getFigi(), date, taskId);
                     
                     if (lastClosePrice != null) {
@@ -167,7 +167,7 @@ public class EveningSessionSchedulerService {
                         continue;
                     }
                     
-                    // Ищем последнюю свечу за указанную дату
+            // Ищем последнюю минутную свечу за указанную дату
                     BigDecimal lastClosePrice = findLastClosePriceForDate(future.getFigi(), date, taskId);
                     
                     if (lastClosePrice != null) {
@@ -225,7 +225,7 @@ public class EveningSessionSchedulerService {
                         continue;
                     }
                     
-                    // Ищем последнюю свечу за указанную дату
+            // Ищем последнюю минутную свечу за указанную дату
                     BigDecimal lastClosePrice = findLastClosePriceForDate(indicative.getFigi(), date, taskId);
                     
                     if (lastClosePrice != null) {
@@ -309,12 +309,12 @@ public class EveningSessionSchedulerService {
             var startInstant = date.atStartOfDay(mskZone).toInstant();
             var endInstant = date.plusDays(1).atStartOfDay(mskZone).toInstant();
 
-            // Ищем свечи по точному временному диапазону и берем последнюю по времени
-            List<CandleEntity> candles = candleRepository.findByFigiAndTimeBetween(figi, startInstant, endInstant);
+            // Ищем минутные свечи по точному временному диапазону и берем последнюю по времени
+            List<MinuteCandleEntity> candles = minuteCandleRepository.findByFigiAndTimeBetween(figi, startInstant, endInstant);
 
             if (!candles.isEmpty()) {
-                CandleEntity lastCandle = candles.get(candles.size() - 1);
-                System.out.println("[" + taskId + "] Найдена свеча (" + lastCandle.getTime() + ") для " + figi + " с ценой закрытия: " + lastCandle.getClose());
+                MinuteCandleEntity lastCandle = candles.get(candles.size() - 1);
+                System.out.println("[" + taskId + "] Найдена минутная свеча (" + lastCandle.getTime() + ") для " + figi + " с ценой закрытия: " + lastCandle.getClose());
                 return lastCandle.getClose();
             } else {
                 System.out.println("[" + taskId + "] Свечи не найдены для " + figi + " за дату: " + date);

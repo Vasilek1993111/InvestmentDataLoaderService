@@ -4,9 +4,9 @@ import com.example.InvestmentDataLoaderService.dto.AggregationResult;
 import com.example.InvestmentDataLoaderService.dto.SessionAnalyticsDto;
 import com.example.InvestmentDataLoaderService.entity.SharesAggregatedDataEntity;
 import com.example.InvestmentDataLoaderService.entity.FuturesAggregatedDataEntity;
-import com.example.InvestmentDataLoaderService.entity.CandleEntity;
+import com.example.InvestmentDataLoaderService.entity.MinuteCandleEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
-import com.example.InvestmentDataLoaderService.repository.CandleRepository;
+import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
 import com.example.InvestmentDataLoaderService.repository.SharesAggregatedDataRepository;
 import com.example.InvestmentDataLoaderService.repository.FuturesAggregatedDataRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
@@ -34,20 +34,20 @@ import java.util.stream.Collectors;
 @Service
 public class AggregationService {
     
-    private final CandleRepository candleRepository;
+    private final MinuteCandleRepository minuteCandleRepository;
     private final SharesAggregatedDataRepository sharesAggregatedDataRepository;
     private final FuturesAggregatedDataRepository futuresAggregatedDataRepository;
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final JdbcTemplate jdbcTemplate;
     
-    public AggregationService(CandleRepository candleRepository,
+    public AggregationService(MinuteCandleRepository minuteCandleRepository,
                              SharesAggregatedDataRepository sharesAggregatedDataRepository,
                              FuturesAggregatedDataRepository futuresAggregatedDataRepository,
                              ShareRepository shareRepository,
                              FutureRepository futureRepository,
                              JdbcTemplate jdbcTemplate) {
-        this.candleRepository = candleRepository;
+        this.minuteCandleRepository = minuteCandleRepository;
         this.sharesAggregatedDataRepository = sharesAggregatedDataRepository;
         this.futuresAggregatedDataRepository = futuresAggregatedDataRepository;
         this.shareRepository = shareRepository;
@@ -150,14 +150,15 @@ public class AggregationService {
                                  "/" + ((allFigis.size() + batchSize - 1) / batchSize) + 
                                  " (акций: " + batchFigis.size() + ")");
                 
-                // Получаем агрегированные данные для пакета одним запросом
-                List<Object[]> batchData = candleRepository.getAggregatedDataByFigis(batchFigis);
-                
-                // Группируем данные по FIGI
+                // Получаем агрегированные данные по каждой акции через минутные свечи
                 Map<String, List<Object[]>> groupedData = new HashMap<>();
-                for (Object[] row : batchData) {
-                    String figi = (String) row[0];
-                    groupedData.computeIfAbsent(figi, k -> new ArrayList<>()).add(row);
+                var startAll = java.time.Instant.EPOCH;
+                var endAll = java.time.Instant.now();
+                for (String figi : batchFigis) {
+                    List<Object[]> rows = minuteCandleRepository.getAggregatedDataByFigiAndDateRange(figi, startAll, endAll);
+                    if (rows != null && !rows.isEmpty()) {
+                        groupedData.put(figi, rows);
+                    }
                 }
                 
                 // Обрабатываем каждую акцию в пакете
@@ -326,8 +327,8 @@ public class AggregationService {
         try {
             System.out.println("[" + taskId + "] Расчет данных для фьючерса " + figi);
             
-            // Получаем все свечи для данного фьючерса
-            List<CandleEntity> allCandles = candleRepository.findByFigi(figi);
+            // Получаем все минутные свечи для данного фьючерса за весь доступный период
+            List<MinuteCandleEntity> allCandles = minuteCandleRepository.findByFigiAndTimeBetween(figi, java.time.Instant.EPOCH, java.time.Instant.now());
             
             if (allCandles.isEmpty()) {
                 System.out.println("[" + taskId + "] Нет свечей для " + figi);
@@ -458,10 +459,10 @@ public class AggregationService {
     /**
      * Группирует свечи по дням
      */
-    private List<DailyCandles> groupCandlesByDay(List<CandleEntity> candles) {
-        Map<LocalDate, List<CandleEntity>> groupedCandles = new HashMap<>();
+    private List<DailyCandles> groupCandlesByDay(List<MinuteCandleEntity> candles) {
+        Map<LocalDate, List<MinuteCandleEntity>> groupedCandles = new HashMap<>();
         
-        for (CandleEntity candle : candles) {
+        for (MinuteCandleEntity candle : candles) {
             LocalDate date = candle.getTime().atZone(ZoneId.of("Europe/Moscow")).toLocalDate();
             groupedCandles.computeIfAbsent(date, k -> new ArrayList<>()).add(candle);
         }
@@ -733,9 +734,9 @@ public class AggregationService {
      */
     private static class DailyCandles {
         private final LocalDate date;
-        private final List<CandleEntity> candles;
+        private final List<MinuteCandleEntity> candles;
         
-        public DailyCandles(LocalDate date, List<CandleEntity> candles) {
+        public DailyCandles(LocalDate date, List<MinuteCandleEntity> candles) {
             this.date = date;
             this.candles = candles;
         }
@@ -744,7 +745,7 @@ public class AggregationService {
             return date;
         }
         
-        public List<CandleEntity> getCandles() {
+        public List<MinuteCandleEntity> getCandles() {
             return candles;
         }
     }
