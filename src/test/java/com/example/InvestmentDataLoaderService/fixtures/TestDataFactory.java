@@ -238,17 +238,17 @@ public class TestDataFactory {
     @Tag("entity")
     @Tag("share")
     public static ShareEntity createShareEntity() {
-        return new ShareEntity(
-            "BBG004730N88",
-            "SBER",
-            "Сбербанк",
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr",
-            "Financials",
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
+        ShareEntity entity = new ShareEntity();
+        entity.setFigi("BBG004730N88");
+        entity.setTicker("SBER");
+        entity.setName("Сбербанк");
+        entity.setCurrency("RUB");
+        entity.setExchange("moex_mrng_evng_e_wknd_dlr");
+        entity.setSector("Financials");
+        entity.setTradingStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        return entity;
     }
 
     @Step("Создание ShareEntity с параметрами: figi={figi}, ticker={ticker}, name={name}")
@@ -256,18 +256,18 @@ public class TestDataFactory {
     @Description("Создает объект ShareEntity с переданными параметрами figi, ticker и name")
     @Tag("entity")
     @Tag("share")
-    public static ShareEntity createShareEntity(String figi, String ticker, String name) {
-        return new ShareEntity(
-            figi,
-            ticker,
-            name,
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr",
-            "Financials",
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
+    public static ShareEntity createShareEntity(String figi, String ticker, String name, String exchange) {
+        ShareEntity entity = new ShareEntity();
+        entity.setFigi(figi);
+        entity.setTicker(ticker);
+        entity.setName(name);
+        entity.setCurrency("RUB");
+        entity.setExchange(exchange);
+        entity.setSector("Financials");
+        entity.setTradingStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        return entity;
     }
 
     @Step("Создание FutureEntity с дефолтными значениями")
@@ -308,17 +308,17 @@ public class TestDataFactory {
     @Tag("entity")
     @Tag("indicative")
     public static IndicativeEntity createIndicativeEntity() {
-        return new IndicativeEntity(
-            "BBG004730ZJ9",
-            "RTSI",
-            "Индекс РТС",
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr",
-            "SPBXM",
-            "test-uid",
-            true,
-            true
-        );
+        IndicativeEntity entity = new IndicativeEntity();
+        entity.setFigi("BBG004730ZJ9");
+        entity.setTicker("RTSI");
+        entity.setName("Индекс РТС");
+        entity.setCurrency("RUB");
+        entity.setExchange("moex_mrng_evng_e_wknd_dlr");
+        entity.setClassCode("SPBXM");
+        entity.setUid("test-uid");
+        entity.setSellAvailableFlag(true);
+        entity.setBuyAvailableFlag(true);
+        return entity;
     }
 
     @Step("Создание IndicativeEntity с параметрами: figi={figi}, ticker={ticker}, name={name}")
@@ -327,17 +327,17 @@ public class TestDataFactory {
     @Tag("entity")
     @Tag("indicative")
     public static IndicativeEntity createIndicativeEntity(String figi, String ticker, String name) {
-        return new IndicativeEntity(
-            figi,
-            ticker,
-            name,
-            "RUB",
-            "moex_mrng_evng_e_wknd_dlr",
-            "SPBXM",
-            "test-uid",
-            true,
-            true
-        );
+        IndicativeEntity entity = new IndicativeEntity();
+        entity.setFigi(figi);
+        entity.setTicker(ticker);
+        entity.setName(name);
+        entity.setCurrency("RUB");
+        entity.setExchange("moex_mrng_evng_e_wknd_dlr");
+        entity.setClassCode("SPBXM");
+        entity.setUid("test-uid");
+        entity.setSellAvailableFlag(true);
+        entity.setBuyAvailableFlag(true);
+        return entity;
     }
 
     // ==================== GRPC ОБЪЕКТЫ ====================
@@ -540,9 +540,9 @@ public class TestDataFactory {
     @Tag("share")
     public static List<ShareEntity> createShareEntityList() {
         return Arrays.asList(
-            createShareEntity("BBG004730N88", "SBER", "Сбербанк"),
-            createShareEntity("BBG004730ZJ9", "GAZP", "Газпром"),
-            createShareEntity("BBG004730N88", "LKOH", "Лукойл")
+            createShareEntity("BBG004730N88", "SBER", "Сбербанк","TESTMOEX"),
+            createShareEntity("BBG004730ZJ9", "GAZP", "Газпром","TESTMOEX"),
+            createShareEntity("BBG004730N88", "LKOH", "Лукойл","TESTMOEX")
         );
     }
 
