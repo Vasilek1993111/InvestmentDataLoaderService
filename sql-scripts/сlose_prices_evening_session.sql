@@ -68,5 +68,6 @@ SELECT
     evening_created_at,
     candle_created_at
 FROM comparison_data
+--where instrument_type='FUTURE' --Для запуска в выходные
 ORDER BY
     figi;
