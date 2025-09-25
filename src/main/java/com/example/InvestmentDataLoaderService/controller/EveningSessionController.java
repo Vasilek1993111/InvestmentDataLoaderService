@@ -42,8 +42,302 @@ public class EveningSessionController {
     }
 
      /**
+     * Получение цен закрытия вечерней сессии за вчерашний день
+     * Цена закрытия определяется как close последней минутной свечи в дне
+     */
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getEveningSessionClosePricesYesterday() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Получаем вчерашнюю дату
+            LocalDate yesterday = LocalDate.now().minusDays(1);
+            
+            System.out.println("Получение цен закрытия вечерней сессии за " + yesterday);
+            
+            // Получаем все акции и фьючерсы из БД
+            List<ShareEntity> shares = shareRepository.findAll();
+            List<FutureEntity> futures = futureRepository.findAll();
+            
+            List<Map<String, Object>> eveningClosePrices = new ArrayList<>();
+            int totalProcessed = 0;
+            int foundPrices = 0;
+            int missingData = 0;
+            
+            // Обрабатываем акции
+            for (ShareEntity share : shares) {
+                try {
+                    totalProcessed++;
+                    
+                    // Получаем последнюю свечу за день для акции
+                    var lastCandle = minuteCandleRepository.findLastCandleForDate(share.getFigi(), yesterday);
+                    
+                    if (lastCandle != null) {
+                        BigDecimal lastClosePrice = lastCandle.getClose();
+                        
+                        // Проверяем, что цена не равна 0 (невалидная цена)
+                        if (lastClosePrice.compareTo(BigDecimal.ZERO) > 0) {
+                            Map<String, Object> priceData = new HashMap<>();
+                            priceData.put("figi", share.getFigi());
+                            priceData.put("ticker", share.getTicker());
+                            priceData.put("name", share.getName());
+                            priceData.put("priceDate", yesterday);
+                            priceData.put("closePrice", lastClosePrice);
+                            priceData.put("instrumentType", "SHARE");
+                            priceData.put("currency", "RUB");
+                            priceData.put("exchange", "MOEX");
+                            
+                            eveningClosePrices.add(priceData);
+                            foundPrices++;
+                        } else {
+                            missingData++;
+                        }
+                    } else {
+                        missingData++;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Ошибка обработки акции " + share.getTicker() + ": " + e.getMessage());
+                    missingData++;
+                }
+            }
+            
+            // Обрабатываем фьючерсы
+            for (FutureEntity future : futures) {
+                try {
+                    totalProcessed++;
+                    
+                    // Получаем последнюю свечу за день для фьючерса
+                    var lastCandle = minuteCandleRepository.findLastCandleForDate(future.getFigi(), yesterday);
+                    
+                    if (lastCandle != null) {
+                        BigDecimal lastClosePrice = lastCandle.getClose();
+                        
+                        // Проверяем, что цена не равна 0 (невалидная цена)
+                        if (lastClosePrice.compareTo(BigDecimal.ZERO) > 0) {
+                            Map<String, Object> priceData = new HashMap<>();
+                            priceData.put("figi", future.getFigi());
+                            priceData.put("ticker", future.getTicker());
+                            priceData.put("name", future.getTicker());
+                            priceData.put("priceDate", yesterday);
+                            priceData.put("closePrice", lastClosePrice);
+                            priceData.put("instrumentType", "FUTURE");
+                            priceData.put("currency", "RUB");
+                            priceData.put("exchange", "MOEX");
+                            
+                            eveningClosePrices.add(priceData);
+                            foundPrices++;
+                        } else {
+                            missingData++;
+                        }
+                    } else {
+                        missingData++;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Ошибка обработки фьючерса " + future.getTicker() + ": " + e.getMessage());
+                    missingData++;
+                }
+            }
+            
+            response.put("success", true);
+            response.put("message", "Цены закрытия вечерней сессии за " + yesterday + " получены успешно");
+            response.put("data", eveningClosePrices);
+            response.put("count", eveningClosePrices.size());
+            response.put("date", yesterday);
+            response.put("statistics", Map.of(
+                "totalProcessed", totalProcessed,
+                "foundPrices", foundPrices,
+                "missingData", missingData
+            ));
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка получения цен закрытия вечерней сессии за вчера: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * Загрузка цен закрытия вечерней сессии за вчерашний день
+     * Цена закрытия определяется как close последней минутной свечи в дне
+     */
+    @PostMapping
+    public ResponseEntity<Map<String, Object>> loadEveningSessionPrices() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Получаем вчерашнюю дату
+            LocalDate yesterday = LocalDate.now().minusDays(1);
+            
+            System.out.println("=== ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+            System.out.println("Дата: " + yesterday);
+            
+            // Получаем все акции и фьючерсы из БД
+            List<ShareEntity> shares = shareRepository.findAll();
+            List<FutureEntity> futures = futureRepository.findAll();
+            
+            System.out.println("Найдено акций: " + shares.size());
+            System.out.println("Найдено фьючерсов: " + futures.size());
+            
+            int totalRequested = shares.size() + futures.size();
+            int newItemsSaved = 0;
+            int existingItemsSkipped = 0;
+            int invalidItemsFiltered = 0;
+            int missingFromApi = 0;
+            
+            List<Map<String, Object>> savedItems = new ArrayList<>();
+            
+            // Обрабатываем акции
+            for (ShareEntity share : shares) {
+                try {
+                    System.out.println("Обрабатываем акцию: " + share.getTicker() + " (" + share.getFigi() + ")");
+                    
+                    // Получаем последнюю свечу за день для акции
+                    var lastCandle = minuteCandleRepository.findLastCandleForDate(share.getFigi(), yesterday);
+                    
+                    if (lastCandle != null) {
+                        BigDecimal lastClosePrice = lastCandle.getClose();
+                        
+                        // Проверяем, есть ли уже запись для этой даты и FIGI
+                        if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(yesterday, share.getFigi())) {
+                            existingItemsSkipped++;
+                            System.out.println("Запись уже существует для " + share.getTicker() + " за " + yesterday);
+                            continue;
+                        }
+                        
+                        // Проверяем, что цена не равна 0 (невалидная цена)
+                        if (lastClosePrice.compareTo(BigDecimal.ZERO) > 0) {
+                            // Создаем запись для сохранения
+                            ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
+                            entity.setFigi(share.getFigi());
+                            entity.setPriceDate(yesterday);
+                            entity.setClosePrice(lastClosePrice);
+                            entity.setInstrumentType("SHARE");
+                            entity.setCurrency("RUB");
+                            entity.setExchange("MOEX");
+                            
+                            closePriceEveningSessionRepository.save(entity);
+                            
+                            Map<String, Object> savedItem = new HashMap<>();
+                            savedItem.put("figi", share.getFigi());
+                            savedItem.put("ticker", share.getTicker());
+                            savedItem.put("name", share.getName());
+                            savedItem.put("priceDate", yesterday);
+                            savedItem.put("closePrice", lastClosePrice);
+                            savedItem.put("instrumentType", "SHARE");
+                            savedItem.put("currency", "RUB");
+                            savedItem.put("exchange", "MOEX");
+                            
+                            savedItems.add(savedItem);
+                            newItemsSaved++;
+                            System.out.println("Сохранена цена закрытия вечерней сессии для " + share.getTicker() + ": " + lastClosePrice);
+                        } else {
+                            invalidItemsFiltered++;
+                            System.out.println("Невалидная цена для " + share.getTicker() + ": " + lastClosePrice);
+                        }
+                    } else {
+                        missingFromApi++;
+                        System.out.println("Свечи не найдены для " + share.getTicker() + " за " + yesterday);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Ошибка обработки акции " + share.getTicker() + ": " + e.getMessage());
+                    missingFromApi++;
+                }
+            }
+            
+            // Обрабатываем фьючерсы
+            for (FutureEntity future : futures) {
+                try {
+                    System.out.println("Обрабатываем фьючерс: " + future.getTicker() + " (" + future.getFigi() + ")");
+                    
+                    // Получаем последнюю свечу за день для фьючерса
+                    var lastCandle = minuteCandleRepository.findLastCandleForDate(future.getFigi(), yesterday);
+                    
+                    if (lastCandle != null) {
+                        BigDecimal lastClosePrice = lastCandle.getClose();
+                        
+                        // Проверяем, есть ли уже запись для этой даты и FIGI
+                        if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(yesterday, future.getFigi())) {
+                            existingItemsSkipped++;
+                            System.out.println("Запись уже существует для " + future.getTicker() + " за " + yesterday);
+                            continue;
+                        }
+                        
+                        // Проверяем, что цена не равна 0 (невалидная цена)
+                        if (lastClosePrice.compareTo(BigDecimal.ZERO) > 0) {
+                            // Создаем запись для сохранения
+                            ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
+                            entity.setFigi(future.getFigi());
+                            entity.setPriceDate(yesterday);
+                            entity.setClosePrice(lastClosePrice);
+                            entity.setInstrumentType("FUTURE");
+                            entity.setCurrency("RUB");
+                            entity.setExchange("MOEX");
+                            
+                            closePriceEveningSessionRepository.save(entity);
+                            
+                            Map<String, Object> savedItem = new HashMap<>();
+                            savedItem.put("figi", future.getFigi());
+                            savedItem.put("ticker", future.getTicker());
+                            savedItem.put("name", future.getTicker());
+                            savedItem.put("priceDate", yesterday);
+                            savedItem.put("closePrice", lastClosePrice);
+                            savedItem.put("instrumentType", "FUTURE");
+                            savedItem.put("currency", "RUB");
+                            savedItem.put("exchange", "MOEX");
+                            
+                            savedItems.add(savedItem);
+                            newItemsSaved++;
+                            System.out.println("Сохранена цена закрытия вечерней сессии для " + future.getTicker() + ": " + lastClosePrice);
+                        } else {
+                            invalidItemsFiltered++;
+                            System.out.println("Невалидная цена для " + future.getTicker() + ": " + lastClosePrice);
+                        }
+                    } else {
+                        missingFromApi++;
+                        System.out.println("Свечи не найдены для " + future.getTicker() + " за " + yesterday);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Ошибка обработки фьючерса " + future.getTicker() + ": " + e.getMessage());
+                    missingFromApi++;
+                }
+            }
+            
+            System.out.println("=== ЗАГРУЗКА ЗАВЕРШЕНА ===");
+            System.out.println("Всего запрошено: " + totalRequested);
+            System.out.println("Сохранено новых: " + newItemsSaved);
+            System.out.println("Пропущено существующих: " + existingItemsSkipped);
+            System.out.println("Отфильтровано невалидных: " + invalidItemsFiltered);
+            System.out.println("Не найдено в API: " + missingFromApi);
+            
+            response.put("success", true);
+            response.put("message", "Цены закрытия вечерней сессии за " + yesterday + " загружены успешно");
+            response.put("data", savedItems);
+            response.put("count", savedItems.size());
+            response.put("date", yesterday);
+            response.put("statistics", Map.of(
+                "totalRequested", totalRequested,
+                "newItemsSaved", newItemsSaved,
+                "existingItemsSkipped", existingItemsSkipped,
+                "invalidItemsFiltered", invalidItemsFiltered,
+                "missingFromApi", missingFromApi
+            ));
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Ошибка загрузки цен закрытия вечерней сессии за вчера: " + e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
      * Получение цен вечерней сессии для всех инструментов (акции + фьючерсы) за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles
+     * Использует данные из minute_candles
      */
     @GetMapping("/{date}")
     public ResponseEntity<Map<String, Object>> getEveningSessionPricesForAllInstruments(
@@ -51,14 +345,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Получаем все акции и фьючерсы из БД
             List<ShareEntity> shares = shareRepository.findAll();
@@ -165,7 +451,7 @@ public class EveningSessionController {
 
     /**
      * Загрузка цен вечерней сессии за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles, обрабатывает только акции и фьючерсы
+     * Использует данные из minute_candles, обрабатывает только акции и фьючерсы
      */
     @PostMapping("/{date}")
     public ResponseEntity<Map<String, Object>> loadEveningSessionPricesForDate(
@@ -175,14 +461,6 @@ public class EveningSessionController {
             System.out.println("=== ЗАГРУЗКА ЦЕН ВЕЧЕРНЕЙ СЕССИИ ===");
             System.out.println("Дата: " + date);
             
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                errorResponse.put("date", date);
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
             
             // Получаем все акции и фьючерсы из БД
             List<ShareEntity> shares = shareRepository.findAll();
@@ -352,7 +630,7 @@ public class EveningSessionController {
 
     /**
      * Получение цен вечерней сессии для всех акций за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles, обрабатывает только акции
+     * Использует данные из minute_candles, обрабатывает только акции
      */
     @GetMapping("/shares/{date}")
     public ResponseEntity<Map<String, Object>> getEveningSessionPricesForShares(
@@ -360,14 +638,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
@@ -436,7 +706,7 @@ public class EveningSessionController {
 
     /**
      * Получение цен вечерней сессии для всех фьючерсов за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles, обрабатывает только фьючерсы
+     * Использует данные из minute_candles, обрабатывает только фьючерсы
      */
     @GetMapping("/futures/{date}")
     public ResponseEntity<Map<String, Object>> getEveningSessionPricesForFutures(
@@ -444,14 +714,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
@@ -520,45 +782,12 @@ public class EveningSessionController {
 
    
 
-    /**
-     * Загрузка цен вечерней сессии за сегодня.
-     * Работает только с акциями и фьючерсами, использует данные из minute_candles
-     */
-    @PostMapping
-    public ResponseEntity<Map<String, Object>> loadEveningSessionPricesToday() {
-        try {
-            LocalDate today = LocalDate.now();
-            System.out.println("=== ЗАГРУЗКА ЦЕН ВЕЧЕРНЕЙ СЕССИИ ЗА СЕГОДНЯ ===");
-            System.out.println("Дата: " + today);
-            
-            // Проверяем, что сегодня рабочий день
-            if (today.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + today);
-                errorResponse.put("date", today);
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-            
-            return loadEveningSessionPricesForDate(today);
-        } catch (Exception e) {
-            System.err.println("Ошибка загрузки цен вечерней сессии за сегодня: " + e.getMessage());
-            e.printStackTrace();
-            
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Ошибка загрузки цен вечерней сессии за сегодня: " + e.getMessage());
-            errorResponse.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
 
 
 
     /**
      * Сохранение цен вечерней сессии для акций за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles, обрабатывает только акции и сохраняет в БД
+     * Использует данные из minute_candles, обрабатывает только акции и сохраняет в БД
      */
     @PostMapping("/shares/{date}")
     public ResponseEntity<Map<String, Object>> saveEveningSessionPricesForShares(
@@ -566,14 +795,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
@@ -661,7 +882,7 @@ public class EveningSessionController {
 
     /**
      * Сохранение цен вечерней сессии для фьючерсов за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles, обрабатывает только фьючерсы и сохраняет в БД
+     * Использует данные из minute_candles, обрабатывает только фьючерсы и сохраняет в БД
      */
     @PostMapping("/futures/{date}")
     public ResponseEntity<Map<String, Object>> saveEveningSessionPricesForFutures(
@@ -669,14 +890,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
@@ -764,7 +977,7 @@ public class EveningSessionController {
 
      /**
      * Получение цены вечерней сессии по инструменту за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles
+     * Использует данные из minute_candles
      */
     @GetMapping("/{figi}/{date}")
     public ResponseEntity<Map<String, Object>> getEveningSessionPriceByFigiAndDate(
@@ -773,15 +986,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Получаем последнюю свечу за день для инструмента
             var lastCandle = minuteCandleRepository.findLastCandleForDate(figi, date);
@@ -835,7 +1039,7 @@ public class EveningSessionController {
 
     /**
      * Сохранение цены вечерней сессии по инструменту за конкретную дату.
-     * Работает только с рабочими днями, использует данные из minute_candles и сохраняет в БД
+     * Использует данные из minute_candles и сохраняет в БД
      */
     @PostMapping("/{figi}/{date}")
     public ResponseEntity<Map<String, Object>> saveEveningSessionPriceByFigiAndDate(
@@ -844,15 +1048,6 @@ public class EveningSessionController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Проверяем, что дата - рабочий день
-            if (date.getDayOfWeek().getValue() >= 6) { // Суббота = 6, Воскресенье = 7
-                response.put("success", false);
-                response.put("message", "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date);
-                response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
             
             // Проверяем, есть ли уже запись для этой даты и FIGI
             if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, figi)) {
