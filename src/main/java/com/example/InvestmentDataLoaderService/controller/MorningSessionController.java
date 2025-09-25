@@ -365,7 +365,7 @@ public class MorningSessionController {
     /**
      * Загрузка цены открытия по FIGI за дату
      */
-    @PostMapping("/figi/{figi}/{date}")
+    @PostMapping("/{figi}/{date}")
     public ResponseEntity<Map<String, Object>> loadPriceByFigiForDate(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -420,7 +420,7 @@ public class MorningSessionController {
     /**
      * Поиск цены открытия по FIGI за дату
      */
-    @GetMapping("/figi/{figi}/{date}")
+    @GetMapping("/{figi}/{date}")
     public ResponseEntity<Map<String, Object>> getPriceByFigiForDate(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -470,48 +470,5 @@ public class MorningSessionController {
         }
     }
 
-    /**
-     * Проверка существования FIGI в базе данных
-     */
-    @GetMapping("/figi/{figi}/check")
-    public ResponseEntity<Map<String, Object>> checkFigiExists(@PathVariable String figi) {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            // Валидация FIGI
-            if (figi == null || figi.trim().isEmpty()) {
-                response.put("success", false);
-                response.put("message", "FIGI не может быть пустым");
-                response.put("figi", figi);
-                response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.badRequest().body(response);
-            }
-
-            String instrumentType = morningSessionService.checkInstrumentType(figi.trim());
-            
-            if (instrumentType != null) {
-                response.put("success", true);
-                response.put("message", "FIGI " + figi.trim() + " найден как " + instrumentType);
-                response.put("figi", figi.trim());
-                response.put("instrumentType", instrumentType);
-            } else {
-                response.put("success", false);
-                response.put("message", "FIGI " + figi.trim() + " не найден в базе данных");
-                response.put("figi", figi.trim());
-                response.put("instrumentType", null);
-            }
-            
-            response.put("timestamp", LocalDateTime.now());
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка проверки FIGI " + figi + ": " + e.getMessage());
-            response.put("figi", figi);
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.status(500).body(response);
-        }
-    }
 
 }
