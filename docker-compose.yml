@@ -14,6 +14,10 @@ services:
     environment:
       # Профиль
       SPRING_PROFILES_ACTIVE: test
+
+      SPRING_DATASOURCE_TEST_URL: jdbc:postgresql://host.docker.internal:5434/postgres
+      SPRING_DATASOURCE_TEST_USERNAME: postgres
+      SPRING_DATASOURCE_TEST_PASSWORD: vaniam2101
       
       # Настройки JVM для контейнера
       JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
