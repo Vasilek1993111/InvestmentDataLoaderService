@@ -16,28 +16,29 @@ allure --version
 ### 1. Запуск тестов
 ```bash
 # Запуск всех тестов
-mvnw.cmd clean test
+mvn clean test
 
 # Запуск конкретного теста
-mvnw.cmd test -Dtest=TradingControllerTest
+mvn test -Dtest=TradingControllerTest
 ```
 
 ### 2. Генерация и просмотр отчета
 ```bash
 # Генерация отчета
-mvnw.cmd allure:report
+mvn allure:report
 
 # Открытие отчета в браузере
-mvnw.cmd allure:serve
+mvn allure:serve
 
 # Или если Allure установлен глобально
 allure serve target/allure-results
-```
 
 # Принудительная очистка в Maven
 mvn clean test allure:report allure:serve
 ```
 
+
+```
 ## Структура отчета
 
 - **Overview** - Общая статистика
@@ -69,16 +70,20 @@ mvn clean test allure:report allure:serve
 
 ```bash
 # Очистка и пересборка
-mvnw.cmd clean compile test
+mvn clean compile test
 
 # Запуск только unit тестов
-mvnw.cmd test -Dtest="*Unit*"
+mvn test -Dtest="*Unit*"
+
+# Генерация отчета
+mvn allure:report
 
 # Запуск тестов с определенным тегом
-mvnw.cmd test -Dgroups="api"
+mvn test -Dgroups="api"
 
-# Генерация отчета без запуска тестов
-mvnw.cmd allure:report -Dallure.results.directory=target/allure-results
+# Открытие отчета в браузере
+allure serve target/allure-results
+
 ```
 
 ## Troubleshooting

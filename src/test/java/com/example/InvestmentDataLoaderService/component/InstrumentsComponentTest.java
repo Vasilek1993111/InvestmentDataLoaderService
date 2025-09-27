@@ -233,7 +233,5 @@ public class InstrumentsComponentTest {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andDo(print());//TODO: проверить, что возвращается правильный ответ
        
-    }
-
-    
+    }   
 }
