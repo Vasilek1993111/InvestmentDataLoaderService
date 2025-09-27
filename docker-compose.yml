@@ -9,17 +9,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: investment-data-loader-service-test
+    env_file:
+      - .env.test
     environment:
       # Профиль
       SPRING_PROFILES_ACTIVE: test
-      
-      # База данных - тестовая (локальная PostgreSQL)
-      SPRING_DATASOURCE_TEST_URL: jdbc:postgresql://host.docker.internal:5434/postgres
-      SPRING_DATASOURCE_TEST_USERNAME: postgres
-      SPRING_DATASOURCE_TEST_PASSWORD: 123password123
-      
-      # Токен Tinkoff API - тестовый
-      T_INVEST_TEST_TOKEN: ${T_INVEST_TEST_TOKEN:-test-token-12345}
       
       # Настройки JVM для контейнера
       JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
@@ -52,17 +46,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: investment-data-loader-service-prod
+    env_file:
+      - .env.prod
     environment:
       # Профиль
       SPRING_PROFILES_ACTIVE: prod
-      
-      # База данных - продакшн (облачная PostgreSQL)
-      SPRING_DATASOURCE_PROD_URL: ${SPRING_DATASOURCE_PROD_URL:-jdbc:postgresql://45.132.176.136:5432/postgres}
-      SPRING_DATASOURCE_PROD_USERNAME: ${SPRING_DATASOURCE_PROD_USERNAME:-postgres}
-      SPRING_DATASOURCE_PROD_PASSWORD: ${SPRING_DATASOURCE_PROD_PASSWORD}
-      
-      # Токен Tinkoff API - продакшн
-      T_INVEST_PROD_TOKEN: ${T_INVEST_PROD_TOKEN}
       
       # Настройки JVM для контейнера
       JAVA_OPTS: "-Xmx1024m -Xms512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
@@ -86,3 +74,4 @@ services:
       start_period: 60s
     profiles:
       - production
+
