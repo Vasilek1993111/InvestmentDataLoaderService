@@ -1,6 +1,6 @@
 # Архитектура системы
 
-## Высокоуровневая архитектура
+## 🏗️ Высокоуровневая архитектура
 
 ```mermaid
 flowchart TB
@@ -8,277 +8,383 @@ flowchart TB
     Web[Веб-интерфейс]
     Mobile[Мобильное приложение]
     API_Client[API клиенты]
+    Postman[Postman/Insomnia]
   end
 
   subgraph Service[Investment Data Loader Service]
-    subgraph Controllers[REST Controllers]
+    subgraph Controllers[REST Controllers - 12 шт.]
       IC[InstrumentsController<br/>/api/instruments]
-      CC[CandlesInstrumentController<br/>/api/candles]
-      SC[SystemController<br/>/api/system]
+      CM[CandlesMinuteController<br/>/api/candles/minute]
+      CD[CandlesDailyController<br/>/api/candles/daily]
+      CI[CandlesInstrumentController<br/>/api/candles/instrument]
+      MSP[MainSessionPricesController<br/>/api/main-session-prices]
+      ESP[EveningSessionController<br/>/api/evening-session-prices]
+      MSC[MorningSessionController<br/>/api/morning-session-prices]
+      LT[LastTradesController<br/>/api/last-trades]
       TC[TradingController<br/>/api/trading]
+      CC[CacheController<br/>/api/cache]
+      VA[VolumeAggregationController<br/>/api/aggregation]
+      SC[SystemController<br/>/api/system]
     end
     
-    subgraph Services[Business Services]
+    subgraph Services[Business Services - 9 шт.]
       IS[InstrumentService]
-      MDS[MarketDataService]
+      MS[MinuteCandleService]
+      DS[DailyCandleService]
+      MDS[MainSessionPriceService]
+      ESS[EveningSessionService]
+      MSS[MorningSessionService]
+      LTS[LastTradesService]
       TS[TradingService]
-      TIS[TInvestService]
+      CWS[CacheWarmupService]
     end
     
-    subgraph Repositories[Data Layer]
+    subgraph Repositories[Data Layer - 13 шт.]
       SR[ShareRepository]
       FR[FutureRepository]
       IR[IndicativeRepository]
+      MCR[MinuteCandleRepository]
+      DCR[DailyCandleRepository]
       CPR[ClosePriceRepository]
+      OPR[OpenPriceRepository]
+      LPR[LastPriceRepository]
+      SLR[SystemLogRepository]
     end
     
     subgraph External[External Clients]
       GRPC[Tinkoff gRPC Client]
       REST[Tinkoff REST Client]
+      TAPI[TinkoffApiClient]
     end
     
-    Cache[(Spring Cache)]
-    Scheduler[Schedulers]
+    subgraph ThreadPools[Thread Pools]
+      MCE[minuteCandleExecutor<br/>10 threads]
+      DCE[dailyCandleExecutor<br/>5 threads]
+      ADE[apiDataExecutor<br/>20 threads]
+      BWE[batchWriteExecutor<br/>5 threads]
+    end
+    
+    Cache[(Spring Cache<br/>Caffeine)]
+    Scheduler[Schedulers<br/>7 планировщиков]
   end
 
   subgraph Database[PostgreSQL Database]
-    subgraph Tables[Tables]
+    subgraph Tables[Tables - 10+ шт.]
       S_TBL[(shares)]
       F_TBL[(futures)]
       I_TBL[(indicatives)]
+      MC_TBL[(minute_candles)]
+      DC_TBL[(daily_candles)]
       CP_TBL[(close_prices)]
-      C_TBL[(candles)]
+      OPE_TBL[(close_prices_evening_session)]
+      OP_TBL[(open_prices)]
+      LP_TBL[(last_prices)]
+      SL_TBL[(system_logs)]
     end
     
     subgraph Views[Materialized Views]
-      MV_TODAY[[today_aggregation]]
-      MV_DAILY[[daily_aggregation]]
+      MV_TODAY[[today_volume_aggregation]]
+      MV_DAILY[[daily_volume_aggregation]]
+    end
+    
+    subgraph Functions[Functions & Triggers]
+      FUNC[PL/pgSQL Functions]
+      TRIG[Database Triggers]
     end
   end
 
   subgraph External_APIs[Внешние API]
-    TINKOFF[Tinkoff Invest API]
+    TINKOFF[Tinkoff Invest API<br/>gRPC + REST]
   end
 
   %% Client connections
   Web --> IC
   Mobile --> IC
   API_Client --> IC
-  Web --> CC
-  Mobile --> CC
-  API_Client --> CC
+  Postman --> IC
+  Web --> CM
+  Mobile --> CM
+  API_Client --> CM
+  Postman --> CM
 
   %% Controller to Service
   IC --> IS
-  CC --> MDS
-  SC --> TIS
+  CM --> MS
+  CD --> DS
+  CI --> MS
+  CI --> DS
+  MSP --> MDS
+  ESP --> ESS
+  MSC --> MSS
+  LT --> LTS
   TC --> TS
+  CC --> CWS
+  VA --> MDS
 
   %% Service to Repository
   IS --> SR
   IS --> FR
   IS --> IR
+  MS --> MCR
+  DS --> DCR
   MDS --> CPR
+  ESS --> OPE_TBL
+  MSS --> OP_TBL
+  LTS --> LPR
 
   %% Service to External
   IS --> GRPC
   IS --> REST
-  MDS --> GRPC
+  MS --> TAPI
+  DS --> TAPI
+  LTS --> TAPI
   TS --> GRPC
 
   %% Repository to Database
   SR --> S_TBL
   FR --> F_TBL
   IR --> I_TBL
+  MCR --> MC_TBL
+  DCR --> DC_TBL
   CPR --> CP_TBL
+  LPR --> LP_TBL
+  SLR --> SL_TBL
 
   %% External to APIs
   GRPC --> TINKOFF
   REST --> TINKOFF
+  TAPI --> TINKOFF
 
   %% Caching
   IS --> Cache
-  MDS --> Cache
+  CWS --> Cache
+
+  %% Thread Pools
+  MS --> MCE
+  DS --> DCE
+  MS --> ADE
+  DS --> ADE
+  MS --> BWE
+  DS --> BWE
 
   %% Scheduling
   Scheduler --> IS
+  Scheduler --> MS
+  Scheduler --> DS
   Scheduler --> MDS
 ```
 
-## Детальная архитектура инструментов
+## 🔧 Детальная архитектура свечей
 
 ```mermaid
 graph TB
-  subgraph "Instruments Layer"
-    IC[InstrumentsController]
+  subgraph "Candles Controllers"
+    CM[CandlesMinuteController<br/>/api/candles/minute]
+    CD[CandlesDailyController<br/>/api/candles/daily]
+    CI[CandlesInstrumentController<br/>/api/candles/instrument]
   end
   
-  subgraph "Service Layer"
-    IS[InstrumentService]
+  subgraph "Services Layer"
+    MS[MinuteCandleService]
+    DS[DailyCandleService]
   end
   
-  subgraph "Repository Layer"
-    SR[ShareRepository]
-    FR[FutureRepository]
-    IR[IndicativeRepository]
+  subgraph "Thread Pools"
+    MCE[minuteCandleExecutor<br/>10 threads]
+    DCE[dailyCandleExecutor<br/>5 threads]
+    ADE[apiDataExecutor<br/>20 threads]
+    BWE[batchWriteExecutor<br/>5 threads]
   end
   
   subgraph "External APIs"
-    TINKOFF_GRPC[Tinkoff gRPC API]
-    TINKOFF_REST[Tinkoff REST API]
+    TAPI[TinkoffApiClient<br/>gRPC + REST]
   end
   
-  subgraph "Database"
-    S_TBL[(shares)]
-    F_TBL[(futures)]
-    I_TBL[(indicatives)]
+  subgraph "Database Tables"
+    MC_TBL[(minute_candles<br/>partitioned by day)]
+    DC_TBL[(daily_candles<br/>partitioned by month)]
+    SL_TBL[(system_logs)]
   end
   
-  subgraph "Caching"
-    CACHE[(Spring Cache)]
+  subgraph "Materialized Views"
+    MV_TODAY[[today_volume_aggregation]]
+    MV_DAILY[[daily_volume_aggregation]]
   end
 
-  IC --> IS
-  IS --> SR
-  IS --> FR
-  IS --> IR
-  IS --> TINKOFF_GRPC
-  IS --> TINKOFF_REST
-  IS --> CACHE
+  CM --> MS
+  CD --> DS
+  CI --> MS
+  CI --> DS
   
-  SR --> S_TBL
-  FR --> F_TBL
-  IR --> I_TBL
+  MS --> MCE
+  MS --> ADE
+  MS --> BWE
+  DS --> DCE
+  DS --> ADE
+  DS --> BWE
+  
+  MS --> TAPI
+  DS --> TAPI
+  
+  MS --> MC_TBL
+  DS --> DC_TBL
+  MS --> SL_TBL
+  DS --> SL_TBL
+  
+  MC_TBL --> MV_TODAY
+  DC_TBL --> MV_DAILY
 ```
 
-## Поток данных для инструментов
+## 🔄 Поток данных для свечей
 
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant IC as InstrumentsController
-  participant IS as InstrumentService
-  participant API as Tinkoff API
+  participant CM as CandlesMinuteController
+  participant MS as MinuteCandleService
+  participant TAPI as TinkoffApiClient
   participant DB as Database
-  participant Cache as Cache
+  participant SL as SystemLogs
+  participant TP as ThreadPool
 
-  Note over C,Cache: Получение инструментов из API
+  Note over C,TP: Асинхронная загрузка минутных свечей
   
-  C->>IC: GET /api/instruments/shares?exchange=MOEX
-  IC->>IS: getShares(exchange, currency, ...)
+  C->>CM: POST /api/candles/minute
+  CM->>SL: STARTED log (taskId)
+  CM->>MS: saveMinuteCandlesAsync()
+  CM-->>C: 202 Accepted + taskId
   
-  alt Cache Hit
-    IS->>Cache: Check cache
-    Cache-->>IS: Return cached data
-  else Cache Miss
-    IS->>API: gRPC call to Tinkoff
-    API-->>IS: Return instruments
-    IS->>Cache: Store in cache
+  Note over MS,DB: Асинхронная обработка
+  
+  MS->>TP: Submit to minuteCandleExecutor
+  TP->>MS: Process async
+  MS->>TAPI: fetch candles (paged, throttled)
+  TAPI-->>MS: candles batches
+  
+  loop For each batch
+    MS->>TP: Submit to batchWriteExecutor
+    TP->>DB: INSERT into minute_candles
+    MS->>SL: per-FIGI logs (SUCCESS/NO_DATA/ERROR)
   end
   
-  IS-->>IC: Return instruments
-  IC-->>C: JSON response
-
-  Note over C,Cache: Сохранение инструментов в БД
+  MS->>SL: COMPLETED log
   
-  C->>IC: POST /api/instruments/shares
-  IC->>IS: saveShares(filter)
-  IS->>API: getShares(filter)
-  API-->>IS: Return instruments
+  Note over C: Клиент может проверить статус
   
-  loop For each instrument
-    IS->>DB: Check if exists
-    alt Not exists
-      IS->>DB: Save new instrument
-    else Exists
-      Note over IS: Skip duplicate
-    end
-  end
-  
-  IS-->>IC: Return save result
-  IC-->>C: JSON response with statistics
+  C->>CM: GET /api/system/logs?taskId=xxx
+  CM->>DB: SELECT from system_logs
+  DB-->>CM: log entries
+  CM-->>C: task status + details
 ```
 
-## Архитектура кэширования
+## 💾 Архитектура кэширования
 
 ```mermaid
 graph TB
-  subgraph "Cache Layers"
-    L1[L1: Caffeine Local Cache]
-    L2[L2: Redis Distributed Cache]
+  subgraph "Cache Implementation"
+    CAFFEINE[Caffeine Cache<br/>Local In-Memory]
   end
   
-  subgraph "Cache Keys"
-    SHARES[shares:status|exchange|currency|ticker|figi]
-    FUTURES[futures:status|exchange|currency|ticker|assetType]
-    INDICATIVES[indicatives:exchange|currency|ticker|figi]
+  subgraph "Cache Names"
+    SHARES_CACHE[sharesCache<br/>TTL: 1 hour]
+    FUTURES_CACHE[futuresCache<br/>TTL: 1 hour]
+    INDICATIVES_CACHE[indicativesCache<br/>TTL: 1 hour]
+    CLOSE_PRICES_CACHE[closePricesCache<br/>TTL: 15 minutes]
   end
   
-  subgraph "Cache TTL"
-    TTL_SHORT[Short TTL: 5 minutes]
-    TTL_MEDIUM[Medium TTL: 1 hour]
-    TTL_LONG[Long TTL: 24 hours]
+  subgraph "Cache Operations"
+    GET[GET - Read from cache]
+    PUT[PUT - Store in cache]
+    EVICT[EVICT - Remove from cache]
+    CLEAR[CLEAR - Clear all cache]
   end
   
-  L1 --> SHARES
-  L1 --> FUTURES
-  L1 --> INDICATIVES
+  subgraph "Cache Management"
+    WARMUP[Cache Warmup<br/>POST /api/cache/warmup]
+    INFO[Cache Info<br/>GET /api/cache/info]
+    STATS[Cache Stats<br/>GET /api/cache/stats]
+  end
   
-  L2 --> SHARES
-  L2 --> FUTURES
-  L2 --> INDICATIVES
+  CAFFEINE --> SHARES_CACHE
+  CAFFEINE --> FUTURES_CACHE
+  CAFFEINE --> INDICATIVES_CACHE
+  CAFFEINE --> CLOSE_PRICES_CACHE
   
-  SHARES --> TTL_MEDIUM
-  FUTURES --> TTL_MEDIUM
-  INDICATIVES --> TTL_LONG
+  SHARES_CACHE --> GET
+  FUTURES_CACHE --> GET
+  INDICATIVES_CACHE --> GET
+  CLOSE_PRICES_CACHE --> GET
+  
+  GET --> PUT
+  PUT --> EVICT
+  EVICT --> CLEAR
+  
+  WARMUP --> CAFFEINE
+  INFO --> CAFFEINE
+  STATS --> CAFFEINE
 ```
 
-## Система обработки ошибок
+## ⚠️ Система обработки ошибок
 
 ```mermaid
 graph TB
   subgraph "Error Handling Layers"
-    Controller[Controller Layer]
-    Service[Service Layer]
-    Repository[Repository Layer]
-    External[External API Layer]
+    Controller[Controller Layer<br/>@Transactional]
+    Service[Service Layer<br/>Business Logic]
+    Repository[Repository Layer<br/>JPA/Hibernate]
+    External[External API Layer<br/>Tinkoff API]
   end
   
   subgraph "Error Types"
-    Validation[Validation Errors<br/>400 Bad Request]
-    NotFound[Not Found Errors<br/>404 Not Found]
-    External[External API Errors<br/>503 Service Unavailable]
-    Database[Database Errors<br/>500 Internal Server Error]
+    Validation[Validation Errors<br/>400 Bad Request<br/>Invalid parameters]
+    NotFound[Not Found Errors<br/>404 Not Found<br/>Resource not found]
+    External[External API Errors<br/>503 Service Unavailable<br/>Tinkoff API down]
+    Database[Database Errors<br/>500 Internal Server Error<br/>Connection leaks fixed]
+    Timeout[Timeout Errors<br/>408 Request Timeout<br/>Async operations]
   end
   
   subgraph "Error Responses"
-    JSON[JSON Error Response]
-    Logs[Error Logging]
-    Metrics[Error Metrics]
+    JSON[JSON Error Response<br/>Standardized format]
+    Logs[System Logs<br/>invest.system_logs]
+    Metrics[Error Metrics<br/>Prometheus compatible]
+  end
+  
+  subgraph "Error Recovery"
+    Retry[Retry Logic<br/>Exponential backoff]
+    Fallback[Fallback Strategy<br/>Cache fallback]
+    Circuit[Circuit Breaker<br/>External API protection]
   end
   
   Controller --> Validation
   Service --> NotFound
   Repository --> Database
   External --> External
+  Service --> Timeout
   
   Validation --> JSON
   NotFound --> JSON
   Database --> JSON
   External --> JSON
+  Timeout --> JSON
   
   Validation --> Logs
   NotFound --> Logs
   Database --> Logs
   External --> Logs
+  Timeout --> Logs
   
   Validation --> Metrics
   NotFound --> Metrics
   Database --> Metrics
   External --> Metrics
+  Timeout --> Metrics
+  
+  External --> Retry
+  Retry --> Fallback
+  Fallback --> Circuit
 ```
 
-## Масштабируемость
+## 📈 Масштабируемость
 
 ```mermaid
 graph TB
@@ -287,25 +393,32 @@ graph TB
   end
   
   subgraph "Application Instances"
-    APP1[App Instance 1<br/>Port 8083]
-    APP2[App Instance 2<br/>Port 8084]
-    APP3[App Instance N<br/>Port 8085]
+    APP1[App Instance 1<br/>Port 8083 (PROD)]
+    APP2[App Instance 2<br/>Port 8087 (TEST)]
+    APP3[App Instance N<br/>Port 8088 (DEV)]
   end
   
   subgraph "Database Cluster"
-    MASTER[(PostgreSQL Master<br/>Read/Write)]
-    REPLICA1[(PostgreSQL Replica 1<br/>Read Only)]
-    REPLICA2[(PostgreSQL Replica 2<br/>Read Only)]
+    MASTER[(PostgreSQL Master<br/>Read/Write<br/>Partitioned Tables)]
+    REPLICA1[(PostgreSQL Replica 1<br/>Read Only<br/>Analytics)]
+    REPLICA2[(PostgreSQL Replica 2<br/>Read Only<br/>Reporting)]
   end
   
   subgraph "Caching Infrastructure"
-    REDIS[(Redis Cluster)]
-    CAFFEINE[Caffeine Local Cache]
+    CAFFEINE[Caffeine Local Cache<br/>Per Instance]
+    CACHE_MANAGER[Cache Manager<br/>Spring Cache]
+  end
+  
+  subgraph "Thread Pools"
+    TP1[minuteCandleExecutor<br/>10 threads per instance]
+    TP2[dailyCandleExecutor<br/>5 threads per instance]
+    TP3[apiDataExecutor<br/>20 threads per instance]
+    TP4[batchWriteExecutor<br/>5 threads per instance]
   end
   
   subgraph "External Services"
-    TINKOFF[Tinkoff Invest API]
-    MONITORING[Monitoring & Alerting]
+    TINKOFF[Tinkoff Invest API<br/>Rate Limited]
+    MONITORING[Monitoring & Alerting<br/>Prometheus + Grafana]
   end
   
   LB --> APP1
@@ -319,13 +432,18 @@ graph TB
   APP3 --> MASTER
   APP3 --> REPLICA1
   
-  APP1 --> REDIS
-  APP2 --> REDIS
-  APP3 --> REDIS
-  
   APP1 --> CAFFEINE
   APP2 --> CAFFEINE
   APP3 --> CAFFEINE
+  
+  APP1 --> CACHE_MANAGER
+  APP2 --> CACHE_MANAGER
+  APP3 --> CACHE_MANAGER
+  
+  APP1 --> TP1
+  APP1 --> TP2
+  APP1 --> TP3
+  APP1 --> TP4
   
   APP1 --> TINKOFF
   APP2 --> TINKOFF
@@ -336,87 +454,115 @@ graph TB
   APP3 --> MONITORING
 ```
 
-## Мониторинг и логирование
+## 📊 Мониторинг и логирование
 
 ```mermaid
 graph TB
   subgraph "Application"
-    APP[Spring Boot App]
-    ACTUATOR[Spring Actuator]
+    APP[Spring Boot App<br/>Investment Data Loader]
+    ACTUATOR[Spring Actuator<br/>Health & Metrics]
   end
   
-  subgraph "Logging"
-    LOGS[Application Logs]
-    SLF4J[SLF4J + Logback]
+  subgraph "System Logging"
+    SYS_LOGS[System Logs<br/>invest.system_logs]
+    TASK_LOGS[Task Logs<br/>per-FIGI tracking]
+    ERROR_LOGS[Error Logs<br/>Exception handling]
+  end
+  
+  subgraph "Application Logging"
+    APP_LOGS[Application Logs<br/>SLF4J + Logback]
+    STRUCTURED[Structured Logging<br/>JSON format]
   end
   
   subgraph "Metrics"
-    METRICS[Application Metrics]
-    PROMETHEUS[Prometheus Metrics]
+    APP_METRICS[Application Metrics<br/>Custom counters]
+    CACHE_METRICS[Cache Metrics<br/>Hit/Miss ratios]
+    DB_METRICS[Database Metrics<br/>Connection pool]
+    API_METRICS[API Metrics<br/>Response times]
   end
   
   subgraph "Health Checks"
-    HEALTH[Health Endpoints]
-    DB_CHECK[Database Health]
-    API_CHECK[External API Health]
+    HEALTH[Health Endpoints<br/>/api/system/health]
+    DB_CHECK[Database Health<br/>Connection status]
+    API_CHECK[External API Health<br/>Tinkoff API status]
+    CACHE_CHECK[Cache Health<br/>Cache status]
   end
   
   subgraph "Monitoring Stack"
-    PROMETHEUS_SERVER[Prometheus Server]
-    GRAFANA[Grafana Dashboard]
-    ALERTMANAGER[AlertManager]
+    PROMETHEUS[Prometheus Server<br/>Metrics collection]
+    GRAFANA[Grafana Dashboard<br/>Visualization]
+    ALERTMANAGER[AlertManager<br/>Alerting]
+    ALLURE[Allure Reports<br/>Test reporting]
   end
   
   APP --> ACTUATOR
-  APP --> SLF4J
-  APP --> METRICS
+  APP --> APP_LOGS
+  APP --> APP_METRICS
   
   ACTUATOR --> HEALTH
   ACTUATOR --> DB_CHECK
   ACTUATOR --> API_CHECK
+  ACTUATOR --> CACHE_CHECK
   
-  SLF4J --> LOGS
-  METRICS --> PROMETHEUS
+  APP_LOGS --> STRUCTURED
+  STRUCTURED --> SYS_LOGS
+  SYS_LOGS --> TASK_LOGS
+  SYS_LOGS --> ERROR_LOGS
   
-  HEALTH --> PROMETHEUS_SERVER
-  LOGS --> PROMETHEUS_SERVER
-  PROMETHEUS --> PROMETHEUS_SERVER
+  APP_METRICS --> CACHE_METRICS
+  APP_METRICS --> DB_METRICS
+  APP_METRICS --> API_METRICS
   
-  PROMETHEUS_SERVER --> GRAFANA
-  PROMETHEUS_SERVER --> ALERTMANAGER
+  HEALTH --> PROMETHEUS
+  SYS_LOGS --> PROMETHEUS
+  APP_METRICS --> PROMETHEUS
+  
+  PROMETHEUS --> GRAFANA
+  PROMETHEUS --> ALERTMANAGER
+  
+  APP --> ALLURE
 ```
 
-## Развертывание в Docker
+## 🐳 Развертывание в Docker
 
 ```mermaid
 graph TB
   subgraph "Docker Compose"
-    APP_CONTAINER[investment-data-loader:latest]
-    DB_CONTAINER[postgres:15]
-    REDIS_CONTAINER[redis:7]
+    APP_CONTAINER[investment-data-loader:latest<br/>Spring Boot App]
+    DB_CONTAINER[postgres:15<br/>PostgreSQL Database]
   end
   
   subgraph "Docker Network"
-    NETWORK[investment-network]
+    NETWORK[investment-network<br/>Internal communication]
   end
   
   subgraph "Volumes"
-    DB_VOLUME[postgres_data]
-    REDIS_VOLUME[redis_data]
+    DB_VOLUME[postgres_data<br/>Persistent storage]
+    APP_LOGS[app_logs<br/>Application logs]
   end
   
-  subgraph "Environment"
-    ENV_VARS[Environment Variables<br/>T_INVEST_TOKEN<br/>DB_HOST<br/>DB_PASSWORD]
+  subgraph "Environment Profiles"
+    PROD_ENV[Production<br/>application-prod.properties<br/>Port 8083]
+    TEST_ENV[Test<br/>application-test.properties<br/>Port 8087]
+    DOCKER_ENV[Docker<br/>application-docker.properties<br/>Port 8083]
+  end
+  
+  subgraph "External Services"
+    TINKOFF_API[Tinkoff Invest API<br/>External dependency]
+    MONITORING[Monitoring Stack<br/>Prometheus + Grafana]
   end
   
   APP_CONTAINER --> NETWORK
   DB_CONTAINER --> NETWORK
-  REDIS_CONTAINER --> NETWORK
   
-  APP_CONTAINER --> ENV_VARS
+  APP_CONTAINER --> PROD_ENV
+  APP_CONTAINER --> TEST_ENV
+  APP_CONTAINER --> DOCKER_ENV
+  
   DB_CONTAINER --> DB_VOLUME
-  REDIS_CONTAINER --> REDIS_VOLUME
+  APP_CONTAINER --> APP_LOGS
   
   APP_CONTAINER --> DB_CONTAINER
-  APP_CONTAINER --> REDIS_CONTAINER
+  APP_CONTAINER --> TINKOFF_API
+  APP_CONTAINER --> MONITORING
 ```
