@@ -8,6 +8,7 @@ import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -53,6 +54,7 @@ public class CandlesDailyController {
      * Асинхронная загрузка дневных свечей за сегодня
      */
     @PostMapping
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadDailyCandlesTodayAsync(@RequestBody DailyCandleRequestDto request) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/daily";
@@ -131,6 +133,7 @@ public class CandlesDailyController {
      * Асинхронная загрузка дневных свечей за конкретную дату
      */
     @PostMapping("/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadDailyCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestBody DailyCandleRequestDto request
@@ -449,6 +452,7 @@ public class CandlesDailyController {
      * Асинхронная загрузка дневных свечей акций за дату
      */
     @PostMapping("/shares/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadSharesDailyCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -538,6 +542,7 @@ public class CandlesDailyController {
      * Синхронная загрузка дневных свечей акций за дату (для обратной совместимости)
      */
     @PostMapping("/shares/{date}/sync")
+    @Transactional
     public ResponseEntity<CandleLoadResponseDto> loadSharesDailyCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -684,6 +689,7 @@ public class CandlesDailyController {
      * Асинхронная загрузка дневных свечей фьючерсов за дату
      */
     @PostMapping("/futures/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadFuturesDailyCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -938,6 +944,7 @@ public class CandlesDailyController {
      * Асинхронная загрузка дневных свечей индикативов за дату
      */
     @PostMapping("/indicatives/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadIndicativesDailyCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {

@@ -4,6 +4,7 @@ import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.service.MorningSessionService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ public class MorningSessionController {
      * Загрузка цен утренней сессии за сегодня
      */
     @PostMapping
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadMorningSessionPricesToday() {
         Map<String, Object> response = new HashMap<>();
 
@@ -109,6 +111,7 @@ public class MorningSessionController {
      * Загрузка цен открытия по акциям и фьючерсам за дату
      */
     @PostMapping("/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadOpenPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -192,6 +195,7 @@ public class MorningSessionController {
      * Загрузка цен открытия по акциям за дату
      */
     @PostMapping("/shares/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadSharesPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -279,6 +283,7 @@ public class MorningSessionController {
      * Загрузка цен открытия по фьючерсам за дату
      */
     @PostMapping("/futures/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadFuturesPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -366,6 +371,7 @@ public class MorningSessionController {
      * Загрузка цены открытия по FIGI за дату
      */
     @PostMapping("/{figi}/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadPriceByFigiForDate(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

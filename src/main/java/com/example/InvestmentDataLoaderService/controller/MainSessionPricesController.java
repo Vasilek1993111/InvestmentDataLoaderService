@@ -19,6 +19,7 @@ import com.example.InvestmentDataLoaderService.repository.ClosePriceRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -68,6 +69,7 @@ public class MainSessionPricesController {
      * Работает с акциями и фьючерсами одновременно, использует кэш и T-INVEST API
      */
     @PostMapping("/")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadClosePricesToday() {
         try {
             System.out.println("=== ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ И ФЬЮЧЕРСОВ ===");
@@ -289,6 +291,7 @@ public class MainSessionPricesController {
      * Загрузка цен закрытия для всех акций из T-INVEST API в БД
      */
     @PostMapping("/shares")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadClosePricesForShares() {
         try {
             System.out.println("=== ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ ===");
@@ -481,6 +484,7 @@ public class MainSessionPricesController {
      * Загрузка цен закрытия для всех фьючерсов из T-INVEST API в БД
      */
     @PostMapping("/futures")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadClosePricesForFutures() {
         try {
             System.out.println("=== ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ ФЬЮЧЕРСОВ ===");
@@ -685,6 +689,7 @@ public class MainSessionPricesController {
      * Загрузка цены закрытия по конкретному инструменту из T-INVEST API в БД
      */
     @PostMapping("/instrument/{figi}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadClosePriceByFigi(@PathVariable String figi) {
         try {
             System.out.println("=== ЗАГРУЗКА ЦЕНЫ ЗАКРЫТИЯ ДЛЯ ИНСТРУМЕНТА ===");
@@ -850,6 +855,7 @@ public class MainSessionPricesController {
      * Обрабатывает только акции и фьючерсы
      */
     @PostMapping("/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadMainSessionPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {

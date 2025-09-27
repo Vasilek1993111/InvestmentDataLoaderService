@@ -3,6 +3,7 @@ package com.example.InvestmentDataLoaderService.controller;
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -167,6 +168,7 @@ public class InstrumentsController {
      * @return результат операции сохранения с детальной статистикой
      */
     @PostMapping("/shares")
+    @Transactional
     public ResponseEntity<SaveResponseDto> saveShares(@RequestBody ShareFilterDto filter) {
         SaveResponseDto response = instrumentService.saveShares(filter);
         return ResponseEntity.ok(response);
@@ -243,6 +245,7 @@ public class InstrumentsController {
      * @return результат операции сохранения с детальной статистикой
      */
     @PostMapping("/futures")
+    @Transactional
     public ResponseEntity<SaveResponseDto> saveFutures(@RequestBody FutureFilterDto filter) {
         SaveResponseDto response = instrumentService.saveFutures(filter);
         return ResponseEntity.ok(response);
@@ -288,6 +291,7 @@ public class InstrumentsController {
      * @return результат операции сохранения с детальной статистикой
      */
     @PostMapping("/indicatives")
+    @Transactional
     public ResponseEntity<SaveResponseDto> saveIndicatives(@RequestBody IndicativeFilterDto filter) {
         SaveResponseDto response = instrumentService.saveIndicatives(filter);
         return ResponseEntity.ok(response);

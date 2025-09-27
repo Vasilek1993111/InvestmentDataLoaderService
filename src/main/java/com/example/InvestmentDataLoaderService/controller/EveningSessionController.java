@@ -10,6 +10,7 @@ import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -164,6 +165,7 @@ public class EveningSessionController {
      * Цена закрытия определяется как close последней минутной свечи в дне
      */
     @PostMapping
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadEveningSessionPrices() {
         Map<String, Object> response = new HashMap<>();
         
@@ -454,6 +456,7 @@ public class EveningSessionController {
      * Использует данные из minute_candles, обрабатывает только акции и фьючерсы
      */
     @PostMapping("/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadEveningSessionPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -790,6 +793,7 @@ public class EveningSessionController {
      * Использует данные из minute_candles, обрабатывает только акции и сохраняет в БД
      */
     @PostMapping("/shares/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> saveEveningSessionPricesForShares(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Map<String, Object> response = new HashMap<>();
@@ -885,6 +889,7 @@ public class EveningSessionController {
      * Использует данные из minute_candles, обрабатывает только фьючерсы и сохраняет в БД
      */
     @PostMapping("/futures/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> saveEveningSessionPricesForFutures(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Map<String, Object> response = new HashMap<>();
@@ -1042,6 +1047,7 @@ public class EveningSessionController {
      * Использует данные из minute_candles и сохраняет в БД
      */
     @PostMapping("/{figi}/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> saveEveningSessionPriceByFigiAndDate(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

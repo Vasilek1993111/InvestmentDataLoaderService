@@ -10,6 +10,7 @@ import com.example.InvestmentDataLoaderService.util.MinuteCandleMapper;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -191,6 +192,7 @@ public class CandlesInstrumentController {
      * Асинхронное сохранение минутных свечей конкретного инструмента за дату
      */
     @PostMapping("/minute/{figi}/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> saveInstrumentMinuteCandlesForDateAsync(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -437,6 +439,7 @@ public class CandlesInstrumentController {
      * Асинхронное сохранение дневных свечей конкретного инструмента за дату
      */
     @PostMapping("/daily/{figi}/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> saveInstrumentDailyCandlesForDateAsync(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

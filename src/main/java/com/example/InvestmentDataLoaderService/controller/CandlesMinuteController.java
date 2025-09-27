@@ -8,6 +8,7 @@ import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -52,6 +53,7 @@ public class CandlesMinuteController {
      * Загрузка минутных свечей за сегодня
      */
     @PostMapping
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadMinuteCandlesToday(@RequestBody MinuteCandleRequestDto request) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/minute";
@@ -132,6 +134,7 @@ public class CandlesMinuteController {
      * Загрузка минутных свечей за конкретную дату
      */
     @PostMapping("/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestBody MinuteCandleRequestDto request
@@ -470,6 +473,7 @@ public class CandlesMinuteController {
      * Загрузка минутных свечей акций за дату
      */
     @PostMapping("/shares/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadSharesMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -563,6 +567,7 @@ public class CandlesMinuteController {
      * Загрузка минутных свечей фьючерсов за дату
      */
     @PostMapping("/futures/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadFuturesMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -836,6 +841,7 @@ public class CandlesMinuteController {
      * Загрузка минутных свечей индикативов за дату
      */
     @PostMapping("/indicatives/{date}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> loadIndicativesMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {

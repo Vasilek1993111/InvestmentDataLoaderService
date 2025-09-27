@@ -1,6 +1,7 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ public class VolumeAggregationController {
      * Ручное обновление материализованного представления
      */
     @PostMapping("/refresh")
+    @Transactional
     public ResponseEntity<Map<String, Object>> refreshAggregation() {
         Map<String, Object> response = new HashMap<>();
         
