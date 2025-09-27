@@ -47,9 +47,9 @@ public class EveningSessionSchedulerService {
 
     /**
      * Ежедневная загрузка цен закрытия вечерней сессии
-     * Запускается в 2:00 по московскому времени
+     * Запускается в 1:40 по московскому времени
      */
-    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Moscow")
+    @Scheduled(cron = "0 40 1 * * *", zone = "Europe/Moscow")
     public void fetchAndStoreEveningSessionPrices() {
         try {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);

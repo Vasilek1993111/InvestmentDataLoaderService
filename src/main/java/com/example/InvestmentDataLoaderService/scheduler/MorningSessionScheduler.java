@@ -25,9 +25,9 @@ public class MorningSessionScheduler {
 
     /**
      * Ежедневная загрузка цен открытия утренней сессии
-     * Запускается в 2:01 по московскому времени
+     * Запускается в 1:50 по московскому времени
      */
-    @Scheduled(cron = "0 1 2 * * *", zone = "Europe/Moscow")
+    @Scheduled(cron = "0 50 1 * * *", zone = "Europe/Moscow")
     public void fetchAndStoreMorningSessionPrices() {
         try {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);

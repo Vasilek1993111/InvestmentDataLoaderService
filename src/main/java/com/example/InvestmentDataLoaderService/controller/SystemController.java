@@ -1,7 +1,5 @@
 package com.example.InvestmentDataLoaderService.controller;
 
-import com.example.InvestmentDataLoaderService.scheduler.VolumeAggregationSchedulerService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,8 +15,6 @@ import java.util.HashMap;
 @RequestMapping("/api/system")
 public class SystemController {
     
-    @Autowired
-    private VolumeAggregationSchedulerService volumeAggregationService;
 
     // ==================== ЗДОРОВЬЕ СИСТЕМЫ ====================
 
@@ -31,7 +27,7 @@ public class SystemController {
         
         try {
             // Проверяем основные компоненты системы
-            boolean materializedViewsExist = volumeAggregationService.isMaterializedViewExists();
+            boolean materializedViewsExist = false; // TODO: Реализовать проверку материализованных представлений
             
             Map<String, Object> components = new HashMap<>();
             components.put("database", "healthy");
@@ -66,7 +62,7 @@ public class SystemController {
             Map<String, Object> diagnostics = new HashMap<>();
             
             // Проверка материализованных представлений
-            boolean viewsExist = volumeAggregationService.isMaterializedViewExists();
+            boolean viewsExist = false; // TODO: Реализовать проверку материализованных представлений
             diagnostics.put("materialized_views", Map.of(
                 "exists", viewsExist,
                 "status", viewsExist ? "ok" : "missing"
@@ -115,7 +111,7 @@ public class SystemController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            boolean exists = volumeAggregationService.isMaterializedViewExists();
+            boolean exists = false; // TODO: Реализовать проверку материализованных представлений
             
             response.put("success", true);
             response.put("exists", exists);
@@ -195,14 +191,8 @@ public class SystemController {
             stats.put("uptime", uptimeStats);
             
             // Статистика материализованных представлений
-            try {
-                Map<String, Object> detailedStats = volumeAggregationService.getDetailedStats();
-                if (detailedStats != null) {
-                    stats.put("volume_aggregation", detailedStats);
-                }
-            } catch (Exception e) {
-                stats.put("volume_aggregation", Map.of("error", e.getMessage()));
-            }
+            // TODO: Реализовать получение детальной статистики
+            stats.put("volume_aggregation", Map.of("status", "not_implemented"));
             
             response.put("success", true);
             response.put("data", stats);
