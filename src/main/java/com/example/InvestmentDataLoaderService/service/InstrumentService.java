@@ -141,6 +141,14 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
+        
+        // Если инструменты не найдены, выбрасываем исключение
+        if (shares.isEmpty()) {
+            throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
+                "Акции не найдены по заданным критериям"
+            );
+        }
+        
         return shares;
     }
 
@@ -355,6 +363,14 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         futures.sort(Comparator.comparing(FutureDto::ticker, String.CASE_INSENSITIVE_ORDER));
+        
+        // Если инструменты не найдены, выбрасываем исключение
+        if (futures.isEmpty()) {
+            throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
+                "Фьючерсы не найдены по заданным критериям"
+            );
+        }
+        
         return futures;
     }
 
@@ -570,6 +586,14 @@ public class InstrumentService {
             
             // Сортируем по тикеру
             indicatives.sort(Comparator.comparing(IndicativeDto::ticker, String.CASE_INSENSITIVE_ORDER));
+            
+            // Если инструменты не найдены, выбрасываем исключение
+            if (indicatives.isEmpty()) {
+                throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
+                    "Индикативные инструменты не найдены по заданным критериям"
+                );
+            }
+            
             return indicatives;
         }
     }
@@ -628,6 +652,9 @@ public class InstrumentService {
                 .findFirst()
                 .orElse(null);
                 
+        } catch (com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException e) {
+            // Если инструменты не найдены, возвращаем null
+            return null;
         } catch (Exception e) {
             System.err.println("Error getting indicative by ticker: " + e.getMessage());
             return null;

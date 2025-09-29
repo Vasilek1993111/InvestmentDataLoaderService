@@ -7,6 +7,11 @@ public class ValidationException extends DataLoadException {
     
     private final String field;
     
+    public ValidationException(String message) {
+        super(message);
+        this.field = null;
+    }
+    
     public ValidationException(String message, String field) {
         super(message);
         this.field = field;
