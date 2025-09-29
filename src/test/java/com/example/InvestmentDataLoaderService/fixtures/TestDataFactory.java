@@ -9,7 +9,9 @@ import ru.tinkoff.piapi.contract.v1.*;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -228,6 +230,257 @@ public class TestDataFactory {
             0, // missingFromApi
             Arrays.asList()
         );
+    }
+
+    @Step("Создание тестового SaveResponseDto для InstrumentsController")
+    @DisplayName("Создание тестового SaveResponseDto")
+    @Description("Создает объект SaveResponseDto с тестовыми данными для InstrumentsController")
+    @Tag("dto")
+    @Tag("response")
+    @Tag("test")
+    public static SaveResponseDto createTestSaveResponse() {
+        return new SaveResponseDto(
+            true,
+            "Успешно сохранено 5 новых инструментов из 10 найденных",
+            10,
+            5,
+            5,
+            0,
+            0,
+            Arrays.asList("item1", "item2", "item3", "item4", "item5")
+        );
+    }
+
+    @Step("Создание тестовой статистики инструментов")
+    @DisplayName("Создание тестовой статистики")
+    @Description("Создает Map с тестовой статистикой по количеству инструментов")
+    @Tag("statistics")
+    @Tag("test")
+    public static Map<String, Long> createTestInstrumentCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        counts.put("shares", 150L);
+        counts.put("futures", 45L);
+        counts.put("indicatives", 12L);
+        counts.put("total", 207L);
+        return counts;
+    }
+
+    // ==================== СПЕЦИФИЧНЫЕ МЕТОДЫ ДЛЯ INSTRUMENTSCONTROLLERTEST ====================
+
+    @Step("Создание ShareDto для Сбербанка (MOEX)")
+    @DisplayName("Создание ShareDto для Сбербанка")
+    @Description("Создает ShareDto с данными Сбербанка для MOEX")
+    @Tag("dto")
+    @Tag("share")
+    @Tag("sber")
+    public static ShareDto createSberShare() {
+        return new ShareDto(
+            "BBG004730N88", 
+            "SBER", 
+            "ПАО Сбербанк", 
+            "RUB", 
+            "moex_mrng_evng_e_wknd_dlr", 
+            "Financial", 
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+        );
+    }
+
+    @Step("Создание ShareDto для Газпрома (MOEX)")
+    @DisplayName("Создание ShareDto для Газпрома")
+    @Description("Создает ShareDto с данными Газпрома для MOEX")
+    @Tag("dto")
+    @Tag("share")
+    @Tag("gazprom")
+    public static ShareDto createGazpromShare() {
+        return new ShareDto(
+            "BBG004730ZJ9", 
+            "GAZP", 
+            "ПАО Газпром", 
+            "RUB", 
+            "moex_mrng_evng_e_wknd_dlr", 
+            "Energy", 
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+        );
+    }
+
+    @Step("Создание ShareDto для Лукойла (MOEX)")
+    @DisplayName("Создание ShareDto для Лукойла")
+    @Description("Создает ShareDto с данными Лукойла для MOEX")
+    @Tag("dto")
+    @Tag("share")
+    @Tag("lukoil")
+    public static ShareDto createLukoilShare() {
+        return new ShareDto(
+            "BBG004730N88", 
+            "LKOH", 
+            "ПАО Лукойл", 
+            "RUB", 
+            "moex_mrng_evng_e_wknd_dlr", 
+            "Energy", 
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+        );
+    }
+
+    @Step("Создание списка ShareDto для MOEX (Сбербанк, Газпром, Лукойл)")
+    @DisplayName("Создание списка ShareDto для MOEX")
+    @Description("Создает список из 3 ShareDto с данными Сбербанка, Газпрома и Лукойла для MOEX")
+    @Tag("list")
+    @Tag("dto")
+    @Tag("share")
+    @Tag("moex")
+    public static List<ShareDto> createMoexSharesList() {
+        return Arrays.asList(
+            createSberShare(),
+            createGazpromShare(),
+            createLukoilShare()
+        );
+    }
+
+    @Step("Создание FutureDto для фьючерса на серебро")
+    @DisplayName("Создание FutureDto для серебра")
+    @Description("Создает FutureDto с данными фьючерса на серебро")
+    @Tag("dto")
+    @Tag("future")
+    @Tag("silver")
+    public static FutureDto createSilverFuture() {
+        return new FutureDto(
+            "FUTSI0624000", 
+            "SI0624", 
+            "COMMODITY", 
+            "Silver", 
+            "USD", 
+            "moex_mrng_evng_e_wknd_dlr"
+        );
+    }
+
+    @Step("Создание FutureDto для фьючерса на золото")
+    @DisplayName("Создание FutureDto для золота")
+    @Description("Создает FutureDto с данными фьючерса на золото")
+    @Tag("dto")
+    @Tag("future")
+    @Tag("gold")
+    public static FutureDto createGoldFuture() {
+        return new FutureDto(
+            "FUTGZ0624000", 
+            "GZ0624", 
+            "COMMODITY", 
+            "Gold", 
+            "USD", 
+            "moex_mrng_evng_e_wknd_dlr"
+        );
+    }
+
+    @Step("Создание списка FutureDto для товарных фьючерсов")
+    @DisplayName("Создание списка FutureDto для товарных фьючерсов")
+    @Description("Создает список из 2 FutureDto с данными фьючерсов на серебро и золото")
+    @Tag("list")
+    @Tag("dto")
+    @Tag("future")
+    @Tag("commodity")
+    public static List<FutureDto> createCommodityFuturesList() {
+        return Arrays.asList(
+            createSilverFuture(),
+            createGoldFuture()
+        );
+    }
+
+    @Step("Создание IndicativeDto для USD/RUB")
+    @DisplayName("Создание IndicativeDto для USD/RUB")
+    @Description("Создает IndicativeDto с данными валютной пары USD/RUB")
+    @Tag("dto")
+    @Tag("indicative")
+    @Tag("usd-rub")
+    public static IndicativeDto createUsdRubIndicative() {
+        return new IndicativeDto(
+            "BBG0013HGFT4", 
+            "USD000UTSTOM", 
+            "Доллар США / Российский рубль", 
+            "RUB", 
+            "moex_mrng_evng_e_wknd_dlr", 
+            "CURRENCY", 
+            "USD000UTSTOM", 
+            true, 
+            true
+        );
+    }
+
+    @Step("Создание IndicativeDto для EUR/RUB")
+    @DisplayName("Создание IndicativeDto для EUR/RUB")
+    @Description("Создает IndicativeDto с данными валютной пары EUR/RUB")
+    @Tag("dto")
+    @Tag("indicative")
+    @Tag("eur-rub")
+    public static IndicativeDto createEurRubIndicative() {
+        return new IndicativeDto(
+            "BBG0013HGFT5", 
+            "EUR000UTSTOM", 
+            "Евро / Российский рубль", 
+            "RUB", 
+            "moex_mrng_evng_e_wknd_dlr", 
+            "CURRENCY", 
+            "EUR000UTSTOM", 
+            true, 
+            true
+        );
+    }
+
+    @Step("Создание списка IndicativeDto для валютных пар")
+    @DisplayName("Создание списка IndicativeDto для валютных пар")
+    @Description("Создает список из 2 IndicativeDto с данными валютных пар USD/RUB и EUR/RUB")
+    @Tag("list")
+    @Tag("dto")
+    @Tag("indicative")
+    @Tag("currency")
+    public static List<IndicativeDto> createCurrencyIndicativesList() {
+        return Arrays.asList(
+            createUsdRubIndicative(),
+            createEurRubIndicative()
+        );
+    }
+
+    @Step("Создание ShareFilterDto для MOEX")
+    @DisplayName("Создание ShareFilterDto для MOEX")
+    @Description("Создает ShareFilterDto с фильтрами для MOEX")
+    @Tag("dto")
+    @Tag("filter")
+    @Tag("share")
+    @Tag("moex")
+    public static ShareFilterDto createMoexShareFilter() {
+        ShareFilterDto filter = new ShareFilterDto();
+        filter.setExchange("moex_mrng_evng_e_wknd_dlr");
+        filter.setCurrency("RUB");
+        filter.setStatus("INSTRUMENT_STATUS_BASE");
+        return filter;
+    }
+
+    @Step("Создание FutureFilterDto для товарных фьючерсов")
+    @DisplayName("Создание FutureFilterDto для товарных фьючерсов")
+    @Description("Создает FutureFilterDto с фильтрами для товарных фьючерсов")
+    @Tag("dto")
+    @Tag("filter")
+    @Tag("future")
+    @Tag("commodity")
+    public static FutureFilterDto createCommodityFutureFilter() {
+        FutureFilterDto filter = new FutureFilterDto();
+        filter.setExchange("moex_mrng_evng_e_wknd_dlr");
+        filter.setCurrency("USD");
+        filter.setAssetType("COMMODITY");
+        return filter;
+    }
+
+    @Step("Создание IndicativeFilterDto для валютных пар")
+    @DisplayName("Создание IndicativeFilterDto для валютных пар")
+    @Description("Создает IndicativeFilterDto с фильтрами для валютных пар")
+    @Tag("dto")
+    @Tag("filter")
+    @Tag("indicative")
+    @Tag("currency")
+    public static IndicativeFilterDto createCurrencyIndicativeFilter() {
+        IndicativeFilterDto filter = new IndicativeFilterDto();
+        filter.setExchange("moex_mrng_evng_e_wknd_dlr");
+        filter.setCurrency("RUB");
+        filter.setTicker("USD000UTSTOM");
+        return filter;
     }
 
     // ==================== ENTITY ОБЪЕКТЫ ====================

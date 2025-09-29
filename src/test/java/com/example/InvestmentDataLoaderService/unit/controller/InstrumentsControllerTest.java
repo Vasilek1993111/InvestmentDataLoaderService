@@ -2,6 +2,7 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 
 import com.example.InvestmentDataLoaderService.controller.InstrumentsController;
 import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.fixtures.TestDataFactory;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
 import io.qameta.allure.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,15 +11,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -38,159 +39,71 @@ class InstrumentsControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private InstrumentService instrumentService;
 
     @BeforeEach
-    @Step("Подготовка тестовых данных для InstrumentsController")
+    @Step("Инициализация тестового окружения для InstrumentsController")
     void setUp() {
-        
         reset(instrumentService);
     }
 
-   
+    // ==================== МЕТОДЫ СОЗДАНИЯ ТЕСТОВЫХ ДАННЫХ ====================
+    // Все методы создания тестовых данных теперь используют TestDataFactory
+
+    @Step("Создание списка тестовых акций")
     private List<ShareDto> createMockShares() {
-        return Arrays.asList(
-            new ShareDto(
-                "BBG004730N88", 
-                "SBER", 
-                "ПАО Сбербанк", 
-                "RUB", 
-                "MOEX", 
-                "Financial", 
-                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-            ),
-            new ShareDto(
-                "BBG004730ZJ9", 
-                "GAZP", 
-                "ПАО Газпром", 
-                "RUB", 
-                "MOEX", 
-                "Energy", 
-                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-            ),
-            new ShareDto(
-                "BBG004730N88", 
-                "LKOH", 
-                "ПАО Лукойл", 
-                "RUB", 
-                "MOEX", 
-                "Energy", 
-                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-            )
-        );
+        return TestDataFactory.createMoexSharesList();
     }
 
+    @Step("Создание одиночной тестовой акции")
     private ShareDto createMockShare() {
-        return new ShareDto(
-            "BBG004730N88", 
-            "SBER", 
-            "ПАО Сбербанк", 
-            "RUB", 
-            "MOEX", 
-            "Financial", 
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-        );
+        return TestDataFactory.createSberShare();
     }
 
-   
+    @Step("Создание списка тестовых фьючерсов")
     private List<FutureDto> createMockFutures() {
-        return Arrays.asList(
-            new FutureDto(
-                "FUTSI0624000", 
-                "SI0624", 
-                "COMMODITY", 
-                "Silver", 
-                "USD", 
-                "MOEX"
-            ),
-            new FutureDto(
-                "FUTGZ0624000", 
-                "GZ0624", 
-                "COMMODITY", 
-                "Gold", 
-                "USD", 
-                "MOEX"
-            )
-        );
+        return TestDataFactory.createCommodityFuturesList();
     }
 
-   
+    @Step("Создание одиночного тестового фьючерса")
     private FutureDto createMockFuture() {
-        return new FutureDto(
-            "FUTSI0624000", 
-            "SI0624", 
-            "COMMODITY", 
-            "Silver", 
-            "USD", 
-            "MOEX"
-        );
+        return TestDataFactory.createSilverFuture();
     }
 
+    @Step("Создание списка тестовых индикативов")
     private List<IndicativeDto> createMockIndicatives() {
-        return Arrays.asList(
-            new IndicativeDto(
-                "BBG0013HGFT4", 
-                "USD000UTSTOM", 
-                "Доллар США / Российский рубль", 
-                "RUB", 
-                "MOEX", 
-                "CURRENCY", 
-                "USD000UTSTOM", 
-                true, 
-                true
-            ),
-            new IndicativeDto(
-                "BBG0013HGFT5", 
-                "EUR000UTSTOM", 
-                "Евро / Российский рубль", 
-                "RUB", 
-                "MOEX", 
-                "CURRENCY", 
-                "EUR000UTSTOM", 
-                true, 
-                true
-            )
-        );
+        return TestDataFactory.createCurrencyIndicativesList();
     }
 
-   
+    @Step("Создание одиночного тестового индикатива")
     private IndicativeDto createMockIndicative() {
-        return new IndicativeDto(
-            "BBG0013HGFT4", 
-            "USD000UTSTOM", 
-            "Доллар США / Российский рубль", 
-            "RUB", 
-            "MOEX", 
-            "CURRENCY", 
-            "USD000UTSTOM", 
-            true, 
-            true
-        );
+        return TestDataFactory.createUsdRubIndicative();
     }
 
-    
+    @Step("Создание тестового ответа сохранения")
     private SaveResponseDto createMockSaveResponse() {
-        return new SaveResponseDto(
-            true,
-            "Успешно сохранено 5 новых инструментов из 10 найденных",
-            10,
-            5,
-            5,
-            0,
-            0,
-            Arrays.asList("item1", "item2", "item3", "item4", "item5")
-        );
+        return TestDataFactory.createTestSaveResponse();
     }
 
-    
+    @Step("Создание тестовой статистики инструментов")
     private Map<String, Long> createMockInstrumentCounts() {
-        Map<String, Long> counts = new HashMap<>();
-        counts.put("shares", 150L);
-        counts.put("futures", 45L);
-        counts.put("indicatives", 12L);
-        counts.put("total", 207L);
-        return counts;
+        return TestDataFactory.createTestInstrumentCounts();
+    }
+
+    @Step("Создание тестового фильтра для акций")
+    private ShareFilterDto createShareFilter() {
+        return TestDataFactory.createMoexShareFilter();
+    }
+
+    @Step("Создание тестового фильтра для фьючерсов")
+    private FutureFilterDto createFutureFilter() {
+        return TestDataFactory.createCommodityFutureFilter();
+    }
+
+    @Step("Создание тестового фильтра для индикативов")
+    private IndicativeFilterDto createIndicativeFilter() {
+        return TestDataFactory.createCurrencyIndicativeFilter();
     }
 
     // ==================== ТЕСТЫ ДЛЯ АКЦИЙ ====================
@@ -206,8 +119,8 @@ class InstrumentsControllerTest {
     void getShares_ShouldReturnSharesList_WhenApiSourceIsUsed() throws Exception {
         // Given 
         when(instrumentService.getShares(
-            eq("INSTRUMENT_STATUS_ACTIVE"),
-            eq("MOEX"),
+            eq("INSTRUMENT_STATUS_BASE"),
+            eq("moex_mrng_evng_e_wknd_dlr"),
             eq("RUB"),
             isNull(),
             isNull()
@@ -216,9 +129,9 @@ class InstrumentsControllerTest {
         // When & Then
         mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "api")
-                .param("exchange", "MOEX")
+                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
                 .param("currency", "RUB")
-                .param("status", "INSTRUMENT_STATUS_ACTIVE")
+                .param("status", "INSTRUMENT_STATUS_BASE")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -228,7 +141,7 @@ class InstrumentsControllerTest {
                 .andExpect(jsonPath("$[0].ticker").value("SBER"))
                 .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
                 .andExpect(jsonPath("$[0].currency").value("RUB"))
-                .andExpect(jsonPath("$[0].exchange").value("MOEX"))
+                .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
                 .andExpect(jsonPath("$[0].sector").value("Financial"))
                 .andExpect(jsonPath("$[0].tradingStatus").value("SECURITY_TRADING_STATUS_NORMAL_TRADING"))
                 .andExpect(jsonPath("$[1].ticker").value("GAZP"))
@@ -236,8 +149,8 @@ class InstrumentsControllerTest {
 
         // Verify 
         verify(instrumentService).getShares(
-            eq("INSTRUMENT_STATUS_ACTIVE"),
-            eq("MOEX"),
+            eq("INSTRUMENT_STATUS_BASE"),
+            eq("moex_mrng_evng_e_wknd_dlr"),
             eq("RUB"),
             isNull(),
             isNull()
@@ -280,23 +193,19 @@ class InstrumentsControllerTest {
     @Tag("api")
     @Tag("shares")
     @Tag("negative")
-    void getShares_ShouldReturnSharesList_WhenInvalidSourceProvided() throws Exception {
-        // Given - настройка мока для некорректного источника (по умолчанию используется API)
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(createMockShares());
-
+    void getShares_ShouldReturn400_WhenInvalidSourceProvided() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "invalid")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].ticker").value("SBER"));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("ValidationException"))
+                .andExpect(jsonPath("$.message").value(containsString("Невалидный источник данных")));
 
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
+        // Verify - сервис не должен вызываться при невалидном источнике
+        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -335,19 +244,21 @@ class InstrumentsControllerTest {
     @Tag("shares")
     @Tag("negative")
     @Tag("figi")
-    void getShares_ShouldReturnEmptyList_WhenInvalidFigiProvided() throws Exception {
+    void getShares_ShouldReturn404_WhenInvalidFigiProvided() throws Exception {
         // Given - настройка мока для возврата пустого списка при некорректном FIGI
         when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI")))
             .thenReturn(Arrays.asList());
 
         // When & Then
         mockMvc.perform(get("/api/instruments/shares")
+                .param("source", "api")
                 .param("figi", "INVALID_FIGI")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("SharesNotFound"))
+                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
 
         // Verify
         verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI"));
@@ -373,10 +284,11 @@ class InstrumentsControllerTest {
                 .param("source", "api")
                 .param("figi", "MALFORMED_FIGI_123!@#")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("SharesNotFound"))
+                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
 
         // Verify
         verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#"));
@@ -405,10 +317,11 @@ class InstrumentsControllerTest {
                 .param("source", "api")
                 .param("figi", veryLongFigi)
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("SharesNotFound"))
+                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
 
         // Verify
         verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(veryLongFigi));
@@ -457,7 +370,7 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("invalid-value")
     void getShares_ShouldHandleInvalidTicker_WhenTickerIsEmpty() throws Exception {
-        // Given - настройка мока для возврата всех акций при invalid ticker
+        // Given - настройка мока для возврата пустого списка при invalid ticker
         when(instrumentService.getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull()))
             .thenReturn(Arrays.asList());
 
@@ -466,10 +379,11 @@ class InstrumentsControllerTest {
                 .param("source", "api")
                 .param("ticker", "INVALID_TICKER")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("SharesNotFound"))
+                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
 
         // Verify
         verify(instrumentService).getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull());
@@ -488,7 +402,7 @@ class InstrumentsControllerTest {
         // Given - настройка мока для акций
         when(instrumentService.getSharesFromDatabase(eq(new ShareFilterDto(
             null,
-            "MOEX",
+            "moex_mrng_evng_e_wknd_dlr",
             null,
             null,
             null,
@@ -499,7 +413,7 @@ class InstrumentsControllerTest {
 
             mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "database")
-                .param("exchange", "MOEX"))
+                .param("exchange", "moex_mrng_evng_e_wknd_dlr"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$").isArray())
@@ -508,14 +422,22 @@ class InstrumentsControllerTest {
                 .andExpect(jsonPath("$[0].ticker").value("SBER"))
                 .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
                 .andExpect(jsonPath("$[0].currency").value("RUB"))
-                .andExpect(jsonPath("$[0].exchange").value("MOEX"))
+                .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
                 .andExpect(jsonPath("$[1].ticker").value("GAZP"))
                 .andExpect(jsonPath("$[2].ticker").value("LKOH"))
-                .andExpect(jsonPath("$[1].exchange").value("MOEX"))
-                .andExpect(jsonPath("$[2].exchange").value("MOEX"));
+                .andExpect(jsonPath("$[1].exchange").value("moex_mrng_evng_e_wknd_dlr"))
+                .andExpect(jsonPath("$[2].exchange").value("moex_mrng_evng_e_wknd_dlr"));
 
-   
-
+        // Verify
+        verify(instrumentService).getSharesFromDatabase(eq(new ShareFilterDto(
+            null,
+            "moex_mrng_evng_e_wknd_dlr",
+            null,
+            null,
+            null,
+            null,
+            null
+        )));
     }
     // ==================== ТЕСТЫ ДЛЯ ПОЛУЧЕНИЯ АКЦИИ ПО IDENTIFIER ====================
 
@@ -529,7 +451,7 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getShareByIdentifier_ShouldReturnShare_WhenValidFigiProvided() throws Exception {
-        // Given - настройка мока для поиска по FIGI
+        // Given 
         when(instrumentService.getShareByFigi("BBG004730N88"))
             .thenReturn(createMockShare());
 
@@ -542,7 +464,7 @@ class InstrumentsControllerTest {
                 .andExpect(jsonPath("$.ticker").value("SBER"))
                 .andExpect(jsonPath("$.name").value("ПАО Сбербанк"))
                 .andExpect(jsonPath("$.currency").value("RUB"))
-                .andExpect(jsonPath("$.exchange").value("MOEX"));
+                .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"));
 
         // Verify
         verify(instrumentService).getShareByFigi("BBG004730N88");
@@ -593,19 +515,28 @@ class InstrumentsControllerTest {
         when(instrumentService.getShareByTicker("INVALID_TICKER"))
             .thenReturn(null);
 
-        // When & Then
+        // When & Then - INVALID_FIGI длиннее 10 символов, поэтому поиск по FIGI
         mockMvc.perform(get("/api/instruments/shares/INVALID_FIGI")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("NotFound"))
+                .andExpect(jsonPath("$.type").value("FIGI"))
+                .andExpect(jsonPath("$.identifier").value("INVALID_FIGI"));
 
-
+        // When & Then - INVALID_TICKER длиннее 10 символов, поэтому тоже поиск по FIGI
         mockMvc.perform(get("/api/instruments/shares/INVALID_TICKER")
-        .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isNotFound());
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("NotFound"))
+                .andExpect(jsonPath("$.type").value("FIGI"))
+                .andExpect(jsonPath("$.identifier").value("INVALID_TICKER"));
 
-        // Verify
+        // Verify - оба идентификатора длиннее 10 символов, поэтому поиск только по FIGI
         verify(instrumentService).getShareByFigi("INVALID_FIGI");
-        verify(instrumentService).getShareByTicker("INVALID_TICKER");
+        verify(instrumentService).getShareByFigi("INVALID_TICKER");
+        verify(instrumentService, never()).getShareByTicker(any());
     }
 
     @Test
@@ -647,19 +578,14 @@ class InstrumentsControllerTest {
     @Tag("save")
     @Tag("post")
     void saveShares_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
-        // Given - настройка мока для сохранения акций
-        ShareFilterDto filter = new ShareFilterDto();
-        filter.setExchange("MOEX");
-        filter.setCurrency("RUB");
-        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
-        
+        // Given 
         when(instrumentService.saveShares(any(ShareFilterDto.class)))
             .thenReturn(createMockSaveResponse());
 
         // When & Then
         mockMvc.perform(post("/api/instruments/shares")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"exchange\":\"MOEX\",\"currency\":\"RUB\",\"status\":\"INSTRUMENT_STATUS_ACTIVE\"}"))
+                .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"RUB\",\"status\":\"INSTRUMENT_STATUS_BASE\"}"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.success").value(true))
@@ -711,8 +637,8 @@ class InstrumentsControllerTest {
     void getFutures_ShouldReturnFuturesList_WhenApiSourceIsUsed() throws Exception {
         
         when(instrumentService.getFutures(
-            eq("INSTRUMENT_STATUS_ACTIVE"),
-            eq("MOEX"),
+            eq("INSTRUMENT_STATUS_BASE"),
+            eq("moex_mrng_evng_e_wknd_dlr"),
             eq("USD"),
             isNull(),
             eq("COMMODITY")
@@ -720,8 +646,8 @@ class InstrumentsControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/instruments/futures")
-                .param("status", "INSTRUMENT_STATUS_ACTIVE")
-                .param("exchange", "MOEX")
+                .param("status", "INSTRUMENT_STATUS_BASE")
+                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
                 .param("currency", "USD")
                 .param("assetType", "COMMODITY")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -736,8 +662,8 @@ class InstrumentsControllerTest {
 
         // Verify
         verify(instrumentService).getFutures(
-            eq("INSTRUMENT_STATUS_ACTIVE"),
-            eq("MOEX"),
+            eq("INSTRUMENT_STATUS_BASE"),
+            eq("moex_mrng_evng_e_wknd_dlr"),
             eq("USD"),
             isNull(),
             eq("COMMODITY")
@@ -768,7 +694,7 @@ class InstrumentsControllerTest {
                 .andExpect(jsonPath("$.assetType").value("COMMODITY"))
                 .andExpect(jsonPath("$.basicAsset").value("Silver"))
                 .andExpect(jsonPath("$.currency").value("USD"))
-                .andExpect(jsonPath("$.exchange").value("MOEX"));
+                .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"));
 
         // Verify
         verify(instrumentService).getFutureByFigi("FUTSI0624000");
@@ -816,17 +742,19 @@ class InstrumentsControllerTest {
         // Given - настройка мока для несуществующего фьючерса
         when(instrumentService.getFutureByFigi("INVALID_FUTURE"))
             .thenReturn(null);
-        when(instrumentService.getFutureByTicker("INVALID_FUTURE"))
-            .thenReturn(null);
 
-        // When & Then
+        // When & Then - INVALID_FUTURE длиннее 10 символов, поэтому поиск по FIGI
         mockMvc.perform(get("/api/instruments/futures/INVALID_FUTURE")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("NotFound"))
+                .andExpect(jsonPath("$.type").value("FIGI"))
+                .andExpect(jsonPath("$.identifier").value("INVALID_FUTURE"));
 
-        // Verify
+        // Verify - идентификатор длиннее 10 символов, поэтому поиск только по FIGI
         verify(instrumentService).getFutureByFigi("INVALID_FUTURE");
-        verify(instrumentService).getFutureByTicker("INVALID_FUTURE");
+        verify(instrumentService, never()).getFutureByTicker(any());
     }
 
     @Test
@@ -846,7 +774,7 @@ class InstrumentsControllerTest {
         // When & Then
         mockMvc.perform(post("/api/instruments/futures")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"exchange\":\"MOEX\",\"currency\":\"USD\",\"assetType\":\"COMMODITY\"}"))
+                .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"USD\",\"assetType\":\"COMMODITY\"}"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.success").value(true))
@@ -871,7 +799,7 @@ class InstrumentsControllerTest {
     void getIndicatives_ShouldReturnIndicativesList_WhenApiSourceIsUsed() throws Exception {
         // Given - настройка мока для индикативов
         when(instrumentService.getIndicatives(
-            eq("MOEX"),
+            eq("moex_mrng_evng_e_wknd_dlr"),
             eq("RUB"),
             isNull(),
             isNull()
@@ -879,7 +807,7 @@ class InstrumentsControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/instruments/indicatives")
-                .param("exchange", "MOEX")
+                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
                 .param("currency", "RUB")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -892,7 +820,7 @@ class InstrumentsControllerTest {
 
         // Verify
         verify(instrumentService).getIndicatives(
-            eq("MOEX"),
+            eq("moex_mrng_evng_e_wknd_dlr"),
             eq("RUB"),
             isNull(),
             isNull()
@@ -900,7 +828,7 @@ class InstrumentsControllerTest {
     }
 
     @Test
-    @DisplayName("Получение индикатива по FIGI - успешный случай")
+    @DisplayName("Получение индикатива по FIGI - успешный случай (короткий FIGI)")
     @Description("Тест проверяет корректность получения индикатива по FIGI")
     @Severity(SeverityLevel.CRITICAL)
     @Story("Indicatives API")
@@ -908,7 +836,7 @@ class InstrumentsControllerTest {
     @Tag("indicatives")
     @Tag("identifier")
     @Tag("figi")
-    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidFigiProvided() throws Exception {
+    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidShortFigiProvided() throws Exception {
         // Given - настройка мока для поиска индикатива по FIGI
         when(instrumentService.getIndicativeBy("BBG0013HGFT4"))
             .thenReturn(createMockIndicative());
@@ -922,13 +850,41 @@ class InstrumentsControllerTest {
                 .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
                 .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"))
                 .andExpect(jsonPath("$.currency").value("RUB"))
-                .andExpect(jsonPath("$.exchange").value("MOEX"))
+                .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"))
                 .andExpect(jsonPath("$.classCode").value("CURRENCY"))
                 .andExpect(jsonPath("$.sellAvailableFlag").value(true))
                 .andExpect(jsonPath("$.buyAvailableFlag").value(true));
 
         // Verify
         verify(instrumentService).getIndicativeBy("BBG0013HGFT4");
+        verify(instrumentService, never()).getIndicativeByTicker(any());
+    }
+
+    @Test
+    @DisplayName("Получение индикатива по FIGI - успешный случай (длинный идентификатор)")
+    @Description("Тест проверяет корректность получения индикатива по FIGI (длинный идентификатор)")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Indicatives API")
+    @Tag("api")
+    @Tag("indicatives")
+    @Tag("identifier")
+    @Tag("figi")
+    void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidFigiProvided() throws Exception {
+        // Given - настройка мока для поиска индикатива по FIGI (USD000UTSTOM длиннее 10 символов)
+        when(instrumentService.getIndicativeBy("USD000UTSTOM"))
+            .thenReturn(createMockIndicative());
+
+        // When & Then - USD000UTSTOM длиннее 10 символов, поэтому поиск по FIGI
+        mockMvc.perform(get("/api/instruments/indicatives/USD000UTSTOM")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+
+        // Verify - идентификатор длиннее 10 символов, поэтому поиск только по FIGI
+        verify(instrumentService).getIndicativeBy("USD000UTSTOM");
         verify(instrumentService, never()).getIndicativeByTicker(any());
     }
 
@@ -942,14 +898,12 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("ticker")
     void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidTickerProvided() throws Exception {
-        // Given - настройка мока для поиска индикатива по тикеру
-        when(instrumentService.getIndicativeBy("USD000UTSTOM"))
-            .thenReturn(null);
-        when(instrumentService.getIndicativeByTicker("USD000UTSTOM"))
+        // Given - настройка мока для поиска индикатива по тикеру (RTSI короткий)
+        when(instrumentService.getIndicativeByTicker("RTSI"))
             .thenReturn(createMockIndicative());
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives/USD000UTSTOM")
+        // When & Then - RTSI короткий, поэтому поиск по тикеру
+        mockMvc.perform(get("/api/instruments/indicatives/RTSI")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -957,9 +911,9 @@ class InstrumentsControllerTest {
                 .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
                 .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
 
-        // Verify
-        verify(instrumentService).getIndicativeBy("USD000UTSTOM");
-        verify(instrumentService).getIndicativeByTicker("USD000UTSTOM");
+        // Verify - тикер короткий, поэтому поиск только по тикеру
+        verify(instrumentService, never()).getIndicativeBy(any());
+        verify(instrumentService).getIndicativeByTicker("RTSI");
     }
 
     @Test
@@ -975,17 +929,19 @@ class InstrumentsControllerTest {
         // Given - настройка мока для несуществующего индикатива
         when(instrumentService.getIndicativeBy("INVALID_INDICATIVE"))
             .thenReturn(null);
-        when(instrumentService.getIndicativeByTicker("INVALID_INDICATIVE"))
-            .thenReturn(null);
 
-        // When & Then
+        // When & Then - INVALID_INDICATIVE длиннее 10 символов, поэтому поиск по FIGI
         mockMvc.perform(get("/api/instruments/indicatives/INVALID_INDICATIVE")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("NotFound"))
+                .andExpect(jsonPath("$.type").value("FIGI"))
+                .andExpect(jsonPath("$.identifier").value("INVALID_INDICATIVE"));
 
-        // Verify
+        // Verify - идентификатор длиннее 10 символов, поэтому поиск только по FIGI
         verify(instrumentService).getIndicativeBy("INVALID_INDICATIVE");
-        verify(instrumentService).getIndicativeByTicker("INVALID_INDICATIVE");
+        verify(instrumentService, never()).getIndicativeByTicker(any());
     }
 
     @Test
@@ -1005,7 +961,7 @@ class InstrumentsControllerTest {
         // When & Then
         mockMvc.perform(post("/api/instruments/indicatives")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"exchange\":\"MOEX\",\"currency\":\"RUB\",\"ticker\":\"USD000UTSTOM\"}"))
+                .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"RUB\",\"ticker\":\"USD000UTSTOM\"}"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.success").value(true))
@@ -1028,7 +984,7 @@ class InstrumentsControllerTest {
     @Tag("statistics")
     @Tag("unit")
     void getInstrumentCounts_ShouldReturnStatistics_WhenRequested() throws Exception {
-        // Given - настройка мока для статистики
+        // Given 
         when(instrumentService.getInstrumentCounts())
             .thenReturn(createMockInstrumentCounts());
 
@@ -1059,33 +1015,19 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("status")
     void getShares_ShouldHandleInvalidStatus_WhenInvalidStatusProvided() throws Exception {
-        // Given - настройка мока для некорректного статуса
-        when(instrumentService.getShares(
-            eq("INVALID_STATUS"),
-            isNull(),
-            isNull(),
-            isNull(),
-            isNull()
-        )).thenReturn(createMockShares());
-
-        // When & Then
+        // When & Then - контроллер должен вернуть 400 для невалидного статуса
         mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "api")
                 .param("status", "INVALID_STATUS")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("ValidationException"))
+                .andExpect(jsonPath("$.message").value(containsString("Невалидный статус инструмента")));
 
-        // Verify
-        verify(instrumentService).getShares(
-            eq("INVALID_STATUS"),
-            isNull(),
-            isNull(),
-            isNull(),
-            isNull()
-        );
+        // Verify - сервис не должен вызываться при невалидном статусе
+        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -1099,33 +1041,19 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("exchange")
     void getShares_ShouldHandleInvalidExchange_WhenInvalidExchangeProvided() throws Exception {
-        // Given - настройка мока для некорректной биржи
-        when(instrumentService.getShares(
-            isNull(),
-            eq("INVALID_EXCHANGE"),
-            isNull(),
-            isNull(),
-            isNull()
-        )).thenReturn(Arrays.asList());
-
-        // When & Then
+        // When & Then - контроллер должен вернуть 400 для невалидной биржи
         mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "api")
                 .param("exchange", "INVALID_EXCHANGE")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("ValidationException"))
+                .andExpect(jsonPath("$.message").value(containsString("Невалидный тип биржи")));
 
-        // Verify
-        verify(instrumentService).getShares(
-            isNull(),
-            eq("INVALID_EXCHANGE"),
-            isNull(),
-            isNull(),
-            isNull()
-        );
+        // Verify - сервис не должен вызываться при невалидной бирже
+        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -1139,33 +1067,19 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("currency")
     void getShares_ShouldHandleInvalidCurrency_WhenInvalidCurrencyProvided() throws Exception {
-        // Given - настройка мока для некорректной валюты
-        when(instrumentService.getShares(
-            isNull(),
-            isNull(),
-            eq("INVALID_CURRENCY"),
-            isNull(),
-            isNull()
-        )).thenReturn(Arrays.asList());
-
-        // When & Then
+        // When & Then - контроллер должен вернуть 400 для невалидной валюты
         mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "api")
                 .param("currency", "INVALID_CURRENCY")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("ValidationException"))
+                .andExpect(jsonPath("$.message").value(containsString("Невалидная валюта")));
 
-        // Verify
-        verify(instrumentService).getShares(
-            isNull(),
-            isNull(),
-            eq("INVALID_CURRENCY"),
-            isNull(),
-            isNull()
-        );
+        // Verify - сервис не должен вызываться при невалидной валюте
+        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -1184,7 +1098,7 @@ class InstrumentsControllerTest {
         // When & Then
         mockMvc.perform(get("/api/instruments/shares")
                 .param("source", "database")
-                .param("exchange", "MOEX")
+                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
                 .param("currency", "RUB")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())

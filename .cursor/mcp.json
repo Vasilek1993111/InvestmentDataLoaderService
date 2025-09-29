@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "mcp-postgres-server",
+        "python",
+        "simple_mcp_server.py"
+      ]
+    }
+  }
+}

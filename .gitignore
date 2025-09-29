@@ -53,3 +53,5 @@ allure-report-*/
 
 ### AspectJ Core Dump Files ###
 ajcore.*.txt
+
+mcp-local/
