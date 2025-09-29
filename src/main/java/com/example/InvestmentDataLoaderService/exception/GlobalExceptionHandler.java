@@ -128,11 +128,39 @@ public class GlobalExceptionHandler {
         
         // Проверяем, является ли это ошибкой URL
         if (ex.getMessage() != null && ex.getMessage().contains("No static resource")) {
+            String requestPath = request.getDescription(false).replace("uri=", "");
+            
+            // Анализируем путь и даем более понятные сообщения
+            String message;
+            if (requestPath.contains("/api/candles/instrument/daily/") && !requestPath.matches(".*/daily/[^/]+/\\d{4}-\\d{2}-\\d{2}$")) {
+                message = "Неправильный формат URL для дневных свечей инструмента. " +
+                        "Ожидается: /api/candles/instrument/daily/{figi}/{date}, " +
+                        "получен: " + requestPath + ". " +
+                        "Пример правильного URL: /api/candles/instrument/daily/FUTUCHF12250/2024-01-15";
+            } else if (requestPath.contains("/api/candles/instrument/minute/") && !requestPath.matches(".*/minute/[^/]+/\\d{4}-\\d{2}-\\d{2}$")) {
+                message = "Неправильный формат URL для минутных свечей инструмента. " +
+                        "Ожидается: /api/candles/instrument/minute/{figi}/{date}, " +
+                        "получен: " + requestPath + ". " +
+                        "Пример правильного URL: /api/candles/instrument/minute/FUTUCHF12250/2024-01-15";
+            } else if (requestPath.contains("/api/candles/daily/") && !requestPath.matches(".*/daily/(shares|futures|indicatives)/\\d{4}-\\d{2}-\\d{2}$")) {
+                message = "Неправильный формат URL для дневных свечей. " +
+                        "Ожидается: /api/candles/daily/{shares|futures|indicatives}/{date}, " +
+                        "получен: " + requestPath + ". " +
+                        "Пример правильного URL: /api/candles/daily/shares/2024-01-15";
+            } else if (requestPath.contains("/api/candles/minute/") && !requestPath.matches(".*/minute/(shares|futures|indicatives)/\\d{4}-\\d{2}-\\d{2}$")) {
+                message = "Неправильный формат URL для минутных свечей. " +
+                        "Ожидается: /api/candles/minute/{shares|futures|indicatives}/{date}, " +
+                        "получен: " + requestPath + ". " +
+                        "Пример правильного URL: /api/candles/minute/shares/2024-01-15";
+            } else {
+                message = "Некорректный URL: " + requestPath;
+            }
+            
             response.put("success", false);
-            response.put("message", "Некорректный URL: " + request.getDescription(false));
+            response.put("message", message);
             response.put("timestamp", LocalDateTime.now().toString());
             response.put("error", "BadRequest");
-            response.put("path", request.getDescription(false));
+            response.put("path", requestPath);
             
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
@@ -154,14 +182,50 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNoHandlerFoundException(NoHandlerFoundException ex, WebRequest request) {
         Map<String, Object> response = new HashMap<>();
-        response.put("success", false);
-        response.put("message", "Эндпоинт не найден: " + ex.getRequestURL());
-        response.put("timestamp", LocalDateTime.now().toString());
-        response.put("error", "NotFound");
-        response.put("path", ex.getRequestURL());
-        response.put("method", ex.getHttpMethod());
         
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        String requestUrl = ex.getRequestURL();
+        String method = ex.getHttpMethod();
+        
+        // Анализируем URL и даем более понятные сообщения
+        String message;
+        HttpStatus status = HttpStatus.NOT_FOUND;
+        
+        if (requestUrl.contains("/api/candles/instrument/daily/") && !requestUrl.matches(".*/daily/[^/]+/\\d{4}-\\d{2}-\\d{2}$")) {
+            message = "Неправильный формат URL для дневных свечей инструмента. " +
+                    "Ожидается: /api/candles/instrument/daily/{figi}/{date}, " +
+                    "получен: " + requestUrl + ". " +
+                    "Пример правильного URL: /api/candles/instrument/daily/FUTUCHF12250/2024-01-15";
+            status = HttpStatus.BAD_REQUEST;
+        } else if (requestUrl.contains("/api/candles/instrument/minute/") && !requestUrl.matches(".*/minute/[^/]+/\\d{4}-\\d{2}-\\d{2}$")) {
+            message = "Неправильный формат URL для минутных свечей инструмента. " +
+                    "Ожидается: /api/candles/instrument/minute/{figi}/{date}, " +
+                    "получен: " + requestUrl + ". " +
+                    "Пример правильного URL: /api/candles/instrument/minute/FUTUCHF12250/2024-01-15";
+            status = HttpStatus.BAD_REQUEST;
+        } else if (requestUrl.contains("/api/candles/daily/") && !requestUrl.matches(".*/daily/(shares|futures|indicatives)/\\d{4}-\\d{2}-\\d{2}$")) {
+            message = "Неправильный формат URL для дневных свечей. " +
+                    "Ожидается: /api/candles/daily/{shares|futures|indicatives}/{date}, " +
+                    "получен: " + requestUrl + ". " +
+                    "Пример правильного URL: /api/candles/daily/shares/2024-01-15";
+            status = HttpStatus.BAD_REQUEST;
+        } else if (requestUrl.contains("/api/candles/minute/") && !requestUrl.matches(".*/minute/(shares|futures|indicatives)/\\d{4}-\\d{2}-\\d{2}$")) {
+            message = "Неправильный формат URL для минутных свечей. " +
+                    "Ожидается: /api/candles/minute/{shares|futures|indicatives}/{date}, " +
+                    "получен: " + requestUrl + ". " +
+                    "Пример правильного URL: /api/candles/minute/shares/2024-01-15";
+            status = HttpStatus.BAD_REQUEST;
+        } else {
+            message = "Эндпоинт не найден: " + requestUrl;
+        }
+        
+        response.put("success", false);
+        response.put("message", message);
+        response.put("timestamp", LocalDateTime.now().toString());
+        response.put("error", status == HttpStatus.BAD_REQUEST ? "BadRequest" : "NotFound");
+        response.put("path", requestUrl);
+        response.put("method", method);
+        
+        return ResponseEntity.status(status).body(response);
     }
 
     /**

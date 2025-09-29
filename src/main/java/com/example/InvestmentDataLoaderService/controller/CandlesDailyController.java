@@ -355,7 +355,7 @@ public class CandlesDailyController {
 
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("assetType", "SHARES");
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
@@ -441,7 +441,7 @@ public class CandlesDailyController {
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения дневных свечей акций: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("assetType", "SHARES");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
@@ -533,151 +533,6 @@ public class CandlesDailyController {
             errorResponse.put("message", "Ошибка запуска асинхронной загрузки: " + e.getMessage());
             errorResponse.put("taskId", taskId);
             errorResponse.put("status", "ERROR");
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-
-    /**
-     * Синхронная загрузка дневных свечей акций за дату (для обратной совместимости)
-     */
-    @PostMapping("/shares/{date}/sync")
-    @Transactional
-    public ResponseEntity<CandleLoadResponseDto> loadSharesDailyCandlesForDate(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
-    ) {
-        String taskId = UUID.randomUUID().toString();
-        String endpoint = "/api/candles/daily/shares/" + date;
-        Instant startTime = Instant.now();
-
-        // Логируем начало работы
-        SystemLogEntity startLog = new SystemLogEntity();
-        startLog.setTaskId(taskId);
-        startLog.setEndpoint(endpoint);
-        startLog.setMethod("POST");
-        startLog.setStatus("STARTED");
-        startLog.setMessage("Начало загрузки дневных свечей акций за " + date);
-        startLog.setStartTime(startTime);
-
-        try {
-            systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
-        } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
-        }
-
-        try {
-            System.out.println("=== ЗАГРУЗКА ДНЕВНЫХ СВЕЧЕЙ АКЦИЙ ЗА ДАТУ ===");
-            System.out.println("Дата: " + date);
-
-            // Получаем все акции из БД
-            List<ShareEntity> shares = shareRepository.findAll();
-            System.out.println("Найдено акций: " + shares.size());
-
-            int totalProcessed = 0;
-            int totalNew = 0;
-            int totalExisting = 0;
-            int totalInvalid = 0;
-            int totalMissing = 0;
-
-            for (ShareEntity share : shares) {
-                try {
-                    System.out.println("Загружаем свечи для акции: " + share.getTicker() + " (" + share.getFigi() + ")");
-
-                    // Создаем запрос для загрузки дневных свечей
-                    DailyCandleRequestDto request = new DailyCandleRequestDto();
-                    request.setInstruments(List.of(share.getFigi()));
-                    request.setAssetType(List.of("SHARES"));
-                    request.setDate(date); // Устанавливаем дату из URL
-
-                    // Загружаем дневные свечи асинхронно
-                    CompletableFuture<SaveResponseDto> future = dailyCandleService.saveDailyCandlesAsync(request, taskId);
-
-                    // Ждем завершения
-                    SaveResponseDto result = future.get();
-                    totalProcessed++;
-
-                    if (result.isSuccess()) {
-                        // Используем поля из SaveResponseDto напрямую
-                        totalNew += result.getNewItemsSaved();
-                        totalExisting += result.getExistingItemsSkipped();
-                        totalInvalid += result.getInvalidItemsFiltered();
-                        totalMissing += result.getMissingFromApi();
-                        
-                        System.out.println("Статистика для " + share.getTicker() + ": новых=" + result.getNewItemsSaved() + 
-                            ", существующих=" + result.getExistingItemsSkipped() + 
-                            ", невалидных=" + result.getInvalidItemsFiltered() + 
-                            ", отсутствующих=" + result.getMissingFromApi());
-                    }
-
-                } catch (Exception e) {
-                    System.err.println("Ошибка загрузки свечей для акции " + share.getTicker() + ": " + e.getMessage());
-                }
-            }
-
-            // Логируем успешное завершение
-            SystemLogEntity resultLog = new SystemLogEntity();
-            resultLog.setTaskId(taskId);
-            resultLog.setEndpoint(endpoint);
-            resultLog.setMethod("POST");
-            resultLog.setStatus("COMPLETED");
-            resultLog.setMessage("Загрузка дневных свечей акций завершена успешно за " + date + 
-                ": Всего инструментов=" + shares.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            resultLog.setStartTime(startTime);
-            resultLog.setEndTime(Instant.now());
-            resultLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto response = new CandleLoadResponseDto();
-            response.setSuccess(true);
-            response.setMessage("Загружено дневных свечей акций за " + date + 
-                ": Всего инструментов=" + shares.size() + 
-                ", Обработано=" + totalProcessed + 
-                ", Новых=" + totalNew + 
-                ", Существующих=" + totalExisting + 
-                ", Невалидных=" + totalInvalid + 
-                ", Отсутствующих=" + totalMissing);
-            response.setTaskId(taskId);
-            response.setStartTime(startTime.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            System.err.println("Ошибка загрузки дневных свечей акций: " + e.getMessage());
-            e.printStackTrace();
-
-            // Логируем ошибку
-            SystemLogEntity errorLog = new SystemLogEntity();
-            errorLog.setTaskId(taskId);
-            errorLog.setEndpoint(endpoint);
-            errorLog.setMethod("POST");
-            errorLog.setStatus("FAILED");
-            errorLog.setMessage("Ошибка загрузки дневных свечей акций за " + date + ": " + e.getMessage());
-            errorLog.setStartTime(startTime);
-            errorLog.setEndTime(Instant.now());
-            errorLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
-
-            try {
-                systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
-            } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
-            }
-
-            CandleLoadResponseDto errorResponse = new CandleLoadResponseDto();
-            errorResponse.setSuccess(false);
-            errorResponse.setMessage("Ошибка загрузки дневных свечей акций: " + e.getMessage());
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -853,7 +708,7 @@ public class CandlesDailyController {
 
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("assetType", "FUTURES");
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
@@ -931,7 +786,7 @@ public class CandlesDailyController {
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения дневных свечей фьючерсов: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("assetType", "FUTURES");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
@@ -1108,7 +963,7 @@ public class CandlesDailyController {
 
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("assetType", "INDICATIVES");
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
@@ -1186,7 +1041,7 @@ public class CandlesDailyController {
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения дневных свечей индикативов: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("assetType", "INDICATIVES");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

@@ -149,13 +149,13 @@ public class EveningSessionController {
                 "foundPrices", foundPrices,
                 "missingData", missingData
             ));
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения цен закрытия вечерней сессии за вчера: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -326,13 +326,13 @@ public class EveningSessionController {
                 "invalidItemsFiltered", invalidItemsFiltered,
                 "missingFromApi", missingFromApi
             ));
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка загрузки цен закрытия вечерней сессии за вчера: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -435,18 +435,18 @@ public class EveningSessionController {
             response.put("message", "Цены вечерней сессии для всех инструментов за " + date + " получены успешно");
             response.put("data", eveningPrices);
             response.put("count", eveningPrices.size());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalProcessed", totalProcessed);
             response.put("foundPrices", foundPrices);
             response.put("missingData", missingData);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения цен вечерней сессии для всех инструментов за " + date + ": " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -599,14 +599,14 @@ public class EveningSessionController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Успешно загружено " + newItemsSaved + " новых цен вечерней сессии из " + totalRequested + " найденных.");
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalRequested", totalRequested);
             response.put("newItemsSaved", newItemsSaved);
             response.put("existingItemsSkipped", existingItemsSkipped);
             response.put("invalidItemsFiltered", invalidItemsFiltered);
             response.put("missingFromApi", missingFromApi);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ВЕЧЕРНЕЙ СЕССИИ ===");
             System.out.println("Всего запрошено: " + totalRequested);
@@ -624,8 +624,8 @@ public class EveningSessionController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "Ошибка загрузки цен вечерней сессии за дату " + date + ": " + e.getMessage());
-            errorResponse.put("date", date);
-            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("date", date.toString());
+            errorResponse.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -691,18 +691,18 @@ public class EveningSessionController {
             response.put("message", "Цены вечерней сессии для акций за " + date + " получены успешно");
             response.put("data", eveningPrices);
             response.put("count", eveningPrices.size());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalProcessed", totalProcessed);
             response.put("foundPrices", foundPrices);
             response.put("missingData", missingData);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения цен вечерней сессии для акций за " + date + ": " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -767,18 +767,18 @@ public class EveningSessionController {
             response.put("message", "Цены вечерней сессии для фьючерсов за " + date + " получены успешно");
             response.put("data", eveningPrices);
             response.put("count", eveningPrices.size());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalProcessed", totalProcessed);
             response.put("foundPrices", foundPrices);
             response.put("missingData", missingData);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -865,21 +865,21 @@ public class EveningSessionController {
             
             response.put("success", true);
             response.put("message", "Успешно сохранено " + newItemsSaved + " новых цен вечерней сессии для акций за " + date);
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalProcessed", totalProcessed);
             response.put("newItemsSaved", newItemsSaved);
             response.put("existingItemsSkipped", existingItemsSkipped);
             response.put("invalidItemsFiltered", invalidItemsFiltered);
             response.put("missingData", missingData);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка сохранения цен вечерней сессии для акций за " + date + ": " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -961,21 +961,21 @@ public class EveningSessionController {
             
             response.put("success", true);
             response.put("message", "Успешно сохранено " + newItemsSaved + " новых цен вечерней сессии для фьючерсов за " + date);
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalProcessed", totalProcessed);
             response.put("newItemsSaved", newItemsSaved);
             response.put("existingItemsSkipped", existingItemsSkipped);
             response.put("invalidItemsFiltered", invalidItemsFiltered);
             response.put("missingData", missingData);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка сохранения цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -1012,32 +1012,32 @@ public class EveningSessionController {
                     response.put("message", "Цена вечерней сессии для инструмента " + figi + " за " + date + " получена успешно");
                     response.put("data", priceData);
                     response.put("figi", figi);
-                    response.put("date", date);
-                    response.put("timestamp", LocalDateTime.now());
+                    response.put("date", date.toString());
+                    response.put("timestamp", LocalDateTime.now().toString());
                     
                     return ResponseEntity.ok(response);
                 } else {
                     response.put("success", false);
                     response.put("message", "Невалидная цена закрытия для инструмента " + figi + " за " + date);
                     response.put("figi", figi);
-                    response.put("date", date);
-                    response.put("timestamp", LocalDateTime.now());
+                    response.put("date", date.toString());
+                    response.put("timestamp", LocalDateTime.now().toString());
                     return ResponseEntity.ok(response);
                 }
             } else {
                 response.put("success", false);
                 response.put("message", "Цена вечерней сессии не найдена для инструмента " + figi + " за " + date);
                 response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
+                response.put("date", date.toString());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.ok(response);
             }
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения цены вечерней сессии для инструмента " + figi + " за " + date + ": " + e.getMessage());
             response.put("figi", figi);
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -1060,8 +1060,8 @@ public class EveningSessionController {
                 response.put("success", false);
                 response.put("message", "Запись уже существует для инструмента " + figi + " за " + date);
                 response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
+                response.put("date", date.toString());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.ok(response);
             }
             
@@ -1114,32 +1114,32 @@ public class EveningSessionController {
                     response.put("message", "Цена вечерней сессии для инструмента " + figi + " за " + date + " сохранена успешно");
                     response.put("data", savedItem);
                     response.put("figi", figi);
-                    response.put("date", date);
-                    response.put("timestamp", LocalDateTime.now());
+                    response.put("date", date.toString());
+                    response.put("timestamp", LocalDateTime.now().toString());
                     
                     return ResponseEntity.ok(response);
                 } else {
                     response.put("success", false);
                     response.put("message", "Невалидная цена закрытия для инструмента " + figi + " за " + date);
                     response.put("figi", figi);
-                    response.put("date", date);
-                    response.put("timestamp", LocalDateTime.now());
+                    response.put("date", date.toString());
+                    response.put("timestamp", LocalDateTime.now().toString());
                     return ResponseEntity.ok(response);
                 }
             } else {
                 response.put("success", false);
                 response.put("message", "Цена вечерней сессии не найдена для инструмента " + figi + " за " + date);
                 response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
+                response.put("date", date.toString());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.ok(response);
             }
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка сохранения цены вечерней сессии для инструмента " + figi + " за " + date + ": " + e.getMessage());
             response.put("figi", figi);
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }

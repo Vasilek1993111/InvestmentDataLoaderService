@@ -47,7 +47,6 @@
 - `GET /api/candles/daily/shares/{date}` - получение акций
 - `GET /api/candles/daily/futures/{date}` - получение фьючерсов
 - `GET /api/candles/daily/indicatives/{date}` - получение индикативов
-- `POST /api/candles/daily/shares/{date}/sync` - синхронная загрузка акций
 
 ### 3. Свечи инструментов (`CandlesInstrumentController`)
 - **Базовый путь**: `/api/candles/instrument`

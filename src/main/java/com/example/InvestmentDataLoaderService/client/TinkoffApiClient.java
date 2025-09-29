@@ -1,10 +1,12 @@
 package com.example.InvestmentDataLoaderService.client;
 
 import com.example.InvestmentDataLoaderService.dto.CandleDto;
+import com.example.InvestmentDataLoaderService.entity.DividendEntity;
 import com.google.protobuf.Timestamp;
 import org.springframework.stereotype.Component;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.MarketDataServiceGrpc.MarketDataServiceBlockingStub;
+import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,9 +23,12 @@ import java.util.List;
 public class TinkoffApiClient {
 
     private final MarketDataServiceBlockingStub marketDataService;
+    private final InstrumentsServiceBlockingStub instrumentsService;
 
-    public TinkoffApiClient(MarketDataServiceBlockingStub marketDataService) {
+    public TinkoffApiClient(MarketDataServiceBlockingStub marketDataService, 
+                           InstrumentsServiceBlockingStub instrumentsService) {
         this.marketDataService = marketDataService;
+        this.instrumentsService = instrumentsService;
     }
 
     /**
@@ -113,5 +118,87 @@ public class TinkoffApiClient {
         }
         
         return new ArrayList<>();
+    }
+    
+    /**
+     * Получение дивидендов из Tinkoff Invest API
+     */
+    public List<DividendEntity> getDividends(String figi, LocalDate from, LocalDate to) {
+        if (figi == null || figi.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            // Создаем запрос для получения дивидендов
+            GetDividendsRequest request = GetDividendsRequest.newBuilder()
+                .setInstrumentId(figi)
+                .setFrom(Timestamp.newBuilder()
+                    .setSeconds(from.atStartOfDay(ZoneId.of("Europe/Moscow")).toEpochSecond())
+                    .setNanos(0)
+                    .build())
+                .setTo(Timestamp.newBuilder()
+                    .setSeconds(to.plusDays(1).atStartOfDay(ZoneId.of("Europe/Moscow")).toEpochSecond())
+                    .setNanos(0)
+                    .build())
+                .build();
+            
+            // Выполняем запрос
+            GetDividendsResponse response = instrumentsService.getDividends(request);
+            
+            List<DividendEntity> dividends = new ArrayList<>();
+            
+            for (Dividend dividend : response.getDividendsList()) {
+                DividendEntity entity = new DividendEntity();
+                entity.setFigi(figi);
+                
+                // Конвертируем даты из protobuf Timestamp в LocalDate
+                if (dividend.hasDeclaredDate()) {
+                    entity.setDeclaredDate(convertTimestampToLocalDate(dividend.getDeclaredDate()));
+                }
+                
+                if (dividend.hasRecordDate()) {
+                    entity.setRecordDate(convertTimestampToLocalDate(dividend.getRecordDate()));
+                }
+                
+                if (dividend.hasPaymentDate()) {
+                    entity.setPaymentDate(convertTimestampToLocalDate(dividend.getPaymentDate()));
+                }
+                
+                // Конвертируем значение дивиденда из MoneyValue в BigDecimal
+                if (dividend.hasDividendNet()) {
+                    entity.setDividendValue(convertMoneyValueToBigDecimal(dividend.getDividendNet()));
+                }
+                
+                // Устанавливаем валюту
+                entity.setCurrency(dividend.getDividendNet().getCurrency());
+                
+                // Устанавливаем тип дивиденда
+                entity.setDividendType(dividend.getDividendType().toString());
+                
+                dividends.add(entity);
+            }
+            
+            return dividends;
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения дивидендов для " + figi + ": " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Конвертация protobuf Timestamp в LocalDate
+     */
+    private LocalDate convertTimestampToLocalDate(Timestamp timestamp) {
+        Instant instant = Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+        return instant.atZone(ZoneId.of("Europe/Moscow")).toLocalDate();
+    }
+    
+    /**
+     * Конвертация protobuf MoneyValue в BigDecimal
+     */
+    private BigDecimal convertMoneyValueToBigDecimal(MoneyValue moneyValue) {
+        return BigDecimal.valueOf(moneyValue.getUnits())
+            .add(BigDecimal.valueOf(moneyValue.getNano(), 9));
     }
 }

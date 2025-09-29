@@ -92,7 +92,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", 0);
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -120,7 +120,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", 0);
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -227,7 +227,7 @@ public class MainSessionPricesController {
             response.put("invalidItemsFiltered", invalidItemsFiltered);
             response.put("missingFromApi", missingFromApi);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ И ФЬЮЧЕРСОВ ===");
             System.out.println("Всего запрошено: " + totalRequested);
@@ -251,7 +251,7 @@ public class MainSessionPricesController {
             errorResponse.put("invalidItemsFiltered", 0);
             errorResponse.put("missingFromApi", 0);
             errorResponse.put("savedItems", new ArrayList<>());
-            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -277,7 +277,7 @@ public class MainSessionPricesController {
             response.put("message", "Цены закрытия для акций получены успешно");
             response.put("data", validClosePrices);
             response.put("count", validClosePrices.size());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
@@ -310,7 +310,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", 0);
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -333,7 +333,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", 0);
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -421,7 +421,7 @@ public class MainSessionPricesController {
             response.put("invalidItemsFiltered", invalidItemsFiltered);
             response.put("missingFromApi", missingFromApi);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ ===");
             System.out.println("Всего запрошено: " + totalRequested);
@@ -445,7 +445,7 @@ public class MainSessionPricesController {
             errorResponse.put("invalidItemsFiltered", 0);
             errorResponse.put("missingFromApi", 0);
             errorResponse.put("savedItems", new ArrayList<>());
-            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -470,7 +470,7 @@ public class MainSessionPricesController {
             response.put("message", "Цены закрытия для фьючерсов получены успешно");
             response.put("data", validClosePrices);
             response.put("count", validClosePrices.size());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
@@ -503,7 +503,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", 0);
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -526,7 +526,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", 0);
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -614,7 +614,7 @@ public class MainSessionPricesController {
             response.put("invalidItemsFiltered", invalidItemsFiltered);
             response.put("missingFromApi", missingFromApi);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ДЛЯ ФЬЮЧЕРСОВ ===");
             System.out.println("Всего запрошено: " + totalRequested);
@@ -638,7 +638,7 @@ public class MainSessionPricesController {
             errorResponse.put("invalidItemsFiltered", 0);
             errorResponse.put("missingFromApi", 0);
             errorResponse.put("savedItems", new ArrayList<>());
-            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -663,7 +663,7 @@ public class MainSessionPricesController {
                 response.put("success", false);
                 response.put("message", "Цена закрытия не найдена для инструмента: " + figi);
                 response.put("figi", figi);
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.ok(response);
             }
             
@@ -671,7 +671,7 @@ public class MainSessionPricesController {
             response.put("success", true);
             response.put("message", "Цена закрытия получена успешно");
             response.put("data", closePrice);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
@@ -679,7 +679,7 @@ public class MainSessionPricesController {
             response.put("success", false);
             response.put("message", "Ошибка получения цены закрытия: " + e.getMessage());
             response.put("figi", figi);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -714,7 +714,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", allClosePrices.size());
                 response.put("missingFromApi", 1 - allClosePrices.size());
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -737,7 +737,7 @@ public class MainSessionPricesController {
                 response.put("invalidItemsFiltered", allClosePrices.size() - validClosePrices.size());
                 response.put("missingFromApi", 0);
                 response.put("savedItems", new ArrayList<>());
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 
                 return ResponseEntity.ok(response);
             }
@@ -817,7 +817,7 @@ public class MainSessionPricesController {
             response.put("invalidItemsFiltered", allClosePrices.size() - validClosePrices.size());
             response.put("missingFromApi", 0);
             response.put("savedItems", savedItems);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕНЫ ЗАКРЫТИЯ ДЛЯ ИНСТРУМЕНТА ===");
             System.out.println("FIGI: " + figi);
@@ -841,7 +841,7 @@ public class MainSessionPricesController {
             errorResponse.put("invalidItemsFiltered", 0);
             errorResponse.put("missingFromApi", 0);
             errorResponse.put("savedItems", new ArrayList<>());
-            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -871,7 +871,7 @@ public class MainSessionPricesController {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
                 response.put("message", message);
-                response.put("date", date);
+                response.put("date", date.toString());
                 response.put("totalRequested", 0);
                 response.put("newItemsSaved", 0);
                 response.put("existingItemsSkipped", 0);
@@ -891,7 +891,7 @@ public class MainSessionPricesController {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
                 response.put("message", "Не найдено акций и фьючерсов в базе данных");
-                response.put("date", date);
+                response.put("date", date.toString());
                 response.put("totalRequested", 0);
                 response.put("newItemsSaved", 0);
                 response.put("existingItemsSkipped", 0);
@@ -1029,7 +1029,7 @@ public class MainSessionPricesController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", message);
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("totalRequested", totalRequested);
             response.put("newItemsSaved", newItemsSaved);
             response.put("existingItemsSkipped", existingItemsSkipped);
@@ -1053,7 +1053,7 @@ public class MainSessionPricesController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "Ошибка при загрузке цен основной сессии: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("totalRequested", 0);
             errorResponse.put("newItemsSaved", 0);
             errorResponse.put("existingItemsSkipped", 0);
