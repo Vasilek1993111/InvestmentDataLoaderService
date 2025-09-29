@@ -99,7 +99,7 @@ public class LastTradesController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "Ошибка загрузки сделок: " + e.getMessage());
-            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("timestamp", LocalDateTime.now().toString());
             errorResponse.put("taskId", taskId);
             
             return ResponseEntity.status(500).body(errorResponse);
@@ -118,7 +118,7 @@ public class LastTradesController {
             if (request.getFigis() == null || request.getFigis().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "Параметр 'figis' является обязательным");
-                response.put("timestamp", LocalDateTime.now());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.badRequest().body(response);
             }
             
@@ -162,7 +162,7 @@ public class LastTradesController {
             
             response.put("success", true);
             response.put("message", "Оптимизированная загрузка обезличенных сделок запущена");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             response.put("taskId", taskId);
             response.put("cacheInfo", cacheInfo);
             response.put("dataSource", "optimized_cache_with_db_fallback");
@@ -174,7 +174,7 @@ public class LastTradesController {
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка оптимизированной загрузки сделок: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             response.put("errorType", "OPTIMIZATION_ERROR");
             
             return ResponseEntity.status(500).body(response);
@@ -191,7 +191,7 @@ public class LastTradesController {
         try {
             response.put("success", true);
             response.put("cacheInfo", cachedInstrumentService.getCacheInfo());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             response.put("dataSource", "cache_with_db_fallback");
             
             return ResponseEntity.ok(response);
@@ -199,7 +199,7 @@ public class LastTradesController {
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения информации о кэше: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -326,7 +326,7 @@ public class LastTradesController {
             
             response.put("success", true);
             response.put("executorInfo", executorInfo);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             response.put("optimizationLevel", "HIGH_PERFORMANCE");
             response.put("tInvestLimits", "Respected with specialized executors");
             
@@ -335,7 +335,7 @@ public class LastTradesController {
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения информации о производительности: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }

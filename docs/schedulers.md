@@ -47,11 +47,18 @@
 - **Функция**: `preloadAndPersistInstruments()`
 - **Описание**: Предзагружает список инструментов
 
+### 8. DividendSchedulerService
+**Расписание**: `0 50 0 * * *` (0:50 по московскому времени)
+- **Функция**: `fetchAndStoreDividends()`
+- **Описание**: Загружает дивиденды по всем акциям за период 2024-2026
+- **Типы активов**: SHARES
+
 ## Расписание выполнения
 
 | Время (МСК) | Планировщик | Описание |
 |-------------|-------------|----------|
 | 00:45 | InstrumentPreloadSchedulerService | Предзагрузка инструментов |
+| 00:50 | DividendSchedulerService | Загрузка дивидендов по всем акциям |
 | 01:00 | LastTradesSchedulerService | Загрузка последних сделок |
 | 01:30 | ClosePriceSchedulerService | Загрузка цен закрытия |
 | 01:40 | EveningSessionSchedulerService | Загрузка цен закрытия вечерней сессии |
@@ -66,6 +73,7 @@
 - **MorningSessionService** - для загрузки цен открытия
 - **LastTradesService** - для загрузки последних сделок
 - **InstrumentService** - для работы с инструментами
+- **DividendService** - для загрузки дивидендов
 
 ### Логирование
 Все операции планировщиков логируются в консоль:
@@ -95,6 +103,7 @@
 ```bash
 # Поиск по taskId
 grep "MORNING_" logs/application.log
+grep "DIVIDEND_" logs/application.log
 
 # Статистика выполнения
 grep "=== ЗАВЕРШЕНИЕ" logs/application.log

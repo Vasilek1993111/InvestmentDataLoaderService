@@ -85,7 +85,7 @@ public class CandlesInstrumentController {
             if (candles == null || candles.isEmpty()) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("figi", figi);
-                response.put("date", date);
+                response.put("date", date.toString());
                 response.put("candles", new ArrayList<>());
                 response.put("totalCandles", 0);
                 response.put("message", "Нет данных для инструмента " + figi + " за дату " + date);
@@ -106,7 +106,7 @@ public class CandlesInstrumentController {
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
             response.put("figi", figi);
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
 
@@ -182,7 +182,7 @@ public class CandlesInstrumentController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения минутных свечей инструмента: " + e.getMessage());
             errorResponse.put("figi", figi);
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -320,7 +320,7 @@ public class CandlesInstrumentController {
             if (candles == null || candles.isEmpty()) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("figi", figi);
-                response.put("date", date);
+                response.put("date", date.toString());
                 response.put("candles", new ArrayList<>());
                 response.put("totalCandles", 0);
                 response.put("message", "Нет данных для инструмента " + figi + " за дату " + date);
@@ -353,7 +353,7 @@ public class CandlesInstrumentController {
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
             response.put("figi", figi);
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
 
@@ -429,7 +429,7 @@ public class CandlesInstrumentController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения дневных свечей инструмента: " + e.getMessage());
             errorResponse.put("figi", figi);
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }

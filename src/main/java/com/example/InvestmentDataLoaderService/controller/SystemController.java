@@ -36,7 +36,7 @@ public class SystemController {
             components.put("api", "healthy");
             
             response.put("status", "healthy");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             response.put("components", components);
             response.put("uptime", System.currentTimeMillis());
             
@@ -45,7 +45,7 @@ public class SystemController {
         } catch (Exception e) {
             response.put("status", "unhealthy");
             response.put("message", "Ошибка проверки здоровья системы: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(503).body(response);
         }
@@ -88,14 +88,14 @@ public class SystemController {
             
             response.put("success", true);
             response.put("data", diagnostics);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка диагностики системы: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -116,14 +116,14 @@ public class SystemController {
             response.put("success", true);
             response.put("exists", exists);
             response.put("message", exists ? "Материализованные представления существуют" : "Материализованные представления не найдены");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка проверки материализованных представлений: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -145,14 +145,14 @@ public class SystemController {
             
             response.put("success", true);
             response.put("data", scheduleInfo);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения информации о расписании: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -196,14 +196,14 @@ public class SystemController {
             
             response.put("success", true);
             response.put("data", stats);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения статистики системы: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -251,14 +251,14 @@ public class SystemController {
             
             response.put("success", true);
             response.put("data", info);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка получения информации о системе: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }
@@ -288,14 +288,14 @@ public class SystemController {
             
             response.put("success", true);
             response.put("data", services);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка проверки внешних сервисов: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }

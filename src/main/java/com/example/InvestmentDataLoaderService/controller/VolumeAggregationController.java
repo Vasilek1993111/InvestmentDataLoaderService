@@ -28,14 +28,14 @@ public class VolumeAggregationController {
             // TODO: Реализовать ручное обновление материализованного представления
             response.put("success", true);
             response.put("message", "Материализованное представление обновлено");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка обновления: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
             
             return ResponseEntity.status(500).body(response);
         }

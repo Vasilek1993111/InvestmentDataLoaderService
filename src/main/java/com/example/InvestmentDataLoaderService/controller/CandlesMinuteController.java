@@ -51,10 +51,11 @@ public class CandlesMinuteController {
 
     /**
      * Загрузка минутных свечей за сегодня
+     * Тело запроса необязательно - если не передано, используется дефолтный запрос
      */
     @PostMapping
     @Transactional
-    public ResponseEntity<Map<String, Object>> loadMinuteCandlesToday(@RequestBody MinuteCandleRequestDto request) {
+    public ResponseEntity<Map<String, Object>> loadMinuteCandlesToday(@RequestBody(required = false) MinuteCandleRequestDto request) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/minute";
         Instant startTime = Instant.now();
@@ -76,6 +77,13 @@ public class CandlesMinuteController {
         }
 
         try {
+            // Создаем дефолтный запрос, если он не передан
+            if (request == null) {
+                request = new MinuteCandleRequestDto();
+                request.setInstruments(new ArrayList<>());
+                request.setDate(LocalDate.now());
+            }
+            
             System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА СЕГОДНЯ ===");
             System.out.println("Инструменты: " + request.getInstruments());
             System.out.println("Типы активов: " + request.getAssetType());
@@ -132,12 +140,13 @@ public class CandlesMinuteController {
 
     /**
      * Загрузка минутных свечей за конкретную дату
+     * Тело запроса необязательно - если не передано, используется дефолтный запрос
      */
     @PostMapping("/{date}")
     @Transactional
     public ResponseEntity<Map<String, Object>> loadMinuteCandlesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestBody MinuteCandleRequestDto request
+            @RequestBody(required = false) MinuteCandleRequestDto request
     ) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/minute/" + date;
@@ -160,6 +169,13 @@ public class CandlesMinuteController {
         }
 
         try {
+            // Создаем дефолтный запрос, если он не передан
+            if (request == null) {
+                request = new MinuteCandleRequestDto();
+                request.setInstruments(new ArrayList<>());
+                request.setDate(date);
+            }
+            
             System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА ДАТУ ===");
             System.out.println("Дата: " + date);
             System.out.println("Инструменты: " + request.getInstruments());
@@ -372,7 +388,7 @@ public class CandlesMinuteController {
 
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("assetType", "SHARES");
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
@@ -462,7 +478,7 @@ public class CandlesMinuteController {
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения минутных свечей акций: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("assetType", "SHARES");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
@@ -746,7 +762,7 @@ public class CandlesMinuteController {
 
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("assetType", "FUTURES");
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
@@ -828,7 +844,7 @@ public class CandlesMinuteController {
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения минутных свечей фьючерсов: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("assetType", "FUTURES");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
@@ -1020,7 +1036,7 @@ public class CandlesMinuteController {
 
             // Вычисляем общую статистику
             Map<String, Object> response = new HashMap<>();
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("assetType", "INDICATIVES");
             response.put("candles", allCandles);
             response.put("totalCandles", totalCandles);
@@ -1102,7 +1118,7 @@ public class CandlesMinuteController {
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Ошибка получения минутных свечей индикативов: " + e.getMessage());
-            errorResponse.put("date", date);
+            errorResponse.put("date", date.toString());
             errorResponse.put("assetType", "INDICATIVES");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

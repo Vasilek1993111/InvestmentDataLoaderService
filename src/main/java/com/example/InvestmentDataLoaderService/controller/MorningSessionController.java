@@ -55,14 +55,14 @@ public class MorningSessionController {
                 "saved", result.getNewItemsSaved(),
                 "skippedExisting", result.getExistingItemsSkipped()
             ));
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка загрузки цен утренней сессии: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -94,14 +94,14 @@ public class MorningSessionController {
                 "notFound", notFound
             ));
             response.put("items", result.getSavedItems());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка предпросмотра цен утренней сессии: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -127,7 +127,7 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
                 "found", found,
@@ -135,15 +135,15 @@ public class MorningSessionController {
                 "saved", result.getNewItemsSaved(),
                 "skippedExisting", result.getExistingItemsSkipped()
             ));
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка загрузки цен открытия за дату: " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -168,22 +168,22 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
                 "found", found,
                 "notFound", notFound
             ));
             response.put("items", result.getSavedItems());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка поиска свечей за дату: " + e.getMessage());
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -211,7 +211,7 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "shares");
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
@@ -220,16 +220,16 @@ public class MorningSessionController {
                 "saved", result.getNewItemsSaved(),
                 "skippedExisting", result.getExistingItemsSkipped()
             ));
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка загрузки цен акций за дату: " + e.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "shares");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -254,7 +254,7 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "shares");
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
@@ -262,16 +262,16 @@ public class MorningSessionController {
                 "notFound", notFound
             ));
             response.put("items", result.getSavedItems());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка поиска свечей акций за дату: " + e.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "shares");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -299,7 +299,7 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "futures");
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
@@ -308,16 +308,16 @@ public class MorningSessionController {
                 "saved", result.getNewItemsSaved(),
                 "skippedExisting", result.getExistingItemsSkipped()
             ));
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка загрузки цен фьючерсов за дату: " + e.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "futures");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -342,7 +342,7 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "futures");
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
@@ -350,16 +350,16 @@ public class MorningSessionController {
                 "notFound", notFound
             ));
             response.put("items", result.getSavedItems());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Ошибка поиска свечей фьючерсов за дату: " + e.getMessage());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("instrumentType", "futures");
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -384,8 +384,8 @@ public class MorningSessionController {
                 response.put("success", false);
                 response.put("message", "FIGI не может быть пустым");
                 response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
+                response.put("date", date.toString());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.badRequest().body(response);
             }
 
@@ -399,7 +399,7 @@ public class MorningSessionController {
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
             response.put("figi", figi.trim());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
                 "found", found,
@@ -408,7 +408,7 @@ public class MorningSessionController {
                 "skippedExisting", result.getExistingItemsSkipped()
             ));
             response.put("items", result.getSavedItems());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
@@ -416,8 +416,8 @@ public class MorningSessionController {
             response.put("success", false);
             response.put("message", "Ошибка загрузки цены открытия для FIGI " + figi + ": " + e.getMessage());
             response.put("figi", figi);
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
@@ -439,8 +439,8 @@ public class MorningSessionController {
                 response.put("success", false);
                 response.put("message", "FIGI не может быть пустым");
                 response.put("figi", figi);
-                response.put("date", date);
-                response.put("timestamp", LocalDateTime.now());
+                response.put("date", date.toString());
+                response.put("timestamp", LocalDateTime.now().toString());
                 return ResponseEntity.badRequest().body(response);
             }
 
@@ -454,14 +454,14 @@ public class MorningSessionController {
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
             response.put("figi", figi.trim());
-            response.put("date", date);
+            response.put("date", date.toString());
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
                 "found", found,
                 "notFound", notFound
             ));
             response.put("items", result.getSavedItems());
-            response.put("timestamp", LocalDateTime.now());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.ok(response);
 
@@ -469,8 +469,8 @@ public class MorningSessionController {
             response.put("success", false);
             response.put("message", "Ошибка поиска цены открытия для FIGI " + figi + ": " + e.getMessage());
             response.put("figi", figi);
-            response.put("date", date);
-            response.put("timestamp", LocalDateTime.now());
+            response.put("date", date.toString());
+            response.put("timestamp", LocalDateTime.now().toString());
 
             return ResponseEntity.status(500).body(response);
         }
