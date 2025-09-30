@@ -3,14 +3,13 @@ package com.example.InvestmentDataLoaderService.unit.service;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
+import com.example.InvestmentDataLoaderService.fixtures.TestDataFactory;
 import com.example.InvestmentDataLoaderService.repository.*;
 import com.example.InvestmentDataLoaderService.service.MinuteCandleService;
 
 import io.qameta.allure.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -18,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
@@ -62,6 +62,9 @@ public class CandleMinuteServiceTest {
     private MinuteCandleService minuteCandleService;
 
     @BeforeEach
+    @Step("Инициализация тестового окружения")
+    @DisplayName("Инициализация тестового окружения")
+    @Description("Сброс всех моков перед каждым тестом")
     void setUp() {
         reset(minuteCandleRepository, shareRepository, futureRepository, indicativeRepository, 
               tinkoffApiClient, systemLogRepository, minuteCandleExecutor, apiDataExecutor, batchWriteExecutor);
@@ -71,18 +74,22 @@ public class CandleMinuteServiceTest {
 
     @Test
     @DisplayName("Успешная загрузка минутных свечей с указанной датой")
-    @Description("Тест проверяет основную функциональность загрузки минутных свечей")
+    @Description("Тест проверяет основную функциональность загрузки минутных свечей с корректными данными")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.CRITICAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("success")
     void saveMinuteCandlesAsync_ShouldReturnSuccessResponse_WhenNewCandlesAreLoaded() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -108,7 +115,7 @@ public class CandleMinuteServiceTest {
 
         // Verify interactions
         verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN"));
-        verify(minuteCandleRepository, atLeastOnce()).existsByFigiAndTime(anyString(), any(Instant.class));
+        verify(minuteCandleRepository, atLeastOnce()).existsByFigiAndTime(anyString(), any());
         verify(minuteCandleRepository, atLeastOnce()).saveAll(anyList());
         verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
     }
@@ -117,16 +124,24 @@ public class CandleMinuteServiceTest {
     @DisplayName("Успешная загрузка минутных свечей без указания даты")
     @Description("Тест проверяет автоматическую установку текущей даты при null")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("date")
     void saveMinuteCandlesAsync_ShouldReturnSuccessResponse_WhenDateIsNull() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(null);
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto(
+            Arrays.asList("BBG004730N88"), 
+            Arrays.asList("SHARES"), 
+            null
+        );
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), any(LocalDate.class), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -151,16 +166,20 @@ public class CandleMinuteServiceTest {
     @DisplayName("Успешная загрузка минутных свечей для множественных инструментов")
     @Description("Тест проверяет обработку нескольких инструментов одновременно")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("multiple")
     void saveMinuteCandlesAsync_ShouldReturnSuccessResponse_WhenMultipleInstruments() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithMultipleInstruments();
+        MinuteCandleRequestDto request = TestDataFactory.createMultipleInstrumentsRequest();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки
         when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -186,16 +205,20 @@ public class CandleMinuteServiceTest {
     @DisplayName("Успешная загрузка минутных свечей с пропуском существующих")
     @Description("Тест проверяет корректную обработку уже существующих свечей")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("existing")
     void saveMinuteCandlesAsync_ShouldSkipExistingCandles_WhenCandlesAlreadyExist() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки - некоторые свечи уже существуют
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(eq("BBG004730N88"), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(eq("BBG004730N88"), any()))
             .thenReturn(true, false); // Первая свеча существует, вторая - новая
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -221,23 +244,24 @@ public class CandleMinuteServiceTest {
     @DisplayName("Успешная загрузка минутных свечей с пустым списком инструментов - получение из БД")
     @Description("Тест проверяет получение инструментов из БД при пустом списке")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("database")
     void saveMinuteCandlesAsync_ShouldLoadInstrumentsFromDatabase_WhenInstrumentsListIsEmpty() throws Exception {
         // Given
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(Arrays.asList()); // Пустой список
-        request.setAssetType(Arrays.asList("SHARES"));
-        request.setDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createEmptyInstrumentsRequest();
         String taskId = "test-task-123";
         
-        ShareEntity share1 = createShareEntity("BBG004730N88", "SBER");
-        ShareEntity share2 = createShareEntity("BBG004730ZJ29", "GAZP");
-        List<CandleDto> testCandles = createTestCandles();
+        ShareEntity share1 = TestDataFactory.createShareEntity("BBG004730N88", "SBER", "Сбербанк", "TESTMOEX");
+        ShareEntity share2 = TestDataFactory.createShareEntity("BBG004730ZJ29", "GAZP", "Газпром", "TESTMOEX");
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки
         when(shareRepository.findAll()).thenReturn(Arrays.asList(share1, share2));
         when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -263,18 +287,19 @@ public class CandleMinuteServiceTest {
     @DisplayName("Успешная загрузка минутных свечей для разных типов активов")
     @Description("Тест проверяет обработку разных типов активов (SHARES, FUTURES, INDICATIVES)")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("mixed")
     void saveMinuteCandlesAsync_ShouldLoadAllAssetTypes_WhenMultipleAssetTypesProvided() throws Exception {
         // Given
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(Arrays.asList());
-        request.setAssetType(Arrays.asList("SHARES", "FUTURES", "INDICATIVES"));
-        request.setDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMixedAssetTypesRequest();
         String taskId = "test-task-123";
         
-        ShareEntity share = createShareEntity("BBG004730N88", "SBER");
-        FutureEntity future = createFutureEntity("BBG004730ZJ29", "Si-3.24");
-        IndicativeEntity indicative = createIndicativeEntity("BBG004730ABC1", "USD000UTSTOM");
-        List<CandleDto> testCandles = createTestCandles();
+        ShareEntity share = TestDataFactory.createShareEntity("BBG004730N88", "SBER", "Сбербанк", "TESTMOEX");
+        FutureEntity future = TestDataFactory.createFutureEntity("BBG004730ZJ29", "Si-3.24", "FUTURES");
+        IndicativeEntity indicative = TestDataFactory.createIndicativeEntity("BBG004730ABC1", "USD000UTSTOM", "Доллар США");
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки
         when(shareRepository.findAll()).thenReturn(Arrays.asList(share));
@@ -282,7 +307,7 @@ public class CandleMinuteServiceTest {
         when(indicativeRepository.findAll()).thenReturn(Arrays.asList(indicative));
         when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -308,16 +333,20 @@ public class CandleMinuteServiceTest {
     @DisplayName("Успешная загрузка минутных свечей с фильтрацией незакрытых свечей")
     @Description("Тест проверяет фильтрацию незакрытых свечей (is_complete=false)")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("candles")
+    @Tag("filter")
     void saveMinuteCandlesAsync_ShouldFilterIncompleteCandles_WhenCandlesAreNotComplete() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandlesWithIncomplete();
+        List<CandleDto> testCandles = TestDataFactory.createIncompleteCandleDtoList();
 
         // Настраиваем моки
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -344,9 +373,13 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка ошибки API при загрузке свечей")
     @Description("Тест проверяет обработку исключений от Tinkoff API")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("api-error")
     void saveMinuteCandlesAsync_ShouldHandleApiError_WhenApiThrowsException() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
 
         // Настраиваем моки - API выбрасывает исключение
@@ -372,14 +405,18 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка пустого ответа от API")
     @Description("Тест проверяет обработку случая, когда API возвращает пустой список")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("empty-response")
     void saveMinuteCandlesAsync_ShouldHandleEmptyApiResponse_WhenNoDataAvailable() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
 
         // Настраиваем моки - API возвращает пустой список
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
-            .thenReturn(Arrays.asList());
+            .thenReturn(TestDataFactory.createEmptyCandleDtoList());
         when(systemLogRepository.save(any(SystemLogEntity.class)))
             .thenReturn(new SystemLogEntity());
         setupExecutorMocks();
@@ -400,16 +437,20 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка ошибки базы данных при сохранении")
     @Description("Тест проверяет обработку исключений при работе с БД")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("database-error")
     void saveMinuteCandlesAsync_ShouldHandleDatabaseError_WhenSaveFails() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки - БД выбрасывает исключение
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenThrow(new RuntimeException("Ошибка базы данных"));
@@ -432,12 +473,13 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка пустого списка инструментов и пустой БД")
     @Description("Тест проверяет обработку пустого списка инструментов и пустой БД")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("empty-database")
     void saveMinuteCandlesAsync_ShouldHandleEmptyInstrumentsAndEmptyDatabase_WhenNoInstrumentsAvailable() throws Exception {
         // Given
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(Arrays.asList()); // Пустой список
-        request.setAssetType(Arrays.asList("SHARES"));
-        request.setDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createEmptyInstrumentsRequest();
         String taskId = "test-task-123";
 
         // Настраиваем моки для получения инструментов из БД
@@ -460,15 +502,18 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка будущей даты")
     @Description("Тест проверяет обработку запроса с будущей датой")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("future-date")
     void saveMinuteCandlesAsync_ShouldHandleFutureDate_WhenDateIsInFuture() throws Exception {
         // Given
-        LocalDate futureDate = LocalDate.now().plusDays(1);
-        MinuteCandleRequestDto request = createRequestWithDate(futureDate);
+        MinuteCandleRequestDto request = TestDataFactory.createFutureDateRequest();
         String taskId = "test-task-123";
 
         // Настраиваем моки
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(futureDate), eq("CANDLE_INTERVAL_1_MIN")))
-            .thenReturn(Arrays.asList()); // API не возвращает данных для будущих дат
+        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
+            .thenReturn(TestDataFactory.createEmptyCandleDtoList()); // API не возвращает данных для будущих дат
         when(systemLogRepository.save(any(SystemLogEntity.class)))
             .thenReturn(new SystemLogEntity());
         setupExecutorMocks();
@@ -489,16 +534,20 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка ошибки при конвертации свечи")
     @Description("Тест проверяет обработку ошибок при конвертации DTO в Entity")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("conversion-error")
     void saveMinuteCandlesAsync_ShouldHandleConversionError_WhenCandleConversionFails() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandlesWithInvalidData();
+        List<CandleDto> testCandles = TestDataFactory.createInvalidCandleDtoList();
 
         // Настраиваем моки
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -522,9 +571,13 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка критической ошибки в основном потоке")
     @Description("Тест проверяет обработку критических ошибок в основном методе")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.CRITICAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("critical-error")
     void saveMinuteCandlesAsync_ShouldHandleCriticalError_WhenMainThreadFails() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createMinuteCandleRequestDto();
         String taskId = "test-task-123";
 
         // Настраиваем моки для выброса исключения в основном потоке
@@ -550,12 +603,13 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка null значений в запросе")
     @Description("Тест проверяет обработку null значений в различных полях запроса")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("candles")
+    @Tag("null-values")
     void saveMinuteCandlesAsync_ShouldHandleNullValues_WhenRequestContainsNulls() throws Exception {
         // Given
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(null);
-        request.setAssetType(null);
-        request.setDate(null);
+        MinuteCandleRequestDto request = TestDataFactory.createNullValuesRequest();
         String taskId = "test-task-123";
 
         // Настраиваем моки для получения инструментов из БД
@@ -584,25 +638,21 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка очень большого количества инструментов")
     @Description("Тест проверяет обработку большого количества инструментов")
     @Story("Граничные случаи")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("boundary")
+    @Tag("candles")
+    @Tag("large-scale")
     void saveMinuteCandlesAsync_ShouldHandleLargeNumberOfInstruments_WhenManyInstrumentsProvided() throws Exception {
         // Given
-        List<String> manyInstruments = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
-            manyInstruments.add("BBG004730N8" + String.format("%02d", i));
-        }
-        
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(manyInstruments);
-        request.setAssetType(Arrays.asList("SHARES"));
-        request.setDate(LocalDate.of(2024, 1, 15));
+        MinuteCandleRequestDto request = TestDataFactory.createLargeInstrumentsRequest();
         String taskId = "test-task-123";
         
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки
         when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -626,18 +676,22 @@ public class CandleMinuteServiceTest {
     @DisplayName("Обработка смешанных результатов API")
     @Description("Тест проверяет обработку смешанных результатов от API (часть успешных, часть пустых)")
     @Story("Граничные случаи")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("boundary")
+    @Tag("candles")
+    @Tag("mixed-results")
     void saveMinuteCandlesAsync_ShouldHandleMixedApiResults_WhenSomeInstrumentsReturnDataAndSomeDoNot() throws Exception {
         // Given
-        MinuteCandleRequestDto request = createRequestWithMultipleInstruments();
+        MinuteCandleRequestDto request = TestDataFactory.createMultipleInstrumentsRequest();
         String taskId = "test-task-123";
-        List<CandleDto> testCandles = createTestCandles();
+        List<CandleDto> testCandles = TestDataFactory.createCandleDtoList();
 
         // Настраиваем моки - первый инструмент возвращает данные, второй - пустой список
         when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
             .thenReturn(testCandles);
         when(tinkoffApiClient.getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_1_MIN")))
-            .thenReturn(Arrays.asList());
-        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any(Instant.class)))
+            .thenReturn(TestDataFactory.createEmptyCandleDtoList());
+        when(minuteCandleRepository.existsByFigiAndTime(anyString(), any()))
             .thenReturn(false);
         when(minuteCandleRepository.saveAll(anyList()))
             .thenReturn(Arrays.asList());
@@ -659,72 +713,11 @@ public class CandleMinuteServiceTest {
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
-    private MinuteCandleRequestDto createRequestWithDate(LocalDate date) {
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(Arrays.asList("BBG004730N88"));
-        request.setAssetType(Arrays.asList("SHARES"));
-        request.setDate(date);
-        return request;
-    }
-
-    private MinuteCandleRequestDto createRequestWithMultipleInstruments() {
-        MinuteCandleRequestDto request = new MinuteCandleRequestDto();
-        request.setInstruments(Arrays.asList("BBG004730N88", "BBG004730ZJ29"));
-        request.setAssetType(Arrays.asList("SHARES"));
-        request.setDate(LocalDate.of(2024, 1, 15));
-        return request;
-    }
-
-    private List<CandleDto> createTestCandles() {
-        return Arrays.asList(
-            new CandleDto("BBG004730N88", 1000L, BigDecimal.valueOf(105.0), BigDecimal.valueOf(95.0), 
-                         Instant.now(), BigDecimal.valueOf(102.0), BigDecimal.valueOf(100.0), true),
-            new CandleDto("BBG004730N88", 1200L, BigDecimal.valueOf(108.0), BigDecimal.valueOf(98.0), 
-                         Instant.now().minusSeconds(3600), BigDecimal.valueOf(106.0), BigDecimal.valueOf(103.0), true)
-        );
-    }
-
-    private List<CandleDto> createTestCandlesWithIncomplete() {
-        return Arrays.asList(
-            new CandleDto("BBG004730N88", 1000L, BigDecimal.valueOf(105.0), BigDecimal.valueOf(95.0), 
-                         Instant.now(), BigDecimal.valueOf(102.0), BigDecimal.valueOf(100.0), true),
-            new CandleDto("BBG004730N88", 1200L, BigDecimal.valueOf(108.0), BigDecimal.valueOf(98.0), 
-                         Instant.now().minusSeconds(3600), BigDecimal.valueOf(106.0), BigDecimal.valueOf(103.0), false), // Незакрытая свеча
-            new CandleDto("BBG004730N88", 1500L, BigDecimal.valueOf(110.0), BigDecimal.valueOf(100.0), 
-                         Instant.now().minusSeconds(7200), BigDecimal.valueOf(108.0), BigDecimal.valueOf(105.0), true)
-        );
-    }
-
-    private List<CandleDto> createTestCandlesWithInvalidData() {
-        return Arrays.asList(
-            new CandleDto("BBG004730N88", 1000L, BigDecimal.valueOf(105.0), BigDecimal.valueOf(95.0), 
-                         Instant.now(), BigDecimal.valueOf(102.0), BigDecimal.valueOf(100.0), true),
-            new CandleDto("BBG004730N88", 0L, BigDecimal.ZERO, BigDecimal.ZERO, 
-                         Instant.EPOCH, BigDecimal.ZERO, BigDecimal.ZERO, true) // Неверные данные
-        );
-    }
-
-    private ShareEntity createShareEntity(String figi, String ticker) {
-        ShareEntity share = new ShareEntity();
-        share.setFigi(figi);
-        share.setTicker(ticker);
-        return share;
-    }
-
-    private FutureEntity createFutureEntity(String figi, String ticker) {
-        FutureEntity future = new FutureEntity();
-        future.setFigi(figi);
-        future.setTicker(ticker);
-        return future;
-    }
-
-    private IndicativeEntity createIndicativeEntity(String figi, String ticker) {
-        IndicativeEntity indicative = new IndicativeEntity();
-        indicative.setFigi(figi);
-        indicative.setTicker(ticker);
-        return indicative;
-    }
-
+    @Step("Настройка моков для executor'ов")
+    @DisplayName("Настройка моков для executor'ов")
+    @Description("Настраивает executor'ы для синхронного выполнения в тестах")
+    @Tag("helper")
+    @Tag("setup")
     private void setupExecutorMocks() {
         // Настраиваем executor'ы для синхронного выполнения в тестах
         lenient().doAnswer(invocation -> {

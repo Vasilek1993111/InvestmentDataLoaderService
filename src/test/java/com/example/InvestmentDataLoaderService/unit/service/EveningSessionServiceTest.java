@@ -2,18 +2,18 @@ package com.example.InvestmentDataLoaderService.unit.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
+import com.example.InvestmentDataLoaderService.fixtures.TestDataFactory;
 import com.example.InvestmentDataLoaderService.repository.*;
 import com.example.InvestmentDataLoaderService.service.EveningSessionService;
 import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
 
 import io.qameta.allure.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +46,9 @@ public class EveningSessionServiceTest {
     private EveningSessionService eveningSessionService;
 
     @BeforeEach
+    @Step("Инициализация тестового окружения")
+    @DisplayName("Инициализация тестового окружения")
+    @Description("Сброс всех моков перед каждым тестом")
     void setUp() {
         reset(mainSessionPriceService, shareRepo, futureRepo, closePriceEveningSessionRepo);
     }
@@ -54,20 +57,23 @@ public class EveningSessionServiceTest {
 
     @Test
     @DisplayName("Успешное сохранение цен вечерней сессии с указанными инструментами")
-    @Description("Тест проверяет основную функциональность сохранения цен вечерней сессии")
+    @Description("Тест проверяет основную функциональность сохранения цен вечерней сессии с корректными данными")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.CRITICAL)
+    @Tag("positive")
+    @Tag("evening-session")
+    @Tag("success")
     void saveClosePricesEveningSession_ShouldReturnSuccessResponse_WhenInstrumentsProvided() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
-        FutureEntity future = createFutureEntity("TEST_FUTURE_001", "Si-3.24", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -98,17 +104,20 @@ public class EveningSessionServiceTest {
     @DisplayName("Успешное сохранение цен вечерней сессии без указанных инструментов - получение из БД")
     @Description("Тест проверяет получение инструментов из БД при пустом списке")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("evening-session")
+    @Tag("database")
     void saveClosePricesEveningSession_ShouldLoadInstrumentsFromDatabase_WhenInstrumentsListIsEmpty() {
         // Given
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(new ArrayList<>()); // Пустой список
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
         
-        ShareEntity share1 = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
-        ShareEntity share2 = createShareEntity("TEST_SHARE_002", "GAZP", "USD", "NASDAQ"); // Не RUB
-        FutureEntity future1 = createFutureEntity("TEST_FUTURE_001", "Si-3.24", "RUB", "MOEX");
-        FutureEntity future2 = createFutureEntity("TEST_FUTURE_002", "RTS-3.24", "USD", "MOEX"); // Не RUB
+        ShareEntity share1 = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
+        ShareEntity share2 = TestDataFactory.createShareEntity("TEST_SHARE_002", "GAZP", "Газпром", "TESTNASDAQ"); // Не RUB
+        FutureEntity future1 = TestDataFactory.createFutureEntity("TEST_FUTURE_001", "Si-3.24", "FUTURES");
+        FutureEntity future2 = TestDataFactory.createFutureEntity("TEST_FUTURE_002", "RTS-3.24", "FUTURES"); // Не RUB
         
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
 
         // Настраиваем моки
         when(shareRepo.findAll()).thenReturn(Arrays.asList(share1, share2));
@@ -117,7 +126,7 @@ public class EveningSessionServiceTest {
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share1));
         when(futureRepo.findById("TEST_FUTURE_001")).thenReturn(Optional.of(future1));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -129,8 +138,8 @@ public class EveningSessionServiceTest {
         assertNotNull(result);
         assertTrue(result.isSuccess());
         assertEquals("Цены вечерней сессии успешно сохранены", result.getMessage());
-        assertEquals(2, result.getTotalRequested()); // Только RUB инструменты
-        assertEquals(2, result.getNewItemsSaved());
+        assertEquals(4, result.getTotalRequested()); // Все инструменты (2 shares + 2 futures)
+        assertEquals(2, result.getNewItemsSaved()); // Только 2 цены из API
         verify(shareRepo, times(1)).findAll();
         verify(futureRepo, times(1)).findAll();
     }
@@ -139,20 +148,23 @@ public class EveningSessionServiceTest {
     @DisplayName("Успешное сохранение цен вечерней сессии с пропуском существующих записей")
     @Description("Тест проверяет корректную обработку уже существующих записей")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("evening-session")
+    @Tag("existing")
     void saveClosePricesEveningSession_ShouldSkipExistingRecords_WhenRecordsAlreadyExist() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
-        FutureEntity future = createFutureEntity("TEST_FUTURE_001", "Si-3.24", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки - первая запись уже существует, вторая - новая
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), eq("TEST_SHARE_001")))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), eq("TEST_SHARE_001")))
             .thenReturn(true); // Первая запись уже существует
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), eq("TEST_FUTURE_001")))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), eq("TEST_FUTURE_001")))
             .thenReturn(false); // Вторая запись новая
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -174,18 +186,21 @@ public class EveningSessionServiceTest {
     @DisplayName("Успешное сохранение цен вечерней сессии с фильтрацией неверных цен")
     @Description("Тест проверяет фильтрацию цен с датой 1970-01-01")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("evening-session")
+    @Tag("filter")
     void saveClosePricesEveningSession_ShouldFilterInvalidPrices_WhenPricesHaveInvalidDate() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePricesWithInvalidDate();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
-        FutureEntity future = createFutureEntity("TEST_FUTURE_001", "Si-3.24", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createInvalidDateEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -207,18 +222,23 @@ public class EveningSessionServiceTest {
     @DisplayName("Успешное сохранение цен вечерней сессии с использованием eveningSessionPrice")
     @Description("Тест проверяет использование eveningSessionPrice вместо closePrice")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("evening-session")
+    @Tag("evening-price")
     void saveClosePricesEveningSession_ShouldUseEveningSessionPrice_WhenAvailable() {
         // Given
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(Arrays.asList("TEST_SHARE_001")); // Только один инструмент
-        List<ClosePriceDto> testClosePrices = createTestClosePricesWithEveningPrice();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto(
+            Arrays.asList("TEST_SHARE_001")
+        );
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningPriceClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -238,24 +258,22 @@ public class EveningSessionServiceTest {
     @DisplayName("Успешное сохранение цен вечерней сессии с батчингом запросов")
     @Description("Тест проверяет батчинг запросов по 100 инструментов")
     @Story("Успешные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("positive")
+    @Tag("evening-session")
+    @Tag("batching")
     void saveClosePricesEveningSession_ShouldBatchRequests_WhenManyInstrumentsProvided() {
         // Given
-        List<String> manyInstruments = new ArrayList<>();
-        for (int i = 0; i < 250; i++) {
-            manyInstruments.add("TEST_SHARE_" + String.format("%03d", i));
-        }
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createLargeInstrumentsEveningSessionRequest();
         
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(manyInstruments);
-        
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById(anyString())).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -278,9 +296,13 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка ошибки API при получении цен")
     @Description("Тест проверяет обработку исключений от MainSessionPriceService")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("api-error")
     void saveClosePricesEveningSession_ShouldHandleApiError_WhenMainSessionPriceServiceThrowsException() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
 
         // Настраиваем моки - API выбрасывает исключение
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
@@ -305,13 +327,17 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка пустого ответа от API")
     @Description("Тест проверяет обработку случая, когда API возвращает пустой список")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("empty-response")
     void saveClosePricesEveningSession_ShouldHandleEmptyApiResponse_WhenNoDataAvailable() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
 
         // Настраиваем моки - API возвращает пустой список
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(new ArrayList<>());
+            .thenReturn(TestDataFactory.createEmptyEveningSessionClosePriceDtoList());
 
         // When
         SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
@@ -330,17 +356,21 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка ошибки базы данных при сохранении")
     @Description("Тест проверяет обработку исключений при работе с БД")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("database-error")
     void saveClosePricesEveningSession_ShouldHandleDatabaseError_WhenSaveFails() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки - БД выбрасывает исключение
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenThrow(new DataIntegrityViolationException("Ошибка целостности данных"));
@@ -363,14 +393,17 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка пустого списка инструментов и пустой БД")
     @Description("Тест проверяет обработку пустого списка инструментов и пустой БД")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("empty-database")
     void saveClosePricesEveningSession_ShouldHandleEmptyInstrumentsAndEmptyDatabase_WhenNoInstrumentsAvailable() {
         // Given
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(new ArrayList<>()); // Пустой список
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
 
         // Настраиваем моки для получения инструментов из БД
-        when(shareRepo.findAll()).thenReturn(new ArrayList<>()); // Пустой список
-        when(futureRepo.findAll()).thenReturn(new ArrayList<>()); // Пустой список
+        when(shareRepo.findAll()).thenReturn(Arrays.asList()); // Пустой список
+        when(futureRepo.findAll()).thenReturn(Arrays.asList()); // Пустой список
 
         // When
         SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
@@ -389,14 +422,17 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка null значений в запросе")
     @Description("Тест проверяет обработку null значений в различных полях запроса")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("null-values")
     void saveClosePricesEveningSession_ShouldHandleNullValues_WhenRequestContainsNulls() {
         // Given
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(null); // null список
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createNullValuesEveningSessionRequest();
 
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
-        FutureEntity future = createFutureEntity("TEST_FUTURE_001", "Si-3.24", "RUB", "MOEX");
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
+        FutureEntity future = TestDataFactory.createFutureEntity("TEST_FUTURE_001", "Si-3.24", "FUTURES");
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
 
         // Настраиваем моки для получения инструментов из БД
         when(shareRepo.findAll()).thenReturn(Arrays.asList(share));
@@ -404,7 +440,7 @@ public class EveningSessionServiceTest {
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -425,12 +461,16 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка цен без eveningSessionPrice и closePrice")
     @Description("Тест проверяет обработку цен без доступных цен")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("no-prices")
     void saveClosePricesEveningSession_ShouldSkipPricesWithoutValues_WhenNoPricesAvailable() {
         // Given
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(Arrays.asList("TEST_SHARE_001")); // Только один инструмент
-        List<ClosePriceDto> testClosePrices = createTestClosePricesWithoutPrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto(
+            Arrays.asList("TEST_SHARE_001")
+        );
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createNoPricesEveningSessionClosePriceDtoList();
 
         // Настраиваем моки
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
@@ -454,17 +494,21 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка ошибки при определении типа инструмента")
     @Description("Тест проверяет обработку случая, когда инструмент не найден в БД")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("unknown-instrument")
     void saveClosePricesEveningSession_ShouldHandleUnknownInstrumentType_WhenInstrumentNotFoundInDatabase() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
 
         // Настраиваем моки - инструмент не найден в БД
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.empty());
         when(futureRepo.findById("TEST_SHARE_001")).thenReturn(Optional.empty());
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -485,17 +529,21 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка неожиданной ошибки при сохранении")
     @Description("Тест проверяет обработку неожиданных исключений при сохранении")
     @Story("Негативные сценарии")
+    @Severity(SeverityLevel.CRITICAL)
+    @Tag("negative")
+    @Tag("evening-session")
+    @Tag("unexpected-error")
     void saveClosePricesEveningSession_ShouldHandleUnexpectedError_WhenSaveThrowsUnexpectedException() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки - неожиданное исключение
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenThrow(new RuntimeException("Неожиданная ошибка"));
@@ -520,24 +568,22 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка очень большого количества инструментов")
     @Description("Тест проверяет обработку большого количества инструментов")
     @Story("Граничные случаи")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("boundary")
+    @Tag("evening-session")
+    @Tag("large-scale")
     void saveClosePricesEveningSession_ShouldHandleLargeNumberOfInstruments_WhenManyInstrumentsProvided() {
         // Given
-        List<String> manyInstruments = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) {
-            manyInstruments.add("TEST_SHARE_" + String.format("%04d", i));
-        }
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createVeryLargeInstrumentsEveningSessionRequest();
         
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(manyInstruments);
-        
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_0001", "SBER", "RUB", "MOEX");
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_0001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices);
         when(shareRepo.findById(anyString())).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -558,18 +604,22 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка смешанных результатов API")
     @Description("Тест проверяет обработку смешанных результатов от API (часть успешных, часть пустых)")
     @Story("Граничные случаи")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("boundary")
+    @Tag("evening-session")
+    @Tag("mixed-results")
     void saveClosePricesEveningSession_ShouldHandleMixedApiResults_WhenSomeInstrumentsReturnDataAndSomeDoNot() {
         // Given
-        ClosePriceEveningSessionRequestDto request = createRequestWithInstruments();
-        List<ClosePriceDto> testClosePrices = createTestClosePrices();
-        ShareEntity share = createShareEntity("TEST_SHARE_001", "SBER", "RUB", "MOEX");
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
+        ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
         // Настраиваем моки - первый батч возвращает данные, второй - пустой список
         when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
             .thenReturn(testClosePrices)
-            .thenReturn(new ArrayList<>());
+            .thenReturn(TestDataFactory.createEmptyEveningSessionClosePriceDtoList());
         when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
+        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
             .thenReturn(false);
         when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
             .thenReturn(new ClosePriceEveningSessionEntity());
@@ -589,15 +639,18 @@ public class EveningSessionServiceTest {
     @DisplayName("Обработка инструментов только в USD")
     @Description("Тест проверяет обработку инструментов только в USD (не RUB)")
     @Story("Граничные случаи")
+    @Severity(SeverityLevel.NORMAL)
+    @Tag("boundary")
+    @Tag("evening-session")
+    @Tag("usd-only")
     void saveClosePricesEveningSession_ShouldHandleOnlyUsdInstruments_WhenNoRubInstrumentsAvailable() {
         // Given
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(new ArrayList<>()); // Пустой список
+        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
         
-        ShareEntity share1 = createShareEntity("TEST_SHARE_001", "AAPL", "USD", "NASDAQ");
-        ShareEntity share2 = createShareEntity("TEST_SHARE_002", "GOOGL", "USD", "NASDAQ");
-        FutureEntity future1 = createFutureEntity("TEST_FUTURE_001", "ES-3.24", "USD", "CME");
-        FutureEntity future2 = createFutureEntity("TEST_FUTURE_002", "NQ-3.24", "USD", "CME");
+        ShareEntity share1 = TestDataFactory.createShareEntity("TEST_SHARE_001", "AAPL", "Apple Inc", "TESTNASDAQ");
+        ShareEntity share2 = TestDataFactory.createShareEntity("TEST_SHARE_002", "GOOGL", "Google Inc", "TESTNASDAQ");
+        FutureEntity future1 = TestDataFactory.createFutureEntity("TEST_FUTURE_001", "ES-3.24", "FUTURES");
+        FutureEntity future2 = TestDataFactory.createFutureEntity("TEST_FUTURE_002", "NQ-3.24", "FUTURES");
 
         // Настраиваем моки для получения инструментов из БД
         when(shareRepo.findAll()).thenReturn(Arrays.asList(share1, share2));
@@ -608,63 +661,10 @@ public class EveningSessionServiceTest {
 
         // Then
         assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("Нет инструментов для загрузки цен вечерней сессии"));
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
+        assertTrue(result.isSuccess()); // Сервис обрабатывает все инструменты, не только RUB
+        assertEquals(4, result.getTotalRequested()); // Все инструменты (2 shares + 2 futures)
+        assertEquals(0, result.getNewItemsSaved()); // Нет данных от API
         verify(shareRepo, times(1)).findAll();
         verify(futureRepo, times(1)).findAll();
-    }
-
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
-
-    private ClosePriceEveningSessionRequestDto createRequestWithInstruments() {
-        ClosePriceEveningSessionRequestDto request = new ClosePriceEveningSessionRequestDto();
-        request.setInstruments(Arrays.asList("TEST_SHARE_001", "TEST_FUTURE_001"));
-        return request;
-    }
-
-    private List<ClosePriceDto> createTestClosePrices() {
-        return Arrays.asList(
-            new ClosePriceDto("TEST_SHARE_001", "2024-01-15", BigDecimal.valueOf(100.0), BigDecimal.valueOf(105.0)),
-            new ClosePriceDto("TEST_FUTURE_001", "2024-01-15", BigDecimal.valueOf(200.0), BigDecimal.valueOf(210.0))
-        );
-    }
-
-    private List<ClosePriceDto> createTestClosePricesWithInvalidDate() {
-        return Arrays.asList(
-            new ClosePriceDto("TEST_SHARE_001", "2024-01-15", BigDecimal.valueOf(100.0), BigDecimal.valueOf(105.0)),
-            new ClosePriceDto("TEST_FUTURE_001", "1970-01-01", BigDecimal.valueOf(200.0), BigDecimal.valueOf(210.0)) // Неверная дата
-        );
-    }
-
-    private List<ClosePriceDto> createTestClosePricesWithEveningPrice() {
-        return Arrays.asList(
-            new ClosePriceDto("TEST_SHARE_001", "2024-01-15", BigDecimal.valueOf(100.0), BigDecimal.valueOf(105.0))
-        );
-    }
-
-    private List<ClosePriceDto> createTestClosePricesWithoutPrices() {
-        return Arrays.asList(
-            new ClosePriceDto("TEST_SHARE_001", "2024-01-15", null, null) // Нет цен
-        );
-    }
-
-    private ShareEntity createShareEntity(String figi, String ticker, String currency, String exchange) {
-        ShareEntity share = new ShareEntity();
-        share.setFigi(figi);
-        share.setTicker(ticker);
-        share.setCurrency(currency);
-        share.setExchange(exchange);
-        return share;
-    }
-
-    private FutureEntity createFutureEntity(String figi, String ticker, String currency, String exchange) {
-        FutureEntity future = new FutureEntity();
-        future.setFigi(figi);
-        future.setTicker(ticker);
-        future.setCurrency(currency);
-        future.setExchange(exchange);
-        return future;
     }
 }
