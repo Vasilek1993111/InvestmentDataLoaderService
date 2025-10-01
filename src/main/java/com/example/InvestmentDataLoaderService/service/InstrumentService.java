@@ -151,11 +151,11 @@ public class InstrumentService {
         shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
         
         // Если инструменты не найдены, выбрасываем исключение
-        if (shares.isEmpty()) {
-            throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
-                "Акции не найдены по заданным критериям"
-            );
-        }
+        // if (shares.isEmpty()) {
+        //     throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
+        //         "Акции не найдены по заданным критериям"
+        //     );
+        // }
         
         return shares;
     }
@@ -406,12 +406,8 @@ public class InstrumentService {
         // Сортируем по тикеру
         futures.sort(Comparator.comparing(FutureDto::ticker, String.CASE_INSENSITIVE_ORDER));
         
-        // Если инструменты не найдены, выбрасываем исключение
-        if (futures.isEmpty()) {
-            throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
-                "Фьючерсы не найдены по заданным критериям"
-            );
-        }
+       
+       
         
         return futures;
     }
@@ -662,12 +658,7 @@ public class InstrumentService {
             // Сортируем по тикеру
             indicatives.sort(Comparator.comparing(IndicativeDto::ticker, String.CASE_INSENSITIVE_ORDER));
             
-            // Если инструменты не найдены, выбрасываем исключение
-            if (indicatives.isEmpty()) {
-                throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
-                    "Индикативные инструменты не найдены по заданным критериям"
-                );
-            }
+            
             
             return indicatives;
         }

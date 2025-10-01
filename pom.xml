@@ -155,7 +155,7 @@
                     <reportFormat>brief</reportFormat>
                     <!-- Allure конфигурация для Surefire -->
                     <argLine>
-                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.20.1/aspectjweaver-1.9.20.1.jar"
+                        -Xmx256m
                     </argLine>
                     <systemPropertyVariables>
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>

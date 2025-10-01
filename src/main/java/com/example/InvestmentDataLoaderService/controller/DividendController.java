@@ -78,7 +78,7 @@ public class DividendController {
      * Загрузка дивидендов по инструментам за период
      */
     @PostMapping("/load-instruments")
-    public ResponseEntity<Map<String, Object>> loadDividends(@RequestBody DividendRequestDto request) {
+    public ResponseEntity<Map<String, Object>> loadDividends(@RequestBody(required = false) DividendRequestDto request) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -101,7 +101,7 @@ public class DividendController {
     /**
      * Получение дивидендов по FIGI напрямую от T-API
      */
-    @GetMapping("/{figi}")
+    @GetMapping("/by-figi/{figi}")
     public ResponseEntity<List<DividendDto>> getDividendsByFigi(
             @PathVariable String figi,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -127,7 +127,7 @@ public class DividendController {
     /**
      * Загрузка дивидендов по FIGI с возможностью передачи дат в теле запроса
      */
-    @PostMapping("/{figi}")
+    @PostMapping("/by-figi/{figi}")
     public ResponseEntity<Map<String, Object>> loadDividendsByFigi(
             @PathVariable String figi,
             @RequestBody(required = false) Map<String, String> requestBody) {

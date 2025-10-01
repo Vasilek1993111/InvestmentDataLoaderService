@@ -112,6 +112,7 @@ public class InstrumentsController {
     ) throws ValidationException {
         // Валидация разрешенных параметров
         QueryParamValidator.validateSharesParams();
+    
         
         // Валидация параметров запроса
         SharesRequestParams params = SharesRequestParams.create(source, status, exchange, currency, ticker, figi);
@@ -128,16 +129,17 @@ public class InstrumentsController {
             
             List<ShareDto> shares = instrumentService.getSharesFromDatabase(filter);
             
-            // Если акции не найдены, возвращаем 404
+            // Если акции не найдены, возвращаем 200
             if (shares.isEmpty()) {
                 Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
+                response.put("success", true);
                 response.put("message", "Акции не найдены по заданным критериям");
                 response.put("timestamp", LocalDateTime.now().toString());
-                response.put("error", "SharesNotFound");
+                response.put("body", shares);
                 response.put("path", "/api/instruments/shares");
+
                 
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+                return ResponseEntity.status(HttpStatus.OK).body(response);
             }
             
             return ResponseEntity.ok(shares);
@@ -151,16 +153,16 @@ public class InstrumentsController {
                 params.figi()
             );
             
-            // Если акции не найдены, возвращаем 404
+            // Если акции не найдены, возвращаем 200
             if (shares.isEmpty()) {
                 Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
+                response.put("success", true);
                 response.put("message", "Акции не найдены по заданным критериям");
                 response.put("timestamp", LocalDateTime.now().toString());
-                response.put("error", "SharesNotFound");
                 response.put("path", "/api/instruments/shares");
+                response.put("body", shares);
                 
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+                return ResponseEntity.status(HttpStatus.OK).body(response);
             }
             
             return ResponseEntity.ok(shares);
@@ -322,7 +324,7 @@ public class InstrumentsController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String exchange,
             @RequestParam(required = false) String currency,
-            @RequestParam(required = false) String ticker,
+            @RequestParam(required = false) String ticker,  
             @RequestParam(required = false) String assetType
     ) throws ValidationException {
         // Валидация разрешенных параметров
@@ -339,16 +341,16 @@ public class InstrumentsController {
             params.assetType() != null ? params.assetType().getValue() : null
         );
         
-        // Если фьючерсы не найдены, возвращаем 404
+        // Если фьючерсы не найдены, возвращаем 200 с пустым списком
         if (futures.isEmpty()) {
             Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
+            response.put("success", true);
             response.put("message", "Фьючерсы не найдены по заданным критериям");
             response.put("timestamp", LocalDateTime.now().toString());
-            response.put("error", "FuturesNotFound");
             response.put("path", "/api/instruments/futures");
+            response.put("body", futures);
             
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            return ResponseEntity.status(HttpStatus.OK).body(response);
         }
         
         return ResponseEntity.ok(futures);
@@ -482,16 +484,17 @@ public class InstrumentsController {
         
         List<IndicativeDto> indicatives = instrumentService.getIndicatives(exchange, currency, ticker, figi);
         
-        // Если индикативы не найдены, возвращаем 404
+        // Если индикативы не найдены, возвращаем 200
         if (indicatives.isEmpty()) {
             Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "Индикативные инструменты не найдены по заданным критериям");
+            response.put("success", true);
+            response.put("message", "Индикативы не найдены по заданным критериям");
             response.put("timestamp", LocalDateTime.now().toString());
-            response.put("error", "IndicativesNotFound");
-            response.put("path", "/api/instruments/indicatives");
+            response.put("path", "/api/instruments/futures");
+            response.put("body", indicatives);
             
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            
+            return ResponseEntity.status(HttpStatus.OK).body(response);
         }
         
         return ResponseEntity.ok(indicatives);

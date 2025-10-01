@@ -50,3 +50,12 @@ allure-results/
 allure-report/
 allure-results-*/
 allure-report-*/
+
+### AspectJ Core Dump Files ###
+ajcore.*.txt
+
+mcp-local/
+python-mcp-server/
+.cursor/
+.allure/
+.vscode/

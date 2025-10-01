@@ -55,7 +55,7 @@ public class CandlesDailyController {
      */
     @PostMapping
     @Transactional
-    public ResponseEntity<Map<String, Object>> loadDailyCandlesTodayAsync(@RequestBody DailyCandleRequestDto request) {
+    public ResponseEntity<Map<String, Object>> loadDailyCandlesTodayAsync(@RequestBody(required = false) DailyCandleRequestDto request) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/daily";
         Instant startTime = Instant.now();
@@ -136,7 +136,7 @@ public class CandlesDailyController {
     @Transactional
     public ResponseEntity<Map<String, Object>> loadDailyCandlesForDateAsync(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestBody DailyCandleRequestDto request
+            @RequestBody(required = false) DailyCandleRequestDto request
     ) {
         String taskId = UUID.randomUUID().toString();
         String endpoint = "/api/candles/daily/" + date;

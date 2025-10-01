@@ -1,7 +1,10 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.exception.ValidationException;
 import com.example.InvestmentDataLoaderService.service.TradingService;
+import com.example.InvestmentDataLoaderService.util.QueryParamValidator;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -133,12 +136,22 @@ public class TradingController {
             @RequestParam(required = false) String exchange,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to
-    ) {
-        // Устанавливаем значения по умолчанию: сегодня и завтра
-        Instant fromInstant = from != null ? Instant.parse(from) : Instant.now();
-        Instant toInstant = to != null ? Instant.parse(to) : Instant.now().plusSeconds(86400); // +1 день
+    ) throws ValidationException {
+        // Валидация разрешенных параметров
+        QueryParamValidator.validateTradingParams();
         
-        return ResponseEntity.ok(tradingService.getTradingSchedules(exchange, fromInstant, toInstant));
+        // Валидация параметров запроса
+        TradingRequestParams params = TradingRequestParams.create(exchange, from, to);
+        
+        // Устанавливаем значения по умолчанию: сегодня и завтра
+        Instant fromInstant = params.from() != null ? params.from() : Instant.now();
+        Instant toInstant = params.to() != null ? params.to() : Instant.now().plusSeconds(86400); // +1 день
+        
+        return ResponseEntity.ok(tradingService.getTradingSchedules(
+            params.exchange() != null ? params.exchange().getValue() : null, 
+            fromInstant, 
+            toInstant
+        ));
     }
 
 
@@ -276,15 +289,25 @@ public class TradingController {
             @RequestParam(required = false) String exchange,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to
-    ) {
+    ) throws ValidationException {
+        // Валидация разрешенных параметров
+        QueryParamValidator.validateTradingParams();
+        
+        // Валидация параметров запроса
+        TradingRequestParams params = TradingRequestParams.create(exchange, from, to);
+        
         Map<String, Object> response = new HashMap<>();
         
         try {
             // Устанавливаем значения по умолчанию: сегодня и завтра
-            Instant fromInstant = from != null ? Instant.parse(from) : Instant.now();
-            Instant toInstant = to != null ? Instant.parse(to) : Instant.now().plusSeconds(86400); // +1 день
+            Instant fromInstant = params.from() != null ? params.from() : Instant.now();
+            Instant toInstant = params.to() != null ? params.to() : Instant.now().plusSeconds(86400); // +1 день
             
-            Map<String, Object> result = tradingService.getTradingDays(exchange, fromInstant, toInstant);
+            Map<String, Object> result = tradingService.getTradingDays(
+                params.exchange() != null ? params.exchange().getValue() : null, 
+                fromInstant, 
+                toInstant
+            );
             
             // Обновляем значения from и to в ответе
             result.put("from", from != null ? from : fromInstant.toString());
@@ -348,15 +371,25 @@ public class TradingController {
             @RequestParam(required = false) String exchange,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to
-    ) {
+    ) throws ValidationException {
+        // Валидация разрешенных параметров
+        QueryParamValidator.validateTradingParams();
+        
+        // Валидация параметров запроса
+        TradingRequestParams params = TradingRequestParams.create(exchange, from, to);
+        
         Map<String, Object> response = new HashMap<>();
         
         try {
             // Устанавливаем значения по умолчанию: сегодня и завтра
-            Instant fromInstant = from != null ? Instant.parse(from) : Instant.now();
-            Instant toInstant = to != null ? Instant.parse(to) : Instant.now().plusSeconds(86400); // +1 день
+            Instant fromInstant = params.from() != null ? params.from() : Instant.now();
+            Instant toInstant = params.to() != null ? params.to() : Instant.now().plusSeconds(86400); // +1 день
             
-            Map<String, Object> result = tradingService.getTradingStats(exchange, fromInstant, toInstant);
+            Map<String, Object> result = tradingService.getTradingStats(
+                params.exchange() != null ? params.exchange().getValue() : null, 
+                fromInstant, 
+                toInstant
+            );
             
             // Обновляем значения from и to в ответе
             @SuppressWarnings("unchecked")

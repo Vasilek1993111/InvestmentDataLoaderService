@@ -341,7 +341,7 @@ public class EveningSessionController {
      * Получение цен вечерней сессии для всех инструментов (акции + фьючерсы) за конкретную дату.
      * Использует данные из minute_candles
      */
-    @GetMapping("/{date}")
+    @GetMapping("/by-date/{date}")
     public ResponseEntity<Map<String, Object>> getEveningSessionPricesForAllInstruments(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Map<String, Object> response = new HashMap<>();
@@ -455,7 +455,7 @@ public class EveningSessionController {
      * Загрузка цен вечерней сессии за конкретную дату.
      * Использует данные из minute_candles, обрабатывает только акции и фьючерсы
      */
-    @PostMapping("/{date}")
+    @PostMapping("/by-date/{date}")
     @Transactional
     public ResponseEntity<Map<String, Object>> loadEveningSessionPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -984,7 +984,7 @@ public class EveningSessionController {
      * Получение цены вечерней сессии по инструменту за конкретную дату.
      * Использует данные из minute_candles
      */
-    @GetMapping("/{figi}/{date}")
+    @GetMapping("/by-figi-date/{figi}/{date}")
     public ResponseEntity<Map<String, Object>> getEveningSessionPriceByFigiAndDate(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -1046,7 +1046,7 @@ public class EveningSessionController {
      * Сохранение цены вечерней сессии по инструменту за конкретную дату.
      * Использует данные из minute_candles и сохраняет в БД
      */
-    @PostMapping("/{figi}/{date}")
+    @PostMapping("/by-figi-date/{figi}/{date}")
     @Transactional
     public ResponseEntity<Map<String, Object>> saveEveningSessionPriceByFigiAndDate(
             @PathVariable String figi,
