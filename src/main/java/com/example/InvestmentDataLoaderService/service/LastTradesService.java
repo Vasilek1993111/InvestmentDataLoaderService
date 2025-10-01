@@ -10,10 +10,9 @@ import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.repository.LastPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
-import com.example.InvestmentDataLoaderService.service.LastTradeService;
-import com.example.InvestmentDataLoaderService.service.CachedInstrumentService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -79,6 +78,7 @@ public class LastTradesService {
     /**
      * Обрабатывает обезличенные сделки для указанной даты
      */
+    @Transactional(readOnly = true)
     public SaveResponseDto processLastTrades(LocalDate date, String taskId) {
         try {
             System.out.println("[" + taskId + "] Начало обработки обезличенных сделок за " + date);
@@ -121,7 +121,7 @@ public class LastTradesService {
                             trade.getExchange()
                         );
                         
-                        lastPriceRepository.save(entity);
+                        saveLastPriceEntity(entity);
                         savedItems.add(trade);
                         savedCount++;
                     }
@@ -157,7 +157,7 @@ public class LastTradesService {
                             trade.getExchange()
                         );
                         
-                        lastPriceRepository.save(entity);
+                        saveLastPriceEntity(entity);
                         savedItems.add(trade);
                         savedCount++;
                     }
@@ -408,7 +408,7 @@ public class LastTradesService {
                     trade.getExchange()
                 );
                 
-                lastPriceRepository.save(entity);
+                            saveLastPriceEntity(entity);
                 savedItems.add(trade);
                 savedCount++;
             }
@@ -559,7 +559,7 @@ public class LastTradesService {
                                 trade.getExchange()
                             );
                             
-                            lastPriceRepository.save(entity);
+                            saveLastPriceEntity(entity);
                             savedItems.add(trade);
                             savedCount++;
                         }
@@ -618,6 +618,14 @@ public class LastTradesService {
                 e.printStackTrace();
             }
         });
+    }
+
+    /**
+     * Транзакционное сохранение LastPriceEntity
+     */
+    @Transactional
+    public void saveLastPriceEntity(LastPriceEntity entity) {
+        lastPriceRepository.save(entity);
     }
 
     /**

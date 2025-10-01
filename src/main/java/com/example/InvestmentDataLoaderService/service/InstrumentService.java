@@ -8,10 +8,13 @@ import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.client.TinkoffRestClient;
+import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -58,6 +61,7 @@ public class InstrumentService {
     private final FutureRepository futureRepo;
     private final IndicativeRepository indicativeRepo;
     private final TinkoffRestClient restClient;
+    private final TinkoffApiClient tinkoffApiClient;
 
     /**
      * Конструктор сервиса инструментов
@@ -67,17 +71,20 @@ public class InstrumentService {
      * @param futureRepo репозиторий для работы с фьючерсами в БД
      * @param indicativeRepo репозиторий для работы с индикативными инструментами в БД
      * @param restClient REST клиент для получения индикативных инструментов из Tinkoff API
+     * @param tinkoffApiClient API клиент для получения полной информации о фьючерсах
      */
     public InstrumentService(InstrumentsServiceBlockingStub instrumentsService,
                            ShareRepository shareRepo,
                            FutureRepository futureRepo,
                            IndicativeRepository indicativeRepo,
-                           TinkoffRestClient restClient) {
+                           TinkoffRestClient restClient,
+                           TinkoffApiClient tinkoffApiClient) {
         this.instrumentsService = instrumentsService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
         this.indicativeRepo = indicativeRepo;
         this.restClient = restClient;
+        this.tinkoffApiClient = tinkoffApiClient;
     }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С АКЦИЯМИ ===
@@ -134,7 +141,8 @@ public class InstrumentService {
                     instrument.getCurrency(),
                     instrument.getExchange(),
                     instrument.getSector(),
-                    instrument.getTradingStatus().name()
+                    instrument.getTradingStatus().name(),
+                    instrument.getShortEnabledFlag()
                 ));
             }
         }
@@ -168,6 +176,7 @@ public class InstrumentService {
      * @param filter фильтр для получения акций из API
      * @return результат операции сохранения с детальной статистикой
      */
+    @Transactional
     public SaveResponseDto saveShares(ShareFilterDto filter) {
         // Получаем акции из API (используем существующий метод)
         List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getFigi());
@@ -187,6 +196,7 @@ public class InstrumentService {
                     shareDto.exchange(),
                     shareDto.sector(),
                     shareDto.tradingStatus(),
+                    shareDto.shortEnabled(),
                     null, // createdAt будет установлен автоматически
                     null  // updatedAt будет установлен автоматически
                 );
@@ -200,6 +210,19 @@ public class InstrumentService {
                 }
             } else {
                 existingCount++;
+                // Обновляем shortEnabled у существующей записи, если он изменился/пустой
+                shareRepo.findById(shareDto.figi()).ifPresent(entity -> {
+                    Boolean newValue = shareDto.shortEnabled();
+                    Boolean oldValue = entity.getShortEnabled();
+                    if ((newValue != null && !newValue.equals(oldValue)) || (oldValue == null && newValue != null)) {
+                        entity.setShortEnabled(newValue);
+                        try {
+                            shareRepo.save(entity);
+                        } catch (Exception e) {
+                            System.err.println("Error updating share shortEnabled " + shareDto.figi() + ": " + e.getMessage());
+                        }
+                    }
+                });
             }
         }
         
@@ -265,7 +288,8 @@ public class InstrumentService {
                     entity.getCurrency(),
                     entity.getExchange(),
                     entity.getSector(),
-                    entity.getTradingStatus()
+                    entity.getTradingStatus(),
+                    entity.getShortEnabled()
                 ));
             }
         }
@@ -290,7 +314,8 @@ public class InstrumentService {
                     entity.getCurrency(),
                     entity.getExchange(),
                     entity.getSector(),
-                    entity.getTradingStatus()
+                    entity.getTradingStatus(),
+                    entity.getShortEnabled()
                 ))
                 .orElse(null);
     }
@@ -310,7 +335,8 @@ public class InstrumentService {
                     entity.getCurrency(),
                     entity.getExchange(),
                     entity.getSector(),
-                    entity.getTradingStatus()
+                    entity.getTradingStatus(),
+                    entity.getShortEnabled()
                 ))
                 .orElse(null);
     }
@@ -337,6 +363,13 @@ public class InstrumentService {
                 .setInstrumentStatus(instrumentStatus)
                 .build());
         
+        // Задержка для соблюдения лимитов API
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
         List<FutureDto> futures = new ArrayList<>();
         for (var instrument : response.getInstrumentsList()) {
             // Применяем фильтры
@@ -350,13 +383,22 @@ public class InstrumentService {
                                       instrument.getAssetType().equalsIgnoreCase(assetType));
             
             if (matchesExchange && matchesCurrency && matchesTicker && matchesAssetType) {
+                // Получаем дату экспирации из того же объекта instrument
+                LocalDateTime expirationDate = null;
+                
+                if (instrument.hasExpirationDate()) {
+                    expirationDate = tinkoffApiClient.convertTimestampToLocalDateTime(instrument.getExpirationDate());
+                }
+                
                 futures.add(new FutureDto(
                     instrument.getFigi(),
                     instrument.getTicker(),
                     instrument.getAssetType(),
                     instrument.getBasicAsset(),
                     instrument.getCurrency(),
-                    instrument.getExchange()
+                    instrument.getExchange(),
+                    true,
+                    expirationDate
                 ));
             }
         }
@@ -374,6 +416,7 @@ public class InstrumentService {
         return futures;
     }
 
+    @Transactional
     public SaveResponseDto saveFutures(FutureFilterDto filter) {
         // Получаем фьючерсы из API (используем существующий метод)
         List<FutureDto> futuresFromApi = getFutures(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getAssetType());
@@ -391,7 +434,9 @@ public class InstrumentService {
                     futureDto.assetType(),
                     futureDto.basicAsset(),
                     futureDto.currency(),
-                    futureDto.exchange()
+                    futureDto.exchange(),
+                    Boolean.TRUE,
+                    futureDto.expirationDate()
                 );
                 
                 try {
@@ -403,6 +448,34 @@ public class InstrumentService {
                 }
             } else {
                 existingCount++;
+                // Обновляем shortEnabled и expirationDate у существующей записи
+                futureRepo.findById(futureDto.figi()).ifPresent(entity -> {
+                    boolean needsUpdate = false;
+                    
+                    // Обновляем shortEnabled (для фьючерсов true, если null)
+                    Boolean newShortEnabled = Boolean.TRUE;
+                    Boolean oldShortEnabled = entity.getShortEnabled();
+                    if (oldShortEnabled == null || !newShortEnabled.equals(oldShortEnabled)) {
+                        entity.setShortEnabled(newShortEnabled);
+                        needsUpdate = true;
+                    }
+                    
+                    // Обновляем expirationDate
+                    LocalDateTime newExpirationDate = futureDto.expirationDate();
+                    LocalDateTime oldExpirationDate = entity.getExpirationDate();
+                    if (newExpirationDate != null && !newExpirationDate.equals(oldExpirationDate)) {
+                        entity.setExpirationDate(newExpirationDate);
+                        needsUpdate = true;
+                    }
+                    
+                    if (needsUpdate) {
+                        try {
+                            futureRepo.save(entity);
+                        } catch (Exception e) {
+                            System.err.println("Error updating future " + futureDto.figi() + ": " + e.getMessage());
+                        }
+                    }
+                });
             }
         }
         
@@ -443,7 +516,8 @@ public class InstrumentService {
                     entity.getAssetType(),
                     entity.getBasicAsset(),
                     entity.getCurrency(),
-                    entity.getExchange()
+                    entity.getExchange(),
+                    entity.getShortEnabled()
                 ))
                 .orElse(null);
     }
@@ -459,7 +533,8 @@ public class InstrumentService {
                     entity.getAssetType(),
                     entity.getBasicAsset(),
                     entity.getCurrency(),
-                    entity.getExchange()
+                    entity.getExchange(),
+                    entity.getShortEnabled()
                 ))
                 .orElse(null);
     }
@@ -661,6 +736,7 @@ public class InstrumentService {
         }
     }
 
+    @Transactional
     public SaveResponseDto saveIndicatives(IndicativeFilterDto filter) {
         // Получаем индикативные инструменты из API
         List<IndicativeDto> indicativesFromApi = getIndicatives(

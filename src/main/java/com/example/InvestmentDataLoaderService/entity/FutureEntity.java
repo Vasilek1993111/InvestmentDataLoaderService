@@ -31,6 +31,12 @@ public class FutureEntity {
     @Column(name = "exchange", nullable = false)
     private String exchange;
     
+    @Column(name = "short_enabled")
+    private Boolean shortEnabled;
+    
+    @Column(name = "expiration_date")
+    private LocalDateTime expirationDate;
+    
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
     
@@ -38,15 +44,29 @@ public class FutureEntity {
     private LocalDateTime updatedAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
 
     public FutureEntity(String figi, String ticker, String assetType, String basicAsset, 
-                       String currency, String exchange) {
+                       String currency, String exchange, Boolean shortEnabled, LocalDateTime expirationDate) {
         this.figi = figi;
         this.ticker = ticker;
         this.assetType = assetType;
         this.basicAsset = basicAsset;
         this.currency = currency;
         this.exchange = exchange;
+        this.shortEnabled = shortEnabled;
+        this.expirationDate = expirationDate;
         this.createdAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
         this.updatedAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
+    }
+
+    // Совместимость со старой сигнатурой (без shortEnabled и expirationDate)
+    public FutureEntity(String figi, String ticker, String assetType, String basicAsset,
+                        String currency, String exchange) {
+        this(figi, ticker, assetType, basicAsset, currency, exchange, null, null);
+    }
+    
+    // Совместимость со старой сигнатурой (без expirationDate)
+    public FutureEntity(String figi, String ticker, String assetType, String basicAsset,
+                        String currency, String exchange, Boolean shortEnabled) {
+        this(figi, ticker, assetType, basicAsset, currency, exchange, shortEnabled, null);
     }
 
     @PreUpdate

@@ -9,6 +9,7 @@ import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ public class CachedInstrumentService {
      * 
      * @return список всех акций
      */
+    @Transactional(readOnly = true)
     public List<ShareEntity> getAllShares() {
         try {
             // Пытаемся получить из кэша
@@ -70,6 +72,7 @@ public class CachedInstrumentService {
      * 
      * @return список всех фьючерсов
      */
+    @Transactional(readOnly = true)
     public List<FutureEntity> getAllFutures() {
         try {
             // Пытаемся получить из кэша
@@ -219,6 +222,7 @@ public class CachedInstrumentService {
                     entity.setExchange(dto.exchange());
                     entity.setSector(dto.sector());
                     entity.setTradingStatus(dto.tradingStatus());
+                    entity.setShortEnabled(dto.shortEnabled());
                     return entity;
                 })
                 .collect(Collectors.toList());
@@ -235,7 +239,8 @@ public class CachedInstrumentService {
                     dto.assetType(),
                     dto.basicAsset(),
                     dto.currency(),
-                    dto.exchange()
+                    dto.exchange(),
+                    dto.shortEnabled()
                 ))
                 .collect(Collectors.toList());
     }

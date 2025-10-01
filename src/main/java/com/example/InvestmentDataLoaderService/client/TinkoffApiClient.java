@@ -11,6 +11,7 @@ import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlo
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -200,5 +201,46 @@ public class TinkoffApiClient {
     private BigDecimal convertMoneyValueToBigDecimal(MoneyValue moneyValue) {
         return BigDecimal.valueOf(moneyValue.getUnits())
             .add(BigDecimal.valueOf(moneyValue.getNano(), 9));
+    }
+    
+    /**
+     * Получение полной информации о фьючерсе по FIGI
+     * Включает дату экспирации
+     * 
+     * ⚠️ ВНИМАНИЕ: Этот метод делает запрос ко всем фьючерсам, используйте с осторожностью!
+     */
+    public Future getFutureBy(String figi) {
+        try {
+            // Задержка для соблюдения лимитов API
+            Thread.sleep(500);
+            
+            // Получаем все фьючерсы и ищем нужный по FIGI
+            FuturesResponse response = instrumentsService.futures(
+                InstrumentsRequest.newBuilder()
+                    .setInstrumentStatus(InstrumentStatus.INSTRUMENT_STATUS_BASE)
+                    .build()
+            );
+            
+            // Ищем фьючерс с нужным FIGI
+            for (Future future : response.getInstrumentsList()) {
+                if (future.getFigi().equals(figi)) {
+                    return future;
+                }
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения фьючерса " + figi + ": " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Конвертация protobuf Timestamp в LocalDateTime
+     */
+    public LocalDateTime convertTimestampToLocalDateTime(Timestamp timestamp) {
+        Instant instant = Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+        return instant.atZone(ZoneId.of("Europe/Moscow")).toLocalDateTime();
     }
 }

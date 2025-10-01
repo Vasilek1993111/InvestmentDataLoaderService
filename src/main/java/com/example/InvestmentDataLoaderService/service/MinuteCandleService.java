@@ -12,6 +12,7 @@ import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -244,7 +245,7 @@ public class MinuteCandleService {
                 if (!entitiesToSave.isEmpty()) {
                     CompletableFuture.runAsync(() -> {
                         try {
-                            minuteCandleRepository.saveAll(entitiesToSave);
+                            saveMinuteCandlesBatch(entitiesToSave);
                             figiNewItems.addAndGet(entitiesToSave.size());
                             newItemsSaved.addAndGet(entitiesToSave.size());
                             System.out.println("Сохранено " + entitiesToSave.size() + " новых свечей для " + figi);
@@ -277,6 +278,7 @@ public class MinuteCandleService {
     /**
      * Получает все ID инструментов по типам активов
      */
+    @Transactional(readOnly = true)
     private List<String> getAllInstrumentIds(List<String> assetTypes) {
         List<String> allIds = new ArrayList<>();
         
@@ -330,8 +332,17 @@ public class MinuteCandleService {
     }
 
     /**
+     * Транзакционное пакетное сохранение минутных свечей
+     */
+    @Transactional
+    public void saveMinuteCandlesBatch(List<MinuteCandleEntity> entities) {
+        minuteCandleRepository.saveAll(entities);
+    }
+
+    /**
      * Логирует обработку конкретного FIGI в system_logs
      */
+    @Transactional
     private void logFigiProcessing(String taskId, String figi, String status, String message, 
                                  Instant startTime, int totalCandles, int newItems, int existingItems, int invalidItems) {
         try {
