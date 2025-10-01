@@ -47,7 +47,18 @@ public enum AllowedQueryParam {
     /**
      * Тип актива (только для фьючерсов)
      */
-    ASSET_TYPE("assetType");
+    ASSET_TYPE("assetType"),
+
+ /**
+     * Начальная дата (для торговых расписаний)
+     */
+    FROM("from"),
+    
+    /**
+     * Конечная дата (для торговых расписаний)
+     */
+    TO("to");
+    
     
     private final String value;
     
@@ -58,7 +69,14 @@ public enum AllowedQueryParam {
     public String getValue() {
         return value;
     }
-    
+
+
+    public static String[] getTradingSchedulesParams() {
+        return new String[]{
+            EXCHANGE.value, FROM.value, TO.value
+        };
+    }
+
     /**
      * Проверяет, является ли строка разрешенным параметром
      * 

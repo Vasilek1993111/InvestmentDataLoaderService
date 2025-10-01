@@ -647,7 +647,7 @@ public class MainSessionPricesController {
     /**
      * Получение цены закрытия по инструменту из T-INVEST API
      */
-    @GetMapping("/{figi}")
+    @GetMapping("/by-figi/{figi}")
     public ResponseEntity<Map<String, Object>> getClosePriceByFigi(@PathVariable String figi) {
         Map<String, Object> response = new HashMap<>();
         
@@ -854,7 +854,7 @@ public class MainSessionPricesController {
      * Работает только с рабочими днями, использует данные из minute_candles
      * Обрабатывает только акции и фьючерсы
      */
-    @PostMapping("/{date}")
+    @PostMapping("/by-date/{date}")
     @Transactional
     public ResponseEntity<Map<String, Object>> loadMainSessionPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

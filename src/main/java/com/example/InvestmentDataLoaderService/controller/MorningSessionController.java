@@ -110,7 +110,7 @@ public class MorningSessionController {
     /**
      * Загрузка цен открытия по акциям и фьючерсам за дату
      */
-    @PostMapping("/{date}")
+    @PostMapping("/by-date/{date}")
     @Transactional
     public ResponseEntity<Map<String, Object>> loadOpenPricesForDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -152,7 +152,7 @@ public class MorningSessionController {
     /**
      * Поиск свечей за указанный день
      */
-    @GetMapping("/{date}")
+    @GetMapping("/by-date/{date}")
     public ResponseEntity<Map<String, Object>> getCandlesByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
@@ -370,7 +370,7 @@ public class MorningSessionController {
     /**
      * Загрузка цены открытия по FIGI за дату
      */
-    @PostMapping("/{figi}/{date}")
+    @PostMapping("/by-figi-date/{figi}/{date}")
     @Transactional
     public ResponseEntity<Map<String, Object>> loadPriceByFigiForDate(
             @PathVariable String figi,
@@ -426,7 +426,7 @@ public class MorningSessionController {
     /**
      * Поиск цены открытия по FIGI за дату
      */
-    @GetMapping("/{figi}/{date}")
+    @GetMapping("/by-figi-date/{figi}/{date}")
     public ResponseEntity<Map<String, Object>> getPriceByFigiForDate(
             @PathVariable String figi,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

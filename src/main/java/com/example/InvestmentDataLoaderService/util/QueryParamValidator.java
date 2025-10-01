@@ -32,7 +32,16 @@ public class QueryParamValidator {
     public static void validateFuturesParams() throws ValidationException {
         validateParams(AllowedQueryParam.getFuturesParams(), "фьючерсов");
     }
-    
+
+    /**
+     * Валидирует GET параметры для торговых операций
+     * 
+    @throws ValidationException если переданы недопустимые параметры
+    */
+   public static void validateTradingParams() throws ValidationException {
+       validateParams(AllowedQueryParam.getTradingSchedulesParams(), "торговых операций");
+   }
+
     /**
      * Валидирует GET параметры для индикативов
      * 

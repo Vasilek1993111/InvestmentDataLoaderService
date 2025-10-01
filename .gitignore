@@ -55,3 +55,7 @@ allure-report-*/
 ajcore.*.txt
 
 mcp-local/
+python-mcp-server/
+.cursor/
+.allure/
+.vscode/
