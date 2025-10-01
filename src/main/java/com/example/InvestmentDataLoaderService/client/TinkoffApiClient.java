@@ -130,6 +130,9 @@ public class TinkoffApiClient {
         }
         
         try {
+            // Задержка для соблюдения лимитов API
+            Thread.sleep(200);
+            
             // Создаем запрос для получения дивидендов
             GetDividendsRequest request = GetDividendsRequest.newBuilder()
                 .setInstrumentId(figi)

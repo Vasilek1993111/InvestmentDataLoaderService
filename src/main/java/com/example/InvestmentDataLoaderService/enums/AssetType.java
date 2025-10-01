@@ -7,17 +7,17 @@ public enum AssetType {
     /**
      * Товарные активы (нефть, золото, серебро и т.д.)
      */
-    COMMODITY("COMMODITY"),
+    COMMODITY("TYPE_COMMODITY"),
     
     /**
      * Валютные активы (доллар, евро и т.д.)
      */
-    CURRENCY("CURRENCY"),
+    CURRENCY("TYPE_CURRENCY"),
     
     /**
      * Акции
      */
-    EQUITY("EQUITY"),
+    EQUITY("TYPE_SECURITY"),
     
     /**
      * Облигации
@@ -27,7 +27,7 @@ public enum AssetType {
     /**
      * Индексы
      */
-    INDEX("INDEX"),
+    INDEX("TYPE_INDEX"),
     
     /**
      * Процентные ставки

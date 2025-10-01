@@ -54,6 +54,9 @@ public class DividendService {
         // Загружаем дивиденды для всех FIGI
         for (String figi : figisToProcess) {
             try {
+                // Задержка для соблюдения лимитов API
+                Thread.sleep(300);
+                
                 // Получаем дивиденды из T-Bank API
                 List<DividendEntity> dividends = tinkoffApiClient.getDividends(figi, from, to);
                 totalFromApi += dividends.size();
@@ -244,6 +247,9 @@ public class DividendService {
             // Загружаем дивиденды для каждого FIGI
             for (String figi : allShareFigis) {
                 try {
+                    // Задержка для соблюдения лимитов API
+                    Thread.sleep(300);
+                    
                     // Получаем дивиденды из T-API
                     List<DividendEntity> dividends = tinkoffApiClient.getDividends(figi, from, to);
                     totalFromApi += dividends.size();
@@ -311,6 +317,9 @@ public class DividendService {
             // Получаем дивиденды для каждого FIGI
             for (String figi : allShareFigis) {
                 try {
+                    // Задержка для соблюдения лимитов API
+                    Thread.sleep(300);
+                    
                     List<DividendEntity> dividends = tinkoffApiClient.getDividends(figi, from, to);
                     allDividends.addAll(dividends);
                 } catch (Exception e) {
