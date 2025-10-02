@@ -49,7 +49,8 @@ public class TestDataFactory {
             "RUB",
             "moex_mrng_evng_e_wknd_dlr",
             "Financials",
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+            true
         );
     }
 
@@ -66,7 +67,8 @@ public class TestDataFactory {
             "RUB",
             "moex_mrng_evng_e_wknd_dlr",
             "Financials",
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+            true
         );
     }
 
@@ -82,7 +84,9 @@ public class TestDataFactory {
             "FUTURES",
             "SBER",
             "RUB",
-            "moex_mrng_evng_e_wknd_dlr"
+            "moex_mrng_evng_e_wknd_dlr",
+            true,
+            LocalDateTime.of(2024, 3, 15, 18, 45)
         );
     }
 
@@ -98,7 +102,9 @@ public class TestDataFactory {
             assetType,
             "SBER",
             "RUB",
-            "moex_mrng_evng_e_wknd_dlr"
+            "moex_mrng_evng_e_wknd_dlr",
+            true,
+            LocalDateTime.of(2024, 3, 15, 18, 45)
         );
     }
 
@@ -285,7 +291,8 @@ public class TestDataFactory {
             "RUB", 
             "moex_mrng_evng_e_wknd_dlr", 
             "Financial", 
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+            true
         );
     }
 
@@ -303,7 +310,8 @@ public class TestDataFactory {
             "RUB", 
             "moex_mrng_evng_e_wknd_dlr", 
             "Energy", 
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+            true
         );
     }
 
@@ -321,7 +329,8 @@ public class TestDataFactory {
             "RUB", 
             "moex_mrng_evng_e_wknd_dlr", 
             "Energy", 
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING"
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+            true
         );
     }
 
@@ -353,7 +362,9 @@ public class TestDataFactory {
             "COMMODITY", 
             "Silver", 
             "USD", 
-            "moex_mrng_evng_e_wknd_dlr"
+            "moex_mrng_evng_e_wknd_dlr",
+            true,
+            LocalDateTime.of(2024, 6, 24, 18, 45)
         );
     }
 
@@ -370,7 +381,9 @@ public class TestDataFactory {
             "COMMODITY", 
             "Gold", 
             "USD", 
-            "moex_mrng_evng_e_wknd_dlr"
+            "moex_mrng_evng_e_wknd_dlr",
+            true,
+            LocalDateTime.of(2024, 6, 24, 18, 45)
         );
     }
 

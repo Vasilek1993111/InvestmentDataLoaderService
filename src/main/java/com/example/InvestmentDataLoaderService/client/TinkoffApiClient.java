@@ -120,15 +120,27 @@ public class TinkoffApiClient {
         
         return new ArrayList<>();
     }
+  /**
+ * Получение дивидендов из Tinkoff Invest API с простой задержкой
+ */
+public List<DividendEntity> getDividends(String figi, LocalDate from, LocalDate to) {
+    if (figi == null || figi.trim().isEmpty()) {
+        return new ArrayList<>();
+    }
     
-    /**
-     * Получение дивидендов из Tinkoff Invest API
-     */
-    public List<DividendEntity> getDividends(String figi, LocalDate from, LocalDate to) {
-        if (figi == null || figi.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-        
+    // Простая задержка перед запросом
+    try {
+        Thread.sleep(200); // 200ms задержка для соблюдения лимитов
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return new ArrayList<>();
+    }
+    
+    // Повторные попытки при ошибках
+    int maxRetries = 2;
+    int baseRetryDelay = 4000;
+    
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             // Создаем запрос для получения дивидендов
             GetDividendsRequest request = GetDividendsRequest.newBuilder()
@@ -182,10 +194,23 @@ public class TinkoffApiClient {
             return dividends;
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения дивидендов для " + figi + ": " + e.getMessage());
-            return new ArrayList<>();
+            System.err.println("Ошибка получения дивидендов для " + figi + " (попытка " + attempt + "/" + maxRetries + "): " + e.getMessage());
+            
+            if (attempt < maxRetries) {
+                int retryDelay = baseRetryDelay * (int) Math.pow(2, attempt - 1);
+                try {
+                    Thread.sleep(retryDelay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
     }
+    
+    System.err.println("Не удалось получить дивиденды для " + figi + " после " + maxRetries + " попыток");
+    return new ArrayList<>();
+}
     
     /**
      * Конвертация protobuf Timestamp в LocalDate

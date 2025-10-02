@@ -3,8 +3,12 @@ package com.example.InvestmentDataLoaderService.service;
 import com.example.InvestmentDataLoaderService.entity.DividendEntity;
 import com.example.InvestmentDataLoaderService.repository.DividendRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+
+import jakarta.persistence.EntityManager;
+
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +30,8 @@ public class DividendService {
     
     @Autowired
     private TinkoffApiClient tinkoffApiClient;
+    @Autowired
+    private EntityManager entityManager;
     
     @Transactional
     public Map<String, Object> loadDividendsForInstruments(List<String> instruments, LocalDate from, LocalDate to) {
@@ -224,79 +230,81 @@ public class DividendService {
         return result;
     }
     
-    /**
-     * Загрузка дивидендов для всех акций в БД с подробной статистикой
-     */
-    @Transactional
-    public Map<String, Object> loadDividendsForAllSharesToDb(LocalDate from, LocalDate to) {
-        Map<String, Object> result = new HashMap<>();
-        int totalLoaded = 0;
-        int totalFromApi = 0;
-        int alreadyExists = 0;
-        int processedInstruments = 0;
-        int errorInstruments = 0;
-        
-        try {
-            // Получаем все FIGI акций
+   /**
+ * Загрузка дивидендов для указанных инструментов в БД
+ */
+public Map<String, Object> loadDividendsForAllSharesToDb(List<String> instruments, LocalDate from, LocalDate to) {
+    Map<String, Object> result = new HashMap<>();
+    int totalLoaded = 0;
+    int totalFromApi = 0;
+    int alreadyExists = 0;
+    int processedInstruments = 0;
+    int errorInstruments = 0;
+
+    // Обрабатываем список инструментов
+    List<String> figisToProcess = new ArrayList<>();
+
+    for (String instrument : instruments) {
+        if ("SHARES".equalsIgnoreCase(instrument)) {
+            // Если передано ключевое слово SHARES, загружаем все акции
             List<String> allShareFigis = shareRepository.findAllFigis();
+            figisToProcess.addAll(allShareFigis);
             System.out.println("Загружаем дивиденды для всех акций (" + allShareFigis.size() + " инструментов)");
+        } else {
+            // Обычный FIGI инструмента
+            figisToProcess.add(instrument);
+        }
+    }
+
+    System.out.println("Всего инструментов для обработки: " + figisToProcess.size());
+
+    // Загружаем дивиденды для всех FIGI
+    for (String figi : figisToProcess) {
+        try {
+            // Каждый инструмент в отдельной транзакции
+            Map<String, Object> instrumentResult = loadDividendsForSingleInstrument(figi, from, to);
             
-            // Загружаем дивиденды для каждого FIGI
-            for (String figi : allShareFigis) {
-                try {
-                    // Получаем дивиденды из T-API
-                    List<DividendEntity> dividends = tinkoffApiClient.getDividends(figi, from, to);
-                    totalFromApi += dividends.size();
-                    
-                    for (DividendEntity dividend : dividends) {
-                        // Проверяем, не существует ли уже такая запись
-                        if (!dividendRepository.existsByFigiAndRecordDate(dividend.getFigi(), dividend.getRecordDate())) {
-                            dividendRepository.save(dividend);
-                            totalLoaded++;
-                        } else {
-                            alreadyExists++;
-                        }
-                    }
-                    
-                    processedInstruments++;
-                } catch (Exception e) {
-                    System.err.println("Ошибка загрузки дивидендов для " + figi + ": " + e.getMessage());
-                    errorInstruments++;
-                }
+            if ((Boolean) instrumentResult.get("success")) {
+                totalFromApi += (Integer) instrumentResult.get("totalFromApi");
+                totalLoaded += (Integer) instrumentResult.get("totalLoaded");
+                alreadyExists += (Integer) instrumentResult.get("alreadyExists");
+                processedInstruments++;
+            } else {
+                errorInstruments++;
             }
             
-            result.put("success", true);
-            result.put("from", from.toString());
-            result.put("to", to.toString());
-            result.put("processedInstruments", processedInstruments);
-            result.put("errorInstruments", errorInstruments);
-            result.put("totalFromApi", totalFromApi);
-            result.put("totalLoaded", totalLoaded);
-            result.put("alreadyExists", alreadyExists);
-            
-            if (totalLoaded > 0) {
-                result.put("message", "Успешно загружено " + totalLoaded + " новых записей о дивидендах для " + processedInstruments + " инструментов");
-            } else if (alreadyExists > 0) {
-                result.put("message", "Дивиденды уже существуют в БД (" + alreadyExists + " записей для " + processedInstruments + " инструментов)");
-            } else {
-                result.put("message", "Дивиденды не найдены в указанном периоде для " + processedInstruments + " инструментов");
+            // Логируем прогресс каждые 50 инструментов
+            if (processedInstruments % 50 == 0) {
+                System.out.println("Обработано " + processedInstruments + " из " + figisToProcess.size() + " инструментов");
             }
             
         } catch (Exception e) {
-            result.put("success", false);
-            result.put("message", "Ошибка загрузки дивидендов по всем акциям: " + e.getMessage());
-            result.put("from", from.toString());
-            result.put("to", to.toString());
-            result.put("processedInstruments", 0);
-            result.put("errorInstruments", 0);
-            result.put("totalFromApi", 0);
-            result.put("totalLoaded", 0);
-            result.put("alreadyExists", 0);
+            System.err.println("Ошибка загрузки дивидендов для " + figi + ": " + e.getMessage());
+            errorInstruments++;
         }
-        
-        return result;
     }
-    
+
+    result.put("success", true);
+    result.put("from", from.toString());
+    result.put("to", to.toString());
+    result.put("requestedInstruments", instruments);
+    result.put("processedInstruments", processedInstruments);
+    result.put("errorInstruments", errorInstruments);
+    result.put("totalFromApi", totalFromApi);
+    result.put("totalLoaded", totalLoaded);
+    result.put("alreadyExists", alreadyExists);
+
+    if (totalLoaded > 0) {
+        result.put("message", "Успешно загружено " + totalLoaded + " новых записей о дивидендах для " + processedInstruments + " инструментов");
+    } else if (alreadyExists > 0) {
+        result.put("message", "Дивиденды уже существуют в БД (" + alreadyExists + " записей для " + processedInstruments + " инструментов)");
+    } else {
+        result.put("message", "Дивиденды не найдены в указанном периоде для " + processedInstruments + " инструментов");
+    }
+
+    return result;
+}
+   
     /**
      * Получение дивидендов для всех акций от T-API без сохранения в БД
      */
