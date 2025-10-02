@@ -7,43 +7,7 @@ public enum AssetType {
     /**
      * Товарные активы (нефть, золото, серебро и т.д.)
      */
-    COMMODITY("TYPE_COMMODITY"),
-    
-    /**
-     * Валютные активы (доллар, евро и т.д.)
-     */
-    CURRENCY("TYPE_CURRENCY"),
-    
-    /**
-     * Акции
-     */
-    EQUITY("TYPE_SECURITY"),
-    
-    /**
-     * Облигации
-     */
-    BOND("BOND"),
-    
-    /**
-     * Индексы
-     */
-    INDEX("TYPE_INDEX"),
-    
-    /**
-     * Процентные ставки
-     */
-    INTEREST_RATE("INTEREST_RATE"),
-    
-    /**
-     * Криптовалюты
-     */
-    CRYPTO("CRYPTO"),
-    
-    /**
-     * Неизвестный тип актива
-     */
-    UNKNOWN("UNKNOWN");
-    
+   
     private final String value;
     
     AssetType(String value) {

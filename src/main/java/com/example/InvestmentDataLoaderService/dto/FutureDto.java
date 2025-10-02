@@ -1,5 +1,6 @@
 package com.example.InvestmentDataLoaderService.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 
 public record FutureDto(
@@ -8,8 +9,9 @@ public record FutureDto(
     String assetType,
     String basicAsset,
     String currency,
-    String exchange,
+    String exchange,    
     Boolean shortEnabled,
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime expirationDate
 ) {
     // Совместимость с кодом, ожидающим 6 аргументов (без shortEnabled и expirationDate)
