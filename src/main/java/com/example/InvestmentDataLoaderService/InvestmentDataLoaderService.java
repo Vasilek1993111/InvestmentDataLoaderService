@@ -14,3 +14,4 @@ public class InvestmentDataLoaderService {
         SpringApplication.run(InvestmentDataLoaderService.class, args);
     }
 }
+
