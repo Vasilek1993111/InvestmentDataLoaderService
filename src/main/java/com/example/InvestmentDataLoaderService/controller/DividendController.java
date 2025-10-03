@@ -46,57 +46,44 @@ public class DividendController {
         }
     }
     
-    /**
-     * Загрузка дивидендов по всем акциям в БД
-     */
-    @PostMapping("/load")
-    public ResponseEntity<Map<String, Object>> loadDividendsForAllShares(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            // Устанавливаем значения по умолчанию
-            LocalDate defaultFrom = from != null ? from : LocalDate.of(2024, 1, 1);
-            LocalDate defaultTo = to != null ? to : LocalDate.of(2026, 12, 31);
-            
-            // Загружаем дивиденды для всех акций в БД
-            Map<String, Object> result = dividendService.loadDividendsForAllSharesToDb(defaultFrom, defaultTo);
-            result.put("timestamp", LocalDate.now().toString());
-            
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки дивидендов по всем акциям: " + e.getMessage());
-            response.put("timestamp", LocalDate.now().toString());
-            return ResponseEntity.status(500).body(response);
-        }
-    }
+   /**
+ * Загрузка дивидендов по инструментам в БД
+ */
+@PostMapping("/load")
+public ResponseEntity<Map<String, Object>> loadDividends(
+        @RequestBody DividendRequestDto request) {
     
-    /**
-     * Загрузка дивидендов по инструментам за период
-     */
-    @PostMapping("/load-instruments")
-    public ResponseEntity<Map<String, Object>> loadDividends(@RequestBody(required = false) DividendRequestDto request) {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            Map<String, Object> result = dividendService.loadDividendsForInstruments(
-                request.getInstruments(), 
-                request.getFrom(), 
-                request.getTo()
-            );
-            result.put("timestamp", LocalDate.now().toString());
-            
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
+    Map<String, Object> response = new HashMap<>();
+    
+    try {
+        // Валидация входных параметров
+        if (request.getInstruments() == null || request.getInstruments().isEmpty()) {
             response.put("success", false);
-            response.put("message", "Ошибка загрузки дивидендов: " + e.getMessage());
+            response.put("message", "Список инструментов не может быть пустым");
             response.put("timestamp", LocalDate.now().toString());
-            return ResponseEntity.status(500).body(response);
+            return ResponseEntity.badRequest().body(response);
         }
+        
+        // Устанавливаем значения по умолчанию для дат
+        LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(2024, 1, 1);
+        LocalDate to = request.getTo() != null ? request.getTo() : LocalDate.of(2026, 12, 31);
+        
+        System.out.println("Начинаем загрузку дивидендов для инструментов: " + request.getInstruments());
+        System.out.println("Период: " + from + " - " + to);
+        
+        // Загружаем дивиденды для указанных инструментов
+        Map<String, Object> result = dividendService.loadDividendsForAllSharesToDb(request.getInstruments(), from, to);
+        result.put("timestamp", LocalDate.now().toString());
+        
+        return ResponseEntity.ok(result);
+        
+    } catch (Exception e) {
+        response.put("success", false);
+        response.put("message", "Ошибка загрузки дивидендов: " + e.getMessage());
+        response.put("timestamp", LocalDate.now().toString());
+        return ResponseEntity.status(500).body(response);
     }
+}
     
     /**
      * Получение дивидендов по FIGI напрямую от T-API

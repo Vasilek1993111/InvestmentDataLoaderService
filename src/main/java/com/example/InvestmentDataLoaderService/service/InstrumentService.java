@@ -506,16 +506,19 @@ public class InstrumentService {
      */
     public FutureDto getFutureByFigi(String figi) {
         return futureRepo.findById(figi)
-                .map(entity -> new FutureDto(
-                    entity.getFigi(),
-                    entity.getTicker(),
-                    entity.getAssetType(),
-                    entity.getBasicAsset(),
-                    entity.getCurrency(),
-                    entity.getExchange(),
-                    entity.getShortEnabled()
-                ))
-                .orElse(null);
+        .map(entity -> new FutureDto(
+            entity.getFigi(),
+            entity.getTicker(),
+            entity.getAssetType(),
+            entity.getBasicAsset(),
+            entity.getCurrency(),
+            entity.getExchange(),
+            entity.getShortEnabled(), 
+            entity.getExpirationDate() 
+            ))
+        .orElse(null);
+        
+               
     }
 
     /**
@@ -523,15 +526,16 @@ public class InstrumentService {
      */
     public FutureDto getFutureByTicker(String ticker) {
         return futureRepo.findByTickerIgnoreCase(ticker)
-                .map(entity -> new FutureDto(
-                    entity.getFigi(),
-                    entity.getTicker(),
-                    entity.getAssetType(),
-                    entity.getBasicAsset(),
-                    entity.getCurrency(),
-                    entity.getExchange(),
-                    entity.getShortEnabled()
-                ))
+        .map(entity -> new FutureDto(
+            entity.getFigi(),
+            entity.getTicker(),
+            entity.getAssetType(),
+            entity.getBasicAsset(),
+            entity.getCurrency(),
+            entity.getExchange(),
+            entity.getShortEnabled(), 
+            entity.getExpirationDate() 
+        ))
                 .orElse(null);
     }
 

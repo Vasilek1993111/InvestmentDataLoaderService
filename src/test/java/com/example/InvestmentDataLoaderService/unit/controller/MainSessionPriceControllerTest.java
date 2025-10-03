@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -77,7 +78,8 @@ public class MainSessionPriceControllerTest {
             "RUB",
             "MOEX",
             "Financial",
-            "ACTIVE"
+            "ACTIVE",
+            true
         );
     }
 
@@ -88,7 +90,9 @@ public class MainSessionPriceControllerTest {
             "FUTURES",
             "SBER",
             "RUB",
-            "MOEX"
+            "MOEX",
+            true,
+            LocalDateTime.of(2024, 3, 15, 18, 45)
         );
     }
 
