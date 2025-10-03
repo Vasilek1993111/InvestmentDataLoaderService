@@ -36,7 +36,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @Feature("Candles Daily Service")
 @DisplayName("Candles Daily Service Tests")
 @Owner("Investment Data Loader Service Team")
-@Severity(SeverityLevel.CRITICAL)           
+@Severity(SeverityLevel.CRITICAL)
+@Tag("unit")
+@Tag("service")
+@Tag("candles")
+@Tag("daily")
 public class CandlesDailyServiceTest {  
     
     @Mock
@@ -80,44 +84,57 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("success")
+    @Tag("async")
+    @Tag("date-specified")
     void saveDailyCandlesAsync_ShouldReturnSuccessResponse_WhenNewCandlesAreLoaded() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals("Загрузка дневных свечей завершена успешно", result.getMessage());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved());
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
-        assertNotNull(result.getSavedItems());
-        assertEquals(2, result.getSavedItems().size());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals("Загрузка дневных свечей завершена успешно", result.getMessage());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved());
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+            assertNotNull(result.getSavedItems());
+            assertEquals(2, result.getSavedItems().size());
+        });
 
-        // Verify interactions
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
-        verify(dailyCandleRepository, atLeastOnce()).existsByFigiAndTime(anyString(), any());
-        verify(dailyCandleRepository, atLeastOnce()).saveAll(anyList());
-        verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+            verify(dailyCandleRepository, atLeastOnce()).existsByFigiAndTime(anyString(), any());
+            verify(dailyCandleRepository, atLeastOnce()).saveAll(anyList());
+            verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
+        });
     }
 
     @Test
@@ -128,38 +145,53 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("date")
+    @Tag("async")
+    @Tag("auto-date")
     void saveDailyCandlesAsync_ShouldReturnSuccessResponse_WhenDateIsNull() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto(
-            Arrays.asList("BBG004730N88"), 
-            Arrays.asList("SHARES"), 
-            null
-        );
+        
+        // Шаг 1: Подготовка тестовых данных с null датой
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных с null датой", () -> {
+            return TestDataFactory.createDailyCandleRequestDto(
+                Arrays.asList("BBG004730N88"), 
+                Arrays.asList("SHARES"), 
+                null
+            );
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), any(LocalDate.class), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), any(LocalDate.class), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals("Загрузка дневных свечей завершена успешно", result.getMessage());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved());
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), any(LocalDate.class), eq("CANDLE_INTERVAL_DAY"));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals("Загрузка дневных свечей завершена успешно", result.getMessage());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), any(LocalDate.class), eq("CANDLE_INTERVAL_DAY"));
+        });
     }
 
     @Test
@@ -170,35 +202,50 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("multiple")
+    @Tag("async")
+    @Tag("batch-processing")
     void saveDailyCandlesAsync_ShouldReturnSuccessResponse_WhenMultipleInstruments() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createMultipleInstrumentsDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных для множественных инструментов
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных для множественных инструментов", () -> {
+            return TestDataFactory.createMultipleInstrumentsDailyRequest();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals("Загрузка дневных свечей завершена успешно", result.getMessage());
-        assertEquals(4, result.getTotalRequested()); // 2 инструмента * 2 свечи
-        assertEquals(4, result.getNewItemsSaved());
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals("Загрузка дневных свечей завершена успешно", result.getMessage());
+            assertEquals(4, result.getTotalRequested()); // 2 инструмента * 2 свечи
+            assertEquals(4, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+        });
     }
 
     @Test
@@ -209,35 +256,46 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("existing")
+    @Tag("async")
+    @Tag("duplicate-handling")
     void saveDailyCandlesAsync_ShouldSkipExistingCandles_WhenCandlesAlreadyExist() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки - некоторые свечи уже существуют
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(eq("BBG004730N88"), any()))
-            .thenReturn(true, false); // Первая свеча существует, вторая - новая
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков - некоторые свечи уже существуют
+        Allure.step("Настройка моков - некоторые свечи уже существуют", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(eq("BBG004730N88"), any()))
+                .thenReturn(true, false); // Первая свеча существует, вторая - новая
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(1, result.getNewItemsSaved());
-        assertEquals(1, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(1, result.getNewItemsSaved());
+            assertEquals(1, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     @Test
@@ -248,39 +306,54 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("database")
+    @Tag("async")
+    @Tag("auto-instruments")
     void saveDailyCandlesAsync_ShouldLoadInstrumentsFromDatabase_WhenInstrumentsListIsEmpty() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createEmptyInstrumentsDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEmptyInstrumentsDailyRequest();
+        });
         String taskId = "test-task-123";
         
         ShareEntity share1 = TestDataFactory.createShareEntity("BBG004730N88", "SBER", "Сбербанк", "TESTMOEX");
         ShareEntity share2 = TestDataFactory.createShareEntity("BBG004730ZJ29", "GAZP", "Газпром", "TESTMOEX");
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(shareRepository.findAll()).thenReturn(Arrays.asList(share1, share2));
-        when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(shareRepository.findAll()).thenReturn(Arrays.asList(share1, share2));
+            when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(4, result.getTotalRequested()); // 2 инструмента * 2 свечи
-        assertEquals(4, result.getNewItemsSaved());
-        verify(shareRepository, atLeastOnce()).findAll();
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(4, result.getTotalRequested()); // 2 инструмента * 2 свечи
+            assertEquals(4, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepository, atLeastOnce()).findAll();
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+        });
     }
 
     @Test
@@ -291,9 +364,14 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("mixed")
+    @Tag("async")
+    @Tag("multi-asset")
     void saveDailyCandlesAsync_ShouldLoadAllAssetTypes_WhenMultipleAssetTypesProvided() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createMixedAssetTypesDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных для разных типов активов
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных для разных типов активов", () -> {
+            return TestDataFactory.createMixedAssetTypesDailyRequest();
+        });
         String taskId = "test-task-123";
         
         ShareEntity share = TestDataFactory.createShareEntity("BBG004730N88", "SBER", "Сбербанк", "TESTMOEX");
@@ -301,32 +379,42 @@ public class CandlesDailyServiceTest {
         IndicativeEntity indicative = TestDataFactory.createIndicativeEntity("BBG004730ABC1", "USD000UTSTOM", "Доллар США");
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(shareRepository.findAll()).thenReturn(Arrays.asList(share));
-        when(futureRepository.findAll()).thenReturn(Arrays.asList(future));
-        when(indicativeRepository.findAll()).thenReturn(Arrays.asList(indicative));
-        when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(shareRepository.findAll()).thenReturn(Arrays.asList(share));
+            when(futureRepository.findAll()).thenReturn(Arrays.asList(future));
+            when(indicativeRepository.findAll()).thenReturn(Arrays.asList(indicative));
+            when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(6, result.getTotalRequested()); // 3 инструмента * 2 свечи
-        assertEquals(6, result.getNewItemsSaved());
-        verify(shareRepository, atLeastOnce()).findAll();
-        verify(futureRepository, atLeastOnce()).findAll();
-        verify(indicativeRepository, atLeastOnce()).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(6, result.getTotalRequested()); // 3 инструмента * 2 свечи
+            assertEquals(6, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepository, atLeastOnce()).findAll();
+            verify(futureRepository, atLeastOnce()).findAll();
+            verify(indicativeRepository, atLeastOnce()).findAll();
+        });
     }
 
     @Test
@@ -337,34 +425,45 @@ public class CandlesDailyServiceTest {
     @Tag("positive")
     @Tag("daily-candles")
     @Tag("filter")
+    @Tag("async")
+    @Tag("data-validation")
     void saveDailyCandlesAsync_ShouldFilterIncompleteCandles_WhenCandlesAreNotComplete() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных с незакрытыми свечами
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных с незакрытыми свечами", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createIncompleteDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(3, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved()); // Только закрытые свечи
-        assertEquals(1, result.getInvalidItemsFiltered()); // Одна незакрытая свеча отфильтрована
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(3, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved()); // Только закрытые свечи
+            assertEquals(1, result.getInvalidItemsFiltered()); // Одна незакрытая свеча отфильтрована
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     // ========== НЕГАТИВНЫЕ ТЕСТЫ ==========
@@ -377,28 +476,39 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("api-error")
+    @Tag("async")
+    @Tag("error-handling")
     void saveDailyCandlesAsync_ShouldHandleApiError_WhenApiThrowsException() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
 
-        // Настраиваем моки - API выбрасывает исключение
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenThrow(new RuntimeException("API недоступен"));
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков - API выбрасывает исключение
+        Allure.step("Настройка моков - API выбрасывает исключение", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenThrow(new RuntimeException("API недоступен"));
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess()); // Сервис должен обработать ошибку gracefully
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        assertEquals(0, result.getInvalidItemsFiltered()); // Ошибка API не засчитывается как неверный элемент
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess()); // Сервис должен обработать ошибку gracefully
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+            assertEquals(0, result.getInvalidItemsFiltered()); // Ошибка API не засчитывается как неверный элемент
+        });
     }
 
     @Test
@@ -409,28 +519,39 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("empty-response")
+    @Tag("async")
+    @Tag("no-data")
     void saveDailyCandlesAsync_ShouldHandleEmptyApiResponse_WhenNoDataAvailable() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
 
-        // Настраиваем моки - API возвращает пустой список
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(TestDataFactory.createEmptyCandleDtoList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков - API возвращает пустой список
+        Allure.step("Настройка моков - API возвращает пустой список", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(TestDataFactory.createEmptyCandleDtoList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        assertEquals(1, result.getMissingFromApi()); // Один инструмент без данных
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+            assertEquals(1, result.getMissingFromApi()); // Один инструмент без данных
+        });
     }
 
     @Test
@@ -441,32 +562,43 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("database-error")
+    @Tag("async")
+    @Tag("persistence-error")
     void saveDailyCandlesAsync_ShouldHandleDatabaseError_WhenSaveFails() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки - БД выбрасывает исключение
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenThrow(new RuntimeException("Ошибка базы данных"));
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков - БД выбрасывает исключение
+        Allure.step("Настройка моков - БД выбрасывает исключение", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenThrow(new RuntimeException("Ошибка базы данных"));
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess()); // Сервис должен обработать ошибку gracefully
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за ошибки БД
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess()); // Сервис должен обработать ошибку gracefully
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за ошибки БД
+        });
     }
 
     @Test
@@ -477,25 +609,40 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("empty-database")
+    @Tag("async")
+    @Tag("no-instruments")
     void saveDailyCandlesAsync_ShouldHandleEmptyInstrumentsAndEmptyDatabase_WhenNoInstrumentsAvailable() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createEmptyInstrumentsDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEmptyInstrumentsDailyRequest();
+        });
         String taskId = "test-task-123";
 
-        // Настраиваем моки для получения инструментов из БД
-        when(shareRepository.findAll()).thenReturn(Arrays.asList()); // Пустой список
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков для получения инструментов из БД
+        Allure.step("Настройка моков для получения инструментов из БД", () -> {
+            when(shareRepository.findAll()).thenReturn(Arrays.asList()); // Пустой список
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        verify(shareRepository, atLeastOnce()).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepository, atLeastOnce()).findAll();
+        });
     }
 
     @Test
@@ -506,28 +653,39 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("future-date")
+    @Tag("async")
+    @Tag("date-validation")
     void saveDailyCandlesAsync_ShouldHandleFutureDate_WhenDateIsInFuture() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createFutureDateDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных с будущей датой
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных с будущей датой", () -> {
+            return TestDataFactory.createFutureDateDailyRequest();
+        });
         String taskId = "test-task-123";
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(TestDataFactory.createEmptyCandleDtoList()); // API не возвращает данных для будущих дат
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(TestDataFactory.createEmptyCandleDtoList()); // API не возвращает данных для будущих дат
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        assertEquals(1, result.getMissingFromApi()); // Данных для будущей даты нет
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+            assertEquals(1, result.getMissingFromApi()); // Данных для будущей даты нет
+        });
     }
 
     @Test
@@ -538,33 +696,44 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("conversion-error")
+    @Tag("async")
+    @Tag("data-validation")
     void saveDailyCandlesAsync_ShouldHandleConversionError_WhenCandleConversionFails() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных с невалидными свечами
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных с невалидными свечами", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createInvalidDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved()); // Обе свечи сохранились (даже с нулевыми значениями)
-        assertEquals(0, result.getInvalidItemsFiltered()); // Никаких свечей не было отфильтровано
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved()); // Обе свечи сохранились (даже с нулевыми значениями)
+            assertEquals(0, result.getInvalidItemsFiltered()); // Никаких свечей не было отфильтровано
+        });
     }
 
     @Test
@@ -575,28 +744,39 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("critical-error")
+    @Tag("async")
+    @Tag("error-handling")
     void saveDailyCandlesAsync_ShouldHandleCriticalError_WhenMainThreadFails() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createDailyCandleRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createDailyCandleRequestDto();
+        });
         String taskId = "test-task-123";
 
-        // Настраиваем моки для выброса исключения в основном потоке
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenThrow(new RuntimeException("Критическая ошибка"));
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков для выброса исключения в основном потоке
+        Allure.step("Настройка моков для выброса исключения в основном потоке", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenThrow(new RuntimeException("Критическая ошибка"));
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess()); // Сервис должен обработать ошибку gracefully
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        assertEquals(0, result.getInvalidItemsFiltered()); // Ошибка API не засчитывается как неверный элемент
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess()); // Сервис должен обработать ошибку gracefully
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+            assertEquals(0, result.getInvalidItemsFiltered()); // Ошибка API не засчитывается как неверный элемент
+        });
     }
 
     @Test
@@ -607,29 +787,44 @@ public class CandlesDailyServiceTest {
     @Tag("negative")
     @Tag("daily-candles")
     @Tag("null-values")
+    @Tag("async")
+    @Tag("data-validation")
     void saveDailyCandlesAsync_ShouldHandleNullValues_WhenRequestContainsNulls() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createNullValuesDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных с null значениями
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных с null значениями", () -> {
+            return TestDataFactory.createNullValuesDailyRequest();
+        });
         String taskId = "test-task-123";
 
-        // Настраиваем моки для получения инструментов из БД
-        when(shareRepository.findAll()).thenReturn(Arrays.asList());
-        when(futureRepository.findAll()).thenReturn(Arrays.asList());
-        when(indicativeRepository.findAll()).thenReturn(Arrays.asList());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков для получения инструментов из БД
+        Allure.step("Настройка моков для получения инструментов из БД", () -> {
+            when(shareRepository.findAll()).thenReturn(Arrays.asList());
+            when(futureRepository.findAll()).thenReturn(Arrays.asList());
+            when(indicativeRepository.findAll()).thenReturn(Arrays.asList());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        verify(shareRepository, atLeastOnce()).findAll();
-        verify(futureRepository, atLeastOnce()).findAll();
-        verify(indicativeRepository, atLeastOnce()).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepository, atLeastOnce()).findAll();
+            verify(futureRepository, atLeastOnce()).findAll();
+            verify(indicativeRepository, atLeastOnce()).findAll();
+        });
     }
 
     // ========== ГРАНИЧНЫЕ СЛУЧАИ ==========
@@ -642,34 +837,49 @@ public class CandlesDailyServiceTest {
     @Tag("boundary")
     @Tag("daily-candles")
     @Tag("large-scale")
+    @Tag("async")
+    @Tag("performance")
     void saveDailyCandlesAsync_ShouldHandleLargeNumberOfInstruments_WhenManyInstrumentsProvided() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createLargeInstrumentsDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных с большим количеством инструментов
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных с большим количеством инструментов", () -> {
+            return TestDataFactory.createLargeInstrumentsDailyRequest();
+        });
         String taskId = "test-task-123";
         
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки
-        when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(tinkoffApiClient.getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(200, result.getTotalRequested()); // 100 инструментов * 2 свечи
-        assertEquals(200, result.getNewItemsSaved());
-        verify(tinkoffApiClient, times(100)).getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(200, result.getTotalRequested()); // 100 инструментов * 2 свечи
+            assertEquals(200, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(tinkoffApiClient, times(100)).getCandles(anyString(), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY"));
+        });
     }
 
     @Test
@@ -680,35 +890,46 @@ public class CandlesDailyServiceTest {
     @Tag("boundary")
     @Tag("daily-candles")
     @Tag("mixed-results")
+    @Tag("async")
+    @Tag("partial-success")
     void saveDailyCandlesAsync_ShouldHandleMixedApiResults_WhenSomeInstrumentsReturnDataAndSomeDoNot() throws Exception {
-        // Given
-        DailyCandleRequestDto request = TestDataFactory.createMultipleInstrumentsDailyRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        DailyCandleRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createMultipleInstrumentsDailyRequest();
+        });
         String taskId = "test-task-123";
         List<CandleDto> testCandles = TestDataFactory.createDailyCandleDtoList();
 
-        // Настраиваем моки - первый инструмент возвращает данные, второй - пустой список
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(testCandles);
-        when(tinkoffApiClient.getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(TestDataFactory.createEmptyCandleDtoList());
-        when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
-            .thenReturn(false);
-        when(dailyCandleRepository.saveAll(anyList()))
-            .thenReturn(Arrays.asList());
-        when(systemLogRepository.save(any(SystemLogEntity.class)))
-            .thenReturn(new SystemLogEntity());
-        setupExecutorMocks();
+        // Шаг 2: Настройка моков - первый инструмент возвращает данные, второй - пустой список
+        Allure.step("Настройка моков - первый инструмент возвращает данные, второй - пустой список", () -> {
+            when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(testCandles);
+            when(tinkoffApiClient.getCandles(eq("BBG004730ZJ29"), eq(request.getDate()), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(TestDataFactory.createEmptyCandleDtoList());
+            when(dailyCandleRepository.existsByFigiAndTime(anyString(), any()))
+                .thenReturn(false);
+            when(dailyCandleRepository.saveAll(anyList()))
+                .thenReturn(Arrays.asList());
+            when(systemLogRepository.save(any(SystemLogEntity.class)))
+                .thenReturn(new SystemLogEntity());
+            setupExecutorMocks();
+        });
 
-        // When
-        CompletableFuture<SaveResponseDto> futureResult = dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        // Шаг 3: Выполнение асинхронной загрузки
+        CompletableFuture<SaveResponseDto> futureResult = Allure.step("Выполнение асинхронной загрузки", () -> {
+            return dailyCandleService.saveDailyCandlesAsync(request, taskId);
+        });
         SaveResponseDto result = futureResult.get(2, TimeUnit.SECONDS);
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested()); // Только первый инструмент вернул данные
-        assertEquals(2, result.getNewItemsSaved());
-        assertEquals(1, result.getMissingFromApi()); // Второй инструмент не вернул данных
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested()); // Только первый инструмент вернул данные
+            assertEquals(2, result.getNewItemsSaved());
+            assertEquals(1, result.getMissingFromApi()); // Второй инструмент не вернул данных
+        });
     }
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
@@ -719,23 +940,25 @@ public class CandlesDailyServiceTest {
     @Tag("helper")
     @Tag("setup")
     private void setupExecutorMocks() {
-        // Настраиваем executor'ы для синхронного выполнения в тестах
-        lenient().doAnswer(invocation -> {
-            Runnable task = invocation.getArgument(0);
-            task.run();
-            return null;
-        }).when(dailyCandleExecutor).execute(any(Runnable.class));
-        
-        lenient().doAnswer(invocation -> {
-            Runnable task = invocation.getArgument(0);
-            task.run();
-            return null;
-        }).when(dailyApiDataExecutor).execute(any(Runnable.class));
-        
-        lenient().doAnswer(invocation -> {
-            Runnable task = invocation.getArgument(0);
-            task.run();
-            return null;
-        }).when(dailyBatchWriteExecutor).execute(any(Runnable.class));
+        Allure.step("Настройка executor'ов для синхронного выполнения", () -> {
+            // Настраиваем executor'ы для синхронного выполнения в тестах
+            lenient().doAnswer(invocation -> {
+                Runnable task = invocation.getArgument(0);
+                task.run();
+                return null;
+            }).when(dailyCandleExecutor).execute(any(Runnable.class));
+            
+            lenient().doAnswer(invocation -> {
+                Runnable task = invocation.getArgument(0);
+                task.run();
+                return null;
+            }).when(dailyApiDataExecutor).execute(any(Runnable.class));
+            
+            lenient().doAnswer(invocation -> {
+                Runnable task = invocation.getArgument(0);
+                task.run();
+                return null;
+            }).when(dailyBatchWriteExecutor).execute(any(Runnable.class));
+        });
     }
 }

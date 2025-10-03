@@ -27,9 +27,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Unit-тесты для InstrumentsController
+ * 
+ * <p>Этот класс содержит изолированные unit-тесты контроллера инструментов.
+ * Все тестовые данные создаются через TestDataFactory для обеспечения
+ * консистентности и переиспользования.</p>
+ * 
+ * <p>Тесты структурированы с использованием Allure.step() для создания
+ * подробных отчетов в Allure с последовательностью выполнения шагов.</p>
  */
 @WebMvcTest(InstrumentsController.class)
-@Epic("Instruments API")
+@Epic("API Instruments")
 @Feature("Instruments Management")
 @DisplayName("Instruments Controller Tests")
 @Owner("Investment Data Loader Service Team")
@@ -43,68 +50,10 @@ class InstrumentsControllerTest {
     private InstrumentService instrumentService;
 
     @BeforeEach
-    @Step("Инициализация тестового окружения для InstrumentsController")
     void setUp() {
         reset(instrumentService);
     }
 
-    // ==================== МЕТОДЫ СОЗДАНИЯ ТЕСТОВЫХ ДАННЫХ ====================
-    // Все методы создания тестовых данных теперь используют TestDataFactory
-
-    @Step("Создание списка тестовых акций")
-    private List<ShareDto> createMockShares() {
-        return TestDataFactory.createMoexSharesList();
-    }
-
-    @Step("Создание одиночной тестовой акции")
-    private ShareDto createMockShare() {
-        return TestDataFactory.createSberShare();
-    }
-
-    @Step("Создание списка тестовых фьючерсов")
-    private List<FutureDto> createMockFutures() {
-        return TestDataFactory.createCommodityFuturesList();
-    }
-
-    @Step("Создание одиночного тестового фьючерса")
-    private FutureDto createMockFuture() {
-        return TestDataFactory.createSilverFuture();
-    }
-
-    @Step("Создание списка тестовых индикативов")
-    private List<IndicativeDto> createMockIndicatives() {
-        return TestDataFactory.createCurrencyIndicativesList();
-    }
-
-    @Step("Создание одиночного тестового индикатива")
-    private IndicativeDto createMockIndicative() {
-        return TestDataFactory.createUsdRubIndicative();
-    }
-
-    @Step("Создание тестового ответа сохранения")
-    private SaveResponseDto createMockSaveResponse() {
-        return TestDataFactory.createTestSaveResponse();
-    }
-
-    @Step("Создание тестовой статистики инструментов")
-    private Map<String, Long> createMockInstrumentCounts() {
-        return TestDataFactory.createTestInstrumentCounts();
-    }
-
-    @Step("Создание тестового фильтра для акций")
-    private ShareFilterDto createShareFilter() {
-        return TestDataFactory.createMoexShareFilter();
-    }
-
-    @Step("Создание тестового фильтра для фьючерсов")
-    private FutureFilterDto createFutureFilter() {
-        return TestDataFactory.createCommodityFutureFilter();
-    }
-
-    @Step("Создание тестового фильтра для индикативов")
-    private IndicativeFilterDto createIndicativeFilter() {
-        return TestDataFactory.createCurrencyIndicativeFilter();
-    }
 
     // ==================== ТЕСТЫ ДЛЯ АКЦИЙ ====================
 
@@ -112,186 +61,242 @@ class InstrumentsControllerTest {
     @DisplayName("Получение списка акций через API - успешный случай")
     @Description("Тест проверяет корректность получения списка акций через API с применением фильтров")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares API")
-    @Tag("api")
-    @Tag("shares")
+    @Story("API Акций")
     @Tag("unit")
+    @Tag("shares")
+    @Tag("api")
+    @Tag("positive")
     void getShares_ShouldReturnSharesList_WhenApiSourceIsUsed() throws Exception {
-        // Given 
-        when(instrumentService.getShares(
-            eq("INSTRUMENT_STATUS_BASE"),
-            eq("moex_mrng_evng_e_wknd_dlr"),
-            eq("RUB"),
-            isNull(),
-            isNull()
-        )).thenReturn(createMockShares());
         
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
-                .param("currency", "RUB")
-                .param("status", "INSTRUMENT_STATUS_BASE")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$[0].ticker").value("SBER"))
-                .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
-                .andExpect(jsonPath("$[0].currency").value("RUB"))
-                .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
-                .andExpect(jsonPath("$[0].sector").value("Financial"))
-                .andExpect(jsonPath("$[0].tradingStatus").value("SECURITY_TRADING_STATUS_NORMAL_TRADING"))
-                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
-                .andExpect(jsonPath("$[2].ticker").value("LKOH"));
-
-        // Verify 
-        verify(instrumentService).getShares(
-            eq("INSTRUMENT_STATUS_BASE"),
-            eq("moex_mrng_evng_e_wknd_dlr"),
-            eq("RUB"),
-            isNull(),
-            isNull()
-        );
+        // Шаг 1: Подготовка тестовых данных
+        List<ShareDto> testShares = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createMoexSharesList();
+        });
+        
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(
+                eq("INSTRUMENT_STATUS_BASE"),
+                eq("moex_mrng_evng_e_wknd_dlr"),
+                eq("RUB"),
+                isNull(),
+                isNull()
+            )).thenReturn(testShares);
+        });
+        
+        // Шаг 3: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("exchange", "moex_mrng_evng_e_wknd_dlr")
+                    .param("currency", "RUB")
+                    .param("status", "INSTRUMENT_STATUS_BASE")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                    .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
+                    .andExpect(jsonPath("$[0].currency").value("RUB"))
+                    .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
+                    .andExpect(jsonPath("$[0].sector").value("Financial"))
+                    .andExpect(jsonPath("$[0].tradingStatus").value("SECURITY_TRADING_STATUS_NORMAL_TRADING"))
+                    .andExpect(jsonPath("$[0].shortEnabled").value(true))
+                    .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                    .andExpect(jsonPath("$[2].ticker").value("LKOH"));
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService).getShares(
+                eq("INSTRUMENT_STATUS_BASE"),
+                eq("moex_mrng_evng_e_wknd_dlr"),
+                eq("RUB"),
+                isNull(),
+                isNull()
+            );
+        });
     }
+
 
     @Test
     @DisplayName("Получение списка акций через API - без параметров")
     @Description("Тест проверяет поведение API при передаче пустых параметров запроса")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares API")
-    @Tag("api")
-    @Tag("shares")
+    @Story("API Акций")
     @Tag("unit")
+    @Tag("shares")
+    @Tag("api")
+    @Tag("positive")
     void getShares_ShouldReturnSharesList_WhenNoParametersProvided() throws Exception {
-        // Given 
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(createMockShares());
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].ticker").value("SBER"))
-                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
-                .andExpect(jsonPath("$[2].ticker").value("LKOH"));
-
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
+        
+        // Шаг 1: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса для запроса без параметров", () -> {
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(TestDataFactory.createMoexSharesList());
+        });
+        
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса без параметров и проверка ответа", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                    .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                    .andExpect(jsonPath("$[2].ticker").value("LKOH"));
+        });
+        
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для запроса без параметров", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
+        });
     }
 
     @Test
     @DisplayName("Получение списка акций с несуществующим источником данных")
     @Description("Тест проверяет поведение контроллера при передаче несуществующего источника данных")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares API")
-    @Tag("api")
+    @Story("API Акций")
+    @Tag("unit")
     @Tag("shares")
+    @Tag("api")
     @Tag("negative")
+    @Tag("validation")
     void getShares_ShouldReturn400_WhenInvalidSourceProvided() throws Exception {
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "invalid")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("ValidationException"))
-                .andExpect(jsonPath("$.message").value(containsString("Невалидный источник данных")));
-
-        // Verify - сервис не должен вызываться при невалидном источнике
-        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        
+        // Шаг 1: Выполнение HTTP запроса с невалидным источником
+        Allure.step("Выполнение HTTP запроса с невалидным источником", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "invalid")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("ValidationException"))
+                    .andExpect(jsonPath("$.message").value(containsString("Невалидный источник данных")));
+        });
+        
+        // Шаг 2: Проверка отсутствия вызовов сервиса
+        Allure.step("Проверка отсутствия вызовов сервиса", () -> {
+            verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        });
     }
+
 
     @Test
     @DisplayName("Получение списка акций через API с параметром в верхнем регистре")
     @Description("Тест проверяет поведение контроллера при передаче параметра API в верхнем регистре")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Shares API")
-    @Tag("api")
+    @Story("API Акций")
+    @Tag("unit")
     @Tag("shares")
+    @Tag("api")
     @Tag("case-sensitivity")
+    @Tag("positive")
     void getShares_ShouldReturnSharesList_WhenApiParameterInUpperCase() throws Exception {
-        // Given - настройка мока для API в верхнем регистре
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(createMockShares());
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "API")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].ticker").value("SBER"));
-
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
+        
+        // Шаг 1: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса для параметра в верхнем регистре", () -> {
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(TestDataFactory.createMoexSharesList());
+        });
+        
+        // Шаг 2: Выполнение HTTP запроса с параметром в верхнем регистре
+        Allure.step("Выполнение HTTP запроса с параметром в верхнем регистре", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "API")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[0].ticker").value("SBER"));
+        });
+        
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для параметра в верхнем регистре", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), isNull());
+        });
     }
 
     @Test
     @DisplayName("Получение списка акций через API с несуществующим FIGI")
     @Description("Тест проверяет поведение контроллера при передаче несуществующего FIGI")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares API")
-    @Tag("api")
+    @Story("API Акций")
+    @Tag("unit")
     @Tag("shares")
+    @Tag("api")
     @Tag("negative")
     @Tag("figi")
     void getShares_ShouldReturn404_WhenInvalidFigiProvided() throws Exception {
-        // Given - настройка мока для возврата пустого списка при некорректном FIGI
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI")))
-            .thenReturn(Arrays.asList());
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("figi", "INVALID_FIGI")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("SharesNotFound"))
-                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
-
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI"));
+        
+        // Шаг 1: Настройка моков сервиса для несуществующего FIGI
+        Allure.step("Настройка моков сервиса для несуществующего FIGI", () -> {
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI")))
+                .thenReturn(Arrays.asList());
+        });
+        
+        // Шаг 2: Выполнение HTTP запроса с несуществующим FIGI
+        Allure.step("Выполнение HTTP запроса с несуществующим FIGI", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("figi", "INVALID_FIGI")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.body").isArray())
+                    .andExpect(jsonPath("$.body.length()").value(0));
+        });
+        
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для несуществующего FIGI", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("INVALID_FIGI"));
+        });
     }
 
     @Test
     @DisplayName("Получение списка акций через API с FIGI в некорректном формате")
     @Description("Тест проверяет поведение контроллера при передаче FIGI в некорректном формате")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Shares API")
-    @Tag("api")
+    @Story("API Акций")
+    @Tag("unit")
     @Tag("shares")
+    @Tag("api")
     @Tag("negative")
     @Tag("validation")
     @Tag("figi")
     void getShares_ShouldHandleInvalidFigiFormat_WhenFigiIsMalformed() throws Exception {
-        // Given - настройка мока для возврата пустого списка при некорректном формате FIGI
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#")))
-            .thenReturn(Arrays.asList());
+        
+        // Шаг 1: Настройка моков сервиса для некорректного формата FIGI
+        Allure.step("Настройка моков сервиса для некорректного формата FIGI", () -> {
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#")))
+                .thenReturn(Arrays.asList());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("figi", "MALFORMED_FIGI_123!@#")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("SharesNotFound"))
-                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
+        // Шаг 2: Выполнение HTTP запроса с некорректным форматом FIGI
+        Allure.step("Выполнение HTTP запроса с некорректным форматом FIGI", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("figi", "MALFORMED_FIGI_123!@#")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.body").isArray())
+                    .andExpect(jsonPath("$.body.length()").value(0));
+        });
 
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#"));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для некорректного формата FIGI", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq("MALFORMED_FIGI_123!@#"));
+        });
     }
 
    
@@ -307,24 +312,32 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("boundary")
     void getShares_ShouldHandleVeryLongFigi_WhenFigiExceedsMaxLength() throws Exception {
-        // Given - создание очень длинного FIGI (более 1000 символов)
-        String veryLongFigi = "BBG004730N88" + "A".repeat(1000);
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq(veryLongFigi)))
-            .thenReturn(Arrays.asList());
+        
+        // Шаг 1: Создание очень длинного FIGI и настройка моков
+        String veryLongFigi = Allure.step("Создание очень длинного FIGI и настройка моков", () -> {
+            String longFigi = "BBG004730N88" + "A".repeat(1000);
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq(longFigi)))
+                .thenReturn(Arrays.asList());
+            return longFigi;
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("figi", veryLongFigi)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("SharesNotFound"))
-                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
+        // Шаг 2: Выполнение HTTP запроса с очень длинным FIGI
+        Allure.step("Выполнение HTTP запроса с очень длинным FIGI", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("figi", veryLongFigi)
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.body").isArray())
+                    .andExpect(jsonPath("$.body.length()").value(0));
+        });
 
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(veryLongFigi));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для очень длинного FIGI", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(veryLongFigi));
+        });
     }
 
     @Test
@@ -338,25 +351,32 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("empty-value")
     void getShares_ShouldHandleEmptyFigi_WhenFigiIsEmpty() throws Exception {
-        // Given - настройка мока для возврата всех акций при пустом FIGI
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("")))
-            .thenReturn(createMockShares());
+        
+        // Шаг 1: Настройка моков сервиса для пустого FIGI
+        Allure.step("Настройка моков сервиса для пустого FIGI", () -> {
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), isNull(), eq("")))
+                .thenReturn(TestDataFactory.createMoexSharesList());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("figi", "")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$[1].figi").value("BBG004730ZJ9"))
-                .andExpect(jsonPath("$[2].figi").value("BBG004730N88"));
+        // Шаг 2: Выполнение HTTP запроса с пустым FIGI
+        Allure.step("Выполнение HTTP запроса с пустым FIGI", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("figi", "")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$[1].figi").value("BBG004730ZJ9"))
+                    .andExpect(jsonPath("$[2].figi").value("BBG004730N88"));
+        });
 
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(""));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для пустого FIGI", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), isNull(), eq(""));
+        });
     }
 
     @Test
@@ -370,74 +390,89 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("invalid-value")
     void getShares_ShouldHandleInvalidTicker_WhenTickerIsEmpty() throws Exception {
-        // Given - настройка мока для возврата пустого списка при invalid ticker
-        when(instrumentService.getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull()))
-            .thenReturn(Arrays.asList());
+        
+        // Шаг 1: Настройка моков сервиса для некорректного ticker
+        Allure.step("Настройка моков сервиса для некорректного ticker", () -> {
+            when(instrumentService.getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull()))
+                .thenReturn(Arrays.asList());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("ticker", "INVALID_TICKER")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("SharesNotFound"))
-                .andExpect(jsonPath("$.message").value(containsString("Акции не найдены")));
+        // Шаг 2: Выполнение HTTP запроса с некорректным ticker
+        Allure.step("Выполнение HTTP запроса с некорректным ticker", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("ticker", "INVALID_TICKER")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.body").isArray())
+                    .andExpect(jsonPath("$.body.length()").value(0));
+        });
 
-        // Verify
-        verify(instrumentService).getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для некорректного ticker", () -> {
+            verify(instrumentService).getShares(isNull(), isNull(), isNull(), eq("INVALID_TICKER"), isNull());
+        });
     }
-    // ==================== ТЕСТЫ ДЛЯ Получение акции из базы данных ====================
+    // ==================== ТЕСТЫ ДЛЯ ПОЛУЧЕНИЯ АКЦИЙ ИЗ БАЗЫ ДАННЫХ ====================
 
     @Test
-    @DisplayName("Получение акции из базы данных через database - успешный случай")
-    @Description("Тест проверяет корректность получения акции из базы данных через database")
+    @DisplayName("Получение акций из базы данных через database - успешный случай")
+    @Description("Тест проверяет корректность получения акций из базы данных через database")
     @Severity(SeverityLevel.CRITICAL)
     @Story("Shares database")
     @Tag("database")
     @Tag("shares")
     @Tag("unit")
     void getSharesFromDatabase_ShouldReturnSharesList_WhenApiSourceIsUsed() throws Exception {
-        // Given - настройка мока для акций
-        when(instrumentService.getSharesFromDatabase(eq(new ShareFilterDto(
-            null,
-            "moex_mrng_evng_e_wknd_dlr",
-            null,
-            null,
-            null,
-            null,
-            null
-        ))))
-            .thenReturn(createMockShares());
+        
+        // Шаг 1: Настройка моков сервиса для базы данных
+        Allure.step("Настройка моков сервиса для базы данных", () -> {
+            when(instrumentService.getSharesFromDatabase(eq(new ShareFilterDto(
+                null,
+                "moex_mrng_evng_e_wknd_dlr",
+                null,
+                null,
+                null,
+                null,
+                null
+            ))))
+                .thenReturn(TestDataFactory.createMoexSharesList());
+        });
 
+        // Шаг 2: Выполнение HTTP запроса к базе данных
+        Allure.step("Выполнение HTTP запроса к базе данных", () -> {
             mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "database")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$[0].ticker").value("SBER"))
-                .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
-                .andExpect(jsonPath("$[0].currency").value("RUB"))
-                .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
-                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
-                .andExpect(jsonPath("$[2].ticker").value("LKOH"))
-                .andExpect(jsonPath("$[1].exchange").value("moex_mrng_evng_e_wknd_dlr"))
-                .andExpect(jsonPath("$[2].exchange").value("moex_mrng_evng_e_wknd_dlr"));
+                    .param("source", "database")
+                    .param("exchange", "moex_mrng_evng_e_wknd_dlr"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[0].figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                    .andExpect(jsonPath("$[0].name").value("ПАО Сбербанк"))
+                    .andExpect(jsonPath("$[0].currency").value("RUB"))
+                    .andExpect(jsonPath("$[0].exchange").value("moex_mrng_evng_e_wknd_dlr"))
+                    .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                    .andExpect(jsonPath("$[2].ticker").value("LKOH"))
+                    .andExpect(jsonPath("$[1].exchange").value("moex_mrng_evng_e_wknd_dlr"))
+                    .andExpect(jsonPath("$[2].exchange").value("moex_mrng_evng_e_wknd_dlr"));
+        });
 
-        // Verify
-        verify(instrumentService).getSharesFromDatabase(eq(new ShareFilterDto(
-            null,
-            "moex_mrng_evng_e_wknd_dlr",
-            null,
-            null,
-            null,
-            null,
-            null
-        )));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для базы данных", () -> {
+            verify(instrumentService).getSharesFromDatabase(eq(new ShareFilterDto(
+                null,
+                "moex_mrng_evng_e_wknd_dlr",
+                null,
+                null,
+                null,
+                null,
+                null
+            )));
+        });
     }
     // ==================== ТЕСТЫ ДЛЯ ПОЛУЧЕНИЯ АКЦИИ ПО IDENTIFIER ====================
 
@@ -451,24 +486,31 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getShareByIdentifier_ShouldReturnShare_WhenValidFigiProvided() throws Exception {
-        // Given 
-        when(instrumentService.getShareByFigi("BBG004730N88"))
-            .thenReturn(createMockShare());
+        
+        // Шаг 1: Настройка моков сервиса для поиска по FIGI
+        Allure.step("Настройка моков сервиса для поиска по FIGI", () -> {
+            when(instrumentService.getShareByFigi("BBG004730N88"))
+                .thenReturn(TestDataFactory.createSberShare());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares/BBG004730N88")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$.ticker").value("SBER"))
-                .andExpect(jsonPath("$.name").value("ПАО Сбербанк"))
-                .andExpect(jsonPath("$.currency").value("RUB"))
-                .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"));
+        // Шаг 2: Выполнение HTTP запроса по FIGI
+        Allure.step("Выполнение HTTP запроса по FIGI", () -> {
+            mockMvc.perform(get("/api/instruments/shares/BBG004730N88")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$.ticker").value("SBER"))
+                    .andExpect(jsonPath("$.name").value("ПАО Сбербанк"))
+                    .andExpect(jsonPath("$.currency").value("RUB"))
+                    .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"));
+        });
 
-        // Verify
-        verify(instrumentService).getShareByFigi("BBG004730N88");
-        verify(instrumentService, never()).getShareByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для поиска по FIGI", () -> {
+            verify(instrumentService).getShareByFigi("BBG004730N88");
+            verify(instrumentService, never()).getShareByTicker(any());
+        });
     }
 
     @Test
@@ -481,22 +523,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("ticker")
     void getShareByIdentifier_ShouldReturnShare_WhenValidTickerProvided() throws Exception {
-        // Given - настройка мока для поиска по тикеру (тикер короткий, поэтому сначала поиск по FIGI не выполняется)
-        when(instrumentService.getShareByTicker("SBER"))
-            .thenReturn(createMockShare());
+        
+        // Шаг 1: Настройка моков сервиса для поиска по тикеру
+        Allure.step("Настройка моков сервиса для поиска по тикеру", () -> {
+            when(instrumentService.getShareByTicker("SBER"))
+                .thenReturn(TestDataFactory.createSberShare());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares/SBER")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$.ticker").value("SBER"))
-                .andExpect(jsonPath("$.name").value("ПАО Сбербанк"));
+        // Шаг 2: Выполнение HTTP запроса по тикеру
+        Allure.step("Выполнение HTTP запроса по тикеру", () -> {
+            mockMvc.perform(get("/api/instruments/shares/SBER")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$.ticker").value("SBER"))
+                    .andExpect(jsonPath("$.name").value("ПАО Сбербанк"));
+        });
 
-        // Verify - тикер короткий, поэтому поиск по FIGI не выполняется
-        verify(instrumentService, never()).getShareByFigi(any());
-        verify(instrumentService).getShareByTicker("SBER");
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для поиска по тикеру", () -> {
+            verify(instrumentService, never()).getShareByFigi(any());
+            verify(instrumentService).getShareByTicker("SBER");
+        });
     }
 
     @Test
@@ -509,34 +558,43 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("negative")
     void getShareByIdentifier_ShouldReturn404_WhenShareNotFound() throws Exception {
-        // Given - настройка мока для несуществующей акции
-        when(instrumentService.getShareByFigi("INVALID_FIGI"))
-            .thenReturn(null);
-        when(instrumentService.getShareByTicker("INVALID_TICKER"))
-            .thenReturn(null);
+        
+        // Шаг 1: Настройка моков сервиса для несуществующих акций
+        Allure.step("Настройка моков сервиса для несуществующих акций", () -> {
+            when(instrumentService.getShareByFigi("INVALID_FIGI"))
+                .thenReturn(null);
+            when(instrumentService.getShareByTicker("INVALID_TICKER"))
+                .thenReturn(null);
+        });
 
-        // When & Then - INVALID_FIGI длиннее 10 символов, поэтому поиск по FIGI
-        mockMvc.perform(get("/api/instruments/shares/INVALID_FIGI")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("NotFound"))
-                .andExpect(jsonPath("$.type").value("FIGI"))
-                .andExpect(jsonPath("$.identifier").value("INVALID_FIGI"));
+        // Шаг 2: Выполнение HTTP запроса с несуществующим FIGI
+        Allure.step("Выполнение HTTP запроса с несуществующим FIGI", () -> {
+            mockMvc.perform(get("/api/instruments/shares/INVALID_FIGI")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("NotFound"))
+                    .andExpect(jsonPath("$.type").value("FIGI"))
+                    .andExpect(jsonPath("$.identifier").value("INVALID_FIGI"));
+        });
 
-        // When & Then - INVALID_TICKER длиннее 10 символов, поэтому тоже поиск по FIGI
-        mockMvc.perform(get("/api/instruments/shares/INVALID_TICKER")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("NotFound"))
-                .andExpect(jsonPath("$.type").value("FIGI"))
-                .andExpect(jsonPath("$.identifier").value("INVALID_TICKER"));
+        // Шаг 3: Выполнение HTTP запроса с несуществующим тикером
+        Allure.step("Выполнение HTTP запроса с несуществующим тикером", () -> {
+            mockMvc.perform(get("/api/instruments/shares/INVALID_TICKER")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("NotFound"))
+                    .andExpect(jsonPath("$.type").value("FIGI"))
+                    .andExpect(jsonPath("$.identifier").value("INVALID_TICKER"));
+        });
 
-        // Verify - оба идентификатора длиннее 10 символов, поэтому поиск только по FIGI
-        verify(instrumentService).getShareByFigi("INVALID_FIGI");
-        verify(instrumentService).getShareByFigi("INVALID_TICKER");
-        verify(instrumentService, never()).getShareByTicker(any());
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для несуществующих акций", () -> {
+            verify(instrumentService).getShareByFigi("INVALID_FIGI");
+            verify(instrumentService).getShareByFigi("INVALID_TICKER");
+            verify(instrumentService, never()).getShareByTicker(any());
+        });
     }
 
     @Test
@@ -549,21 +607,28 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getShareByIdentifier_ShouldSearchByFigi_WhenContainsUnderscore() throws Exception {
-        // Given - настройка мока для FIGI с подчеркиванием
-        when(instrumentService.getShareByFigi("BBG_004730_N88"))
-            .thenReturn(createMockShare());
+        
+        // Шаг 1: Настройка моков сервиса для FIGI с подчеркиванием
+        Allure.step("Настройка моков сервиса для FIGI с подчеркиванием", () -> {
+            when(instrumentService.getShareByFigi("BBG_004730_N88"))
+                .thenReturn(TestDataFactory.createSberShare());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares/BBG_004730_N88")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$.ticker").value("SBER"));
+        // Шаг 2: Выполнение HTTP запроса с FIGI с подчеркиванием
+        Allure.step("Выполнение HTTP запроса с FIGI с подчеркиванием", () -> {
+            mockMvc.perform(get("/api/instruments/shares/BBG_004730_N88")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$.ticker").value("SBER"));
+        });
 
-        // Verify
-        verify(instrumentService).getShareByFigi("BBG_004730_N88");
-        verify(instrumentService, never()).getShareByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для FIGI с подчеркиванием", () -> {
+            verify(instrumentService).getShareByFigi("BBG_004730_N88");
+            verify(instrumentService, never()).getShareByTicker(any());
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ СОХРАНЕНИЯ АКЦИЙ ====================
@@ -578,24 +643,31 @@ class InstrumentsControllerTest {
     @Tag("save")
     @Tag("post")
     void saveShares_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
-        // Given 
-        when(instrumentService.saveShares(any(ShareFilterDto.class)))
-            .thenReturn(createMockSaveResponse());
+        
+        // Шаг 1: Настройка моков сервиса для сохранения акций
+        Allure.step("Настройка моков сервиса для сохранения акций", () -> {
+            when(instrumentService.saveShares(any(ShareFilterDto.class)))
+                .thenReturn(TestDataFactory.createTestSaveResponse());
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/instruments/shares")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"RUB\",\"status\":\"INSTRUMENT_STATUS_BASE\"}"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
-                .andExpect(jsonPath("$.totalRequested").value(10))
-                .andExpect(jsonPath("$.newItemsSaved").value(5))
-                .andExpect(jsonPath("$.existingItemsSkipped").value(5));
+        // Шаг 2: Выполнение POST запроса для сохранения акций
+        Allure.step("Выполнение POST запроса для сохранения акций", () -> {
+            mockMvc.perform(post("/api/instruments/shares")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"RUB\",\"status\":\"INSTRUMENT_STATUS_BASE\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
+                    .andExpect(jsonPath("$.totalRequested").value(10))
+                    .andExpect(jsonPath("$.newItemsSaved").value(5))
+                    .andExpect(jsonPath("$.existingItemsSkipped").value(5));
+        });
 
-        // Verify
-        verify(instrumentService).saveShares(any(ShareFilterDto.class));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для сохранения акций", () -> {
+            verify(instrumentService).saveShares(any(ShareFilterDto.class));
+        });
     }
 
     @Test
@@ -608,20 +680,27 @@ class InstrumentsControllerTest {
     @Tag("save")
     @Tag("negative")
     void saveShares_ShouldHandleEmptyFilter_WhenEmptyFilterProvided() throws Exception {
-        // Given - настройка мока для пустого фильтра
-        when(instrumentService.saveShares(any(ShareFilterDto.class)))
-            .thenReturn(createMockSaveResponse());
+        
+        // Шаг 1: Настройка моков сервиса для пустого фильтра
+        Allure.step("Настройка моков сервиса для пустого фильтра", () -> {
+            when(instrumentService.saveShares(any(ShareFilterDto.class)))
+                .thenReturn(TestDataFactory.createTestSaveResponse());
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/instruments/shares")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true));
+        // Шаг 2: Выполнение POST запроса с пустым фильтром
+        Allure.step("Выполнение POST запроса с пустым фильтром", () -> {
+            mockMvc.perform(post("/api/instruments/shares")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true));
+        });
 
-        // Verify
-        verify(instrumentService).saveShares(any(ShareFilterDto.class));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для пустого фильтра", () -> {
+            verify(instrumentService).saveShares(any(ShareFilterDto.class));
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ ФЬЮЧЕРСОВ ====================
@@ -630,45 +709,61 @@ class InstrumentsControllerTest {
     @DisplayName("Получение списка фьючерсов через API - успешный случай")
     @Description("Тест проверяет корректность получения списка фьючерсов через API")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Futures API")
-    @Tag("api")
-    @Tag("futures")
+    @Story("API Фьючерсов")
     @Tag("unit")
+    @Tag("futures")
+    @Tag("api")
+    @Tag("positive")
     void getFutures_ShouldReturnFuturesList_WhenApiSourceIsUsed() throws Exception {
         
-        when(instrumentService.getFutures(
-            eq("INSTRUMENT_STATUS_BASE"),
-            eq("moex_mrng_evng_e_wknd_dlr"),
-            eq("USD"),
-            isNull(),
-            eq("COMMODITY")
-        )).thenReturn(createMockFutures());
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/futures")
-                .param("status", "INSTRUMENT_STATUS_BASE")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
-                .param("currency", "USD")
-                .param("assetType", "COMMODITY")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].figi").value("FUTSI0624000"))
-                .andExpect(jsonPath("$[0].ticker").value("SI0624"))
-                .andExpect(jsonPath("$[0].assetType").value("COMMODITY"))
-                .andExpect(jsonPath("$[1].ticker").value("GZ0624"));
-
-        // Verify
-        verify(instrumentService).getFutures(
-            eq("INSTRUMENT_STATUS_BASE"),
-            eq("moex_mrng_evng_e_wknd_dlr"),
-            eq("USD"),
-            isNull(),
-            eq("COMMODITY")
-        );
+        // Шаг 1: Подготовка тестовых данных
+        List<FutureDto> testFutures = Allure.step("Подготовка тестовых данных для фьючерсов", () -> {
+            return TestDataFactory.createCommodityFuturesList();
+        });
+        
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса для фьючерсов", () -> {
+            when(instrumentService.getFutures(
+                eq("INSTRUMENT_STATUS_BASE"),
+                eq("moex_mrng_evng_e_wknd_dlr"),
+                eq("USD"),
+                isNull(),
+                eq("TYPE_COMMODITY")
+            )).thenReturn(testFutures);
+        });
+        
+        // Шаг 3: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса и проверка ответа для фьючерсов", () -> {
+            mockMvc.perform(get("/api/instruments/futures")
+                    .param("status", "INSTRUMENT_STATUS_BASE")
+                    .param("exchange", "moex_mrng_evng_e_wknd_dlr")
+                    .param("currency", "USD")
+                    .param("assetType", "TYPE_COMMODITY")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].figi").value("FUTSI0624000"))
+                    .andExpect(jsonPath("$[0].ticker").value("SI0624"))
+                    .andExpect(jsonPath("$[0].assetType").value("COMMODITY"))
+                    .andExpect(jsonPath("$[0].shortEnabled").value(true))
+                    .andExpect(jsonPath("$[0].expirationDate").exists())
+                    .andExpect(jsonPath("$[1].ticker").value("GZ0624"));
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для фьючерсов", () -> {
+            verify(instrumentService).getFutures(
+                eq("INSTRUMENT_STATUS_BASE"),
+                eq("moex_mrng_evng_e_wknd_dlr"),
+                eq("USD"),
+                isNull(),
+                eq("TYPE_COMMODITY")
+            );
+        });
     }
+
 
     @Test
     @DisplayName("Получение фьючерса по FIGI - успешный случай")
@@ -680,25 +775,32 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getFutureByIdentifier_ShouldReturnFuture_WhenValidFigiProvided() throws Exception {
-        // Given - настройка мока для поиска фьючерса по FIGI
-        when(instrumentService.getFutureByFigi("FUTSI0624000"))
-            .thenReturn(createMockFuture());
+        
+        // Шаг 1: Настройка моков сервиса для поиска фьючерса по FIGI
+        Allure.step("Настройка моков сервиса для поиска фьючерса по FIGI", () -> {
+            when(instrumentService.getFutureByFigi("FUTSI0624000"))
+                .thenReturn(TestDataFactory.createSilverFuture());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/futures/FUTSI0624000")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
-                .andExpect(jsonPath("$.ticker").value("SI0624"))
-                .andExpect(jsonPath("$.assetType").value("COMMODITY"))
-                .andExpect(jsonPath("$.basicAsset").value("Silver"))
-                .andExpect(jsonPath("$.currency").value("USD"))
-                .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"));
+        // Шаг 2: Выполнение HTTP запроса по FIGI фьючерса
+        Allure.step("Выполнение HTTP запроса по FIGI фьючерса", () -> {
+            mockMvc.perform(get("/api/instruments/futures/FUTSI0624000")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
+                    .andExpect(jsonPath("$.ticker").value("SI0624"))
+                    .andExpect(jsonPath("$.assetType").value("COMMODITY"))
+                    .andExpect(jsonPath("$.basicAsset").value("Silver"))
+                    .andExpect(jsonPath("$.currency").value("USD"))
+                    .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"));
+        });
 
-        // Verify
-        verify(instrumentService).getFutureByFigi("FUTSI0624000");
-        verify(instrumentService, never()).getFutureByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для поиска фьючерса по FIGI", () -> {
+            verify(instrumentService).getFutureByFigi("FUTSI0624000");
+            verify(instrumentService, never()).getFutureByTicker(any());
+        });
     }
 
     @Test
@@ -711,22 +813,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("ticker")
     void getFutureByIdentifier_ShouldReturnFuture_WhenValidTickerProvided() throws Exception {
-        // Given - настройка мока для поиска фьючерса по тикеру (тикер короткий, поэтому сначала поиск по FIGI не выполняется)
-        when(instrumentService.getFutureByTicker("SI0624"))
-            .thenReturn(createMockFuture());
+        
+        // Шаг 1: Настройка моков сервиса для поиска фьючерса по тикеру
+        Allure.step("Настройка моков сервиса для поиска фьючерса по тикеру", () -> {
+            when(instrumentService.getFutureByTicker("SI0624"))
+                .thenReturn(TestDataFactory.createSilverFuture());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/futures/SI0624")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
-                .andExpect(jsonPath("$.ticker").value("SI0624"))
-                .andExpect(jsonPath("$.assetType").value("COMMODITY"));
+        // Шаг 2: Выполнение HTTP запроса по тикеру фьючерса
+        Allure.step("Выполнение HTTP запроса по тикеру фьючерса", () -> {
+            mockMvc.perform(get("/api/instruments/futures/SI0624")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
+                    .andExpect(jsonPath("$.ticker").value("SI0624"))
+                    .andExpect(jsonPath("$.assetType").value("COMMODITY"));
+        });
 
-        // Verify - тикер короткий, поэтому поиск по FIGI не выполняется
-        verify(instrumentService, never()).getFutureByFigi(any());
-        verify(instrumentService).getFutureByTicker("SI0624");
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для поиска фьючерса по тикеру", () -> {
+            verify(instrumentService, never()).getFutureByFigi(any());
+            verify(instrumentService).getFutureByTicker("SI0624");
+        });
     }
 
     @Test
@@ -739,22 +848,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("negative")
     void getFutureByIdentifier_ShouldReturn404_WhenFutureNotFound() throws Exception {
-        // Given - настройка мока для несуществующего фьючерса
-        when(instrumentService.getFutureByFigi("INVALID_FUTURE"))
-            .thenReturn(null);
+        
+        // Шаг 1: Настройка моков сервиса для несуществующего фьючерса
+        Allure.step("Настройка моков сервиса для несуществующего фьючерса", () -> {
+            when(instrumentService.getFutureByFigi("INVALID_FUTURE"))
+                .thenReturn(null);
+        });
 
-        // When & Then - INVALID_FUTURE длиннее 10 символов, поэтому поиск по FIGI
-        mockMvc.perform(get("/api/instruments/futures/INVALID_FUTURE")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("NotFound"))
-                .andExpect(jsonPath("$.type").value("FIGI"))
-                .andExpect(jsonPath("$.identifier").value("INVALID_FUTURE"));
+        // Шаг 2: Выполнение HTTP запроса с несуществующим фьючерсом
+        Allure.step("Выполнение HTTP запроса с несуществующим фьючерсом", () -> {
+            mockMvc.perform(get("/api/instruments/futures/INVALID_FUTURE")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("NotFound"))
+                    .andExpect(jsonPath("$.type").value("FIGI"))
+                    .andExpect(jsonPath("$.identifier").value("INVALID_FUTURE"));
+        });
 
-        // Verify - идентификатор длиннее 10 символов, поэтому поиск только по FIGI
-        verify(instrumentService).getFutureByFigi("INVALID_FUTURE");
-        verify(instrumentService, never()).getFutureByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для несуществующего фьючерса", () -> {
+            verify(instrumentService).getFutureByFigi("INVALID_FUTURE");
+            verify(instrumentService, never()).getFutureByTicker(any());
+        });
     }
 
     @Test
@@ -767,23 +883,30 @@ class InstrumentsControllerTest {
     @Tag("save")
     @Tag("post")
     void saveFutures_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
-        // Given - настройка мока для сохранения фьючерсов
-        when(instrumentService.saveFutures(any(FutureFilterDto.class)))
-            .thenReturn(createMockSaveResponse());
+        
+        // Шаг 1: Настройка моков сервиса для сохранения фьючерсов
+        Allure.step("Настройка моков сервиса для сохранения фьючерсов", () -> {
+            when(instrumentService.saveFutures(any(FutureFilterDto.class)))
+                .thenReturn(TestDataFactory.createTestSaveResponse());
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/instruments/futures")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"USD\",\"assetType\":\"COMMODITY\"}"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
-                .andExpect(jsonPath("$.totalRequested").value(10))
-                .andExpect(jsonPath("$.newItemsSaved").value(5));
+        // Шаг 2: Выполнение POST запроса для сохранения фьючерсов
+        Allure.step("Выполнение POST запроса для сохранения фьючерсов", () -> {
+            mockMvc.perform(post("/api/instruments/futures")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"USD\",\"assetType\":\"COMMODITY\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
+                    .andExpect(jsonPath("$.totalRequested").value(10))
+                    .andExpect(jsonPath("$.newItemsSaved").value(5));
+        });
 
-        // Verify
-        verify(instrumentService).saveFutures(any(FutureFilterDto.class));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для сохранения фьючерсов", () -> {
+            verify(instrumentService).saveFutures(any(FutureFilterDto.class));
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ ИНДИКАТИВОВ ====================
@@ -792,39 +915,54 @@ class InstrumentsControllerTest {
     @DisplayName("Получение списка индикативов через API - успешный случай")
     @Description("Тест проверяет корректность получения списка индикативов через API")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Indicatives API")
-    @Tag("api")
-    @Tag("indicatives")
+    @Story("API Индикативов")
     @Tag("unit")
+    @Tag("indicatives")
+    @Tag("api")
+    @Tag("positive")
     void getIndicatives_ShouldReturnIndicativesList_WhenApiSourceIsUsed() throws Exception {
-        // Given - настройка мока для индикативов
-        when(instrumentService.getIndicatives(
-            eq("moex_mrng_evng_e_wknd_dlr"),
-            eq("RUB"),
-            isNull(),
-            isNull()
-        )).thenReturn(createMockIndicatives());
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
-                .param("currency", "RUB")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].figi").value("BBG0013HGFT4"))
-                .andExpect(jsonPath("$[0].ticker").value("USD000UTSTOM"))
-                .andExpect(jsonPath("$[1].ticker").value("EUR000UTSTOM"));
-
-        // Verify
-        verify(instrumentService).getIndicatives(
-            eq("moex_mrng_evng_e_wknd_dlr"),
-            eq("RUB"),
-            isNull(),
-            isNull()
-        );
+        
+        // Шаг 1: Подготовка тестовых данных
+        List<IndicativeDto> testIndicatives = Allure.step("Подготовка тестовых данных для индикативов", () -> {
+            return TestDataFactory.createCurrencyIndicativesList();
+        });
+        
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса для индикативов", () -> {
+            when(instrumentService.getIndicatives(
+                eq("moex_mrng_evng_e_wknd_dlr"),
+                eq("RUB"),
+                isNull(),
+                isNull()
+            )).thenReturn(testIndicatives);
+        });
+        
+        // Шаг 3: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса и проверка ответа для индикативов", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives")
+                    .param("exchange", "moex_mrng_evng_e_wknd_dlr")
+                    .param("currency", "RUB")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].figi").value("BBG0013HGFT4"))
+                    .andExpect(jsonPath("$[0].ticker").value("USD000UTSTOM"))
+                    .andExpect(jsonPath("$[0].sellAvailableFlag").value(true))
+                    .andExpect(jsonPath("$[0].buyAvailableFlag").value(true))
+                    .andExpect(jsonPath("$[1].ticker").value("EUR000UTSTOM"));
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для индикативов", () -> {
+            verify(instrumentService).getIndicatives(
+                eq("moex_mrng_evng_e_wknd_dlr"),
+                eq("RUB"),
+                isNull(),
+                isNull()
+            );
+        });
     }
 
     @Test
@@ -837,27 +975,34 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidShortFigiProvided() throws Exception {
-        // Given - настройка мока для поиска индикатива по FIGI
-        when(instrumentService.getIndicativeBy("BBG0013HGFT4"))
-            .thenReturn(createMockIndicative());
+        
+        // Шаг 1: Настройка моков сервиса для поиска индикатива по FIGI
+        Allure.step("Настройка моков сервиса для поиска индикатива по FIGI", () -> {
+            when(instrumentService.getIndicativeBy("BBG0013HGFT4"))
+                .thenReturn(TestDataFactory.createUsdRubIndicative());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives/BBG0013HGFT4")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
-                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
-                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"))
-                .andExpect(jsonPath("$.currency").value("RUB"))
-                .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"))
-                .andExpect(jsonPath("$.classCode").value("CURRENCY"))
-                .andExpect(jsonPath("$.sellAvailableFlag").value(true))
-                .andExpect(jsonPath("$.buyAvailableFlag").value(true));
+        // Шаг 2: Выполнение HTTP запроса по FIGI индикатива
+        Allure.step("Выполнение HTTP запроса по FIGI индикатива", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives/BBG0013HGFT4")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                    .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                    .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"))
+                    .andExpect(jsonPath("$.currency").value("RUB"))
+                    .andExpect(jsonPath("$.exchange").value("moex_mrng_evng_e_wknd_dlr"))
+                    .andExpect(jsonPath("$.classCode").value("CURRENCY"))
+                    .andExpect(jsonPath("$.sellAvailableFlag").value(true))
+                    .andExpect(jsonPath("$.buyAvailableFlag").value(true));
+        });
 
-        // Verify
-        verify(instrumentService).getIndicativeBy("BBG0013HGFT4");
-        verify(instrumentService, never()).getIndicativeByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для поиска индикатива по FIGI", () -> {
+            verify(instrumentService).getIndicativeBy("BBG0013HGFT4");
+            verify(instrumentService, never()).getIndicativeByTicker(any());
+        });
     }
 
     @Test
@@ -870,22 +1015,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidFigiProvided() throws Exception {
-        // Given - настройка мока для поиска индикатива по FIGI (USD000UTSTOM длиннее 10 символов)
-        when(instrumentService.getIndicativeBy("USD000UTSTOM"))
-            .thenReturn(createMockIndicative());
+        
+        // Шаг 1: Настройка моков сервиса для длинного идентификатора
+        Allure.step("Настройка моков сервиса для длинного идентификатора", () -> {
+            when(instrumentService.getIndicativeBy("USD000UTSTOM"))
+                .thenReturn(TestDataFactory.createUsdRubIndicative());
+        });
 
-        // When & Then - USD000UTSTOM длиннее 10 символов, поэтому поиск по FIGI
-        mockMvc.perform(get("/api/instruments/indicatives/USD000UTSTOM")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
-                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
-                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+        // Шаг 2: Выполнение HTTP запроса с длинным идентификатором
+        Allure.step("Выполнение HTTP запроса с длинным идентификатором", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives/USD000UTSTOM")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                    .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                    .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+        });
 
-        // Verify - идентификатор длиннее 10 символов, поэтому поиск только по FIGI
-        verify(instrumentService).getIndicativeBy("USD000UTSTOM");
-        verify(instrumentService, never()).getIndicativeByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для длинного идентификатора", () -> {
+            verify(instrumentService).getIndicativeBy("USD000UTSTOM");
+            verify(instrumentService, never()).getIndicativeByTicker(any());
+        });
     }
 
     @Test
@@ -898,22 +1050,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("ticker")
     void getIndicativeByIdentifier_ShouldReturnIndicative_WhenValidTickerProvided() throws Exception {
-        // Given - настройка мока для поиска индикатива по тикеру (RTSI короткий)
-        when(instrumentService.getIndicativeByTicker("RTSI"))
-            .thenReturn(createMockIndicative());
+        
+        // Шаг 1: Настройка моков сервиса для поиска индикатива по тикеру
+        Allure.step("Настройка моков сервиса для поиска индикатива по тикеру", () -> {
+            when(instrumentService.getIndicativeByTicker("RTSI"))
+                .thenReturn(TestDataFactory.createUsdRubIndicative());
+        });
 
-        // When & Then - RTSI короткий, поэтому поиск по тикеру
-        mockMvc.perform(get("/api/instruments/indicatives/RTSI")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
-                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
-                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+        // Шаг 2: Выполнение HTTP запроса по тикеру индикатива
+        Allure.step("Выполнение HTTP запроса по тикеру индикатива", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives/RTSI")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                    .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                    .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+        });
 
-        // Verify - тикер короткий, поэтому поиск только по тикеру
-        verify(instrumentService, never()).getIndicativeBy(any());
-        verify(instrumentService).getIndicativeByTicker("RTSI");
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для поиска индикатива по тикеру", () -> {
+            verify(instrumentService, never()).getIndicativeBy(any());
+            verify(instrumentService).getIndicativeByTicker("RTSI");
+        });
     }
 
     @Test
@@ -926,22 +1085,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("negative")
     void getIndicativeByIdentifier_ShouldReturn404_WhenIndicativeNotFound() throws Exception {
-        // Given - настройка мока для несуществующего индикатива
-        when(instrumentService.getIndicativeBy("INVALID_INDICATIVE"))
-            .thenReturn(null);
+        
+        // Шаг 1: Настройка моков сервиса для несуществующего индикатива
+        Allure.step("Настройка моков сервиса для несуществующего индикатива", () -> {
+            when(instrumentService.getIndicativeBy("INVALID_INDICATIVE"))
+                .thenReturn(null);
+        });
 
-        // When & Then - INVALID_INDICATIVE длиннее 10 символов, поэтому поиск по FIGI
-        mockMvc.perform(get("/api/instruments/indicatives/INVALID_INDICATIVE")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("NotFound"))
-                .andExpect(jsonPath("$.type").value("FIGI"))
-                .andExpect(jsonPath("$.identifier").value("INVALID_INDICATIVE"));
+        // Шаг 2: Выполнение HTTP запроса с несуществующим индикативом
+        Allure.step("Выполнение HTTP запроса с несуществующим индикативом", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives/INVALID_INDICATIVE")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("NotFound"))
+                    .andExpect(jsonPath("$.type").value("FIGI"))
+                    .andExpect(jsonPath("$.identifier").value("INVALID_INDICATIVE"));
+        });
 
-        // Verify - идентификатор длиннее 10 символов, поэтому поиск только по FIGI
-        verify(instrumentService).getIndicativeBy("INVALID_INDICATIVE");
-        verify(instrumentService, never()).getIndicativeByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для несуществующего индикатива", () -> {
+            verify(instrumentService).getIndicativeBy("INVALID_INDICATIVE");
+            verify(instrumentService, never()).getIndicativeByTicker(any());
+        });
     }
 
     @Test
@@ -954,23 +1120,30 @@ class InstrumentsControllerTest {
     @Tag("save")
     @Tag("post")
     void saveIndicatives_ShouldReturnSaveResponse_WhenValidFilterProvided() throws Exception {
-        // Given - настройка мока для сохранения индикативов
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class)))
-            .thenReturn(createMockSaveResponse());
+        
+        // Шаг 1: Настройка моков сервиса для сохранения индикативов
+        Allure.step("Настройка моков сервиса для сохранения индикативов", () -> {
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class)))
+                .thenReturn(TestDataFactory.createTestSaveResponse());
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/instruments/indicatives")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"RUB\",\"ticker\":\"USD000UTSTOM\"}"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
-                .andExpect(jsonPath("$.totalRequested").value(10))
-                .andExpect(jsonPath("$.newItemsSaved").value(5));
+        // Шаг 2: Выполнение POST запроса для сохранения индикативов
+        Allure.step("Выполнение POST запроса для сохранения индикативов", () -> {
+            mockMvc.perform(post("/api/instruments/indicatives")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"exchange\":\"moex_mrng_evng_e_wknd_dlr\",\"currency\":\"RUB\",\"ticker\":\"USD000UTSTOM\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Успешно сохранено 5 новых инструментов из 10 найденных"))
+                    .andExpect(jsonPath("$.totalRequested").value(10))
+                    .andExpect(jsonPath("$.newItemsSaved").value(5));
+        });
 
-        // Verify
-        verify(instrumentService).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для сохранения индикативов", () -> {
+            verify(instrumentService).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ СТАТИСТИКИ ====================
@@ -979,28 +1152,42 @@ class InstrumentsControllerTest {
     @DisplayName("Получение статистики инструментов")
     @Description("Тест проверяет корректность получения статистики по количеству инструментов")
     @Severity(SeverityLevel.CRITICAL)
-    @Story("Statistics API")
-    @Tag("api")
-    @Tag("statistics")
+    @Story("API Статистики")
     @Tag("unit")
+    @Tag("statistics")
+    @Tag("api")
+    @Tag("positive")
     void getInstrumentCounts_ShouldReturnStatistics_WhenRequested() throws Exception {
-        // Given 
-        when(instrumentService.getInstrumentCounts())
-            .thenReturn(createMockInstrumentCounts());
-
-        // When & Then
-        mockMvc.perform(get("/api/instruments/count")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.shares").value(150))
-                .andExpect(jsonPath("$.futures").value(45))
-                .andExpect(jsonPath("$.indicatives").value(12))
-                .andExpect(jsonPath("$.total").value(207));
-
-        // Verify
-        verify(instrumentService).getInstrumentCounts();
+        
+        // Шаг 1: Подготовка тестовых данных
+        Map<String, Long> testCounts = Allure.step("Подготовка тестовой статистики", () -> {
+            return TestDataFactory.createTestInstrumentCounts();
+        });
+        
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса для статистики", () -> {
+            when(instrumentService.getInstrumentCounts())
+                .thenReturn(testCounts);
+        });
+        
+        // Шаг 3: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса и проверка ответа для статистики", () -> {
+            mockMvc.perform(get("/api/instruments/count")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.shares").value(150))
+                    .andExpect(jsonPath("$.futures").value(45))
+                    .andExpect(jsonPath("$.indicatives").value(12))
+                    .andExpect(jsonPath("$.total").value(207));
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для статистики", () -> {
+            verify(instrumentService).getInstrumentCounts();
+        });
     }
+
 
     // ==================== ДОПОЛНИТЕЛЬНЫЕ НЕГАТИВНЫЕ ТЕСТЫ ====================
 
@@ -1008,26 +1195,32 @@ class InstrumentsControllerTest {
     @DisplayName("Получение списка акций с некорректным статусом")
     @Description("Тест проверяет поведение контроллера при передаче некорректного статуса")
     @Severity(SeverityLevel.NORMAL)
-    @Story("Shares API")
-    @Tag("api")
+    @Story("API Акций")
+    @Tag("unit")
     @Tag("shares")
+    @Tag("api")
     @Tag("negative")
     @Tag("validation")
     @Tag("status")
     void getShares_ShouldHandleInvalidStatus_WhenInvalidStatusProvided() throws Exception {
-        // When & Then - контроллер должен вернуть 400 для невалидного статуса
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("status", "INVALID_STATUS")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("ValidationException"))
-                .andExpect(jsonPath("$.message").value(containsString("Невалидный статус инструмента")));
-
-        // Verify - сервис не должен вызываться при невалидном статусе
-        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        
+        // Шаг 1: Выполнение HTTP запроса с некорректным статусом
+        Allure.step("Выполнение HTTP запроса с некорректным статусом", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("status", "INVALID_STATUS")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("ValidationException"))
+                    .andExpect(jsonPath("$.message").value(containsString("Невалидный статус инструмента")));
+        });
+        
+        // Шаг 2: Проверка отсутствия вызовов сервиса
+        Allure.step("Проверка отсутствия вызовов сервиса для некорректного статуса", () -> {
+            verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        });
     }
 
     @Test
@@ -1041,19 +1234,24 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("exchange")
     void getShares_ShouldHandleInvalidExchange_WhenInvalidExchangeProvided() throws Exception {
-        // When & Then - контроллер должен вернуть 400 для невалидной биржи
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("exchange", "INVALID_EXCHANGE")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("ValidationException"))
-                .andExpect(jsonPath("$.message").value(containsString("Невалидный тип биржи")));
+        
+        // Шаг 1: Выполнение HTTP запроса с некорректной биржей
+        Allure.step("Выполнение HTTP запроса с некорректной биржей", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("exchange", "INVALID_EXCHANGE")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("ValidationException"))
+                    .andExpect(jsonPath("$.message").value(containsString("Невалидный тип биржи")));
+        });
 
-        // Verify - сервис не должен вызываться при невалидной бирже
-        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        // Шаг 2: Проверка отсутствия вызовов сервиса
+        Allure.step("Проверка отсутствия вызовов сервиса для некорректной биржи", () -> {
+            verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        });
     }
 
     @Test
@@ -1067,19 +1265,24 @@ class InstrumentsControllerTest {
     @Tag("validation")
     @Tag("currency")
     void getShares_ShouldHandleInvalidCurrency_WhenInvalidCurrencyProvided() throws Exception {
-        // When & Then - контроллер должен вернуть 400 для невалидной валюты
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "api")
-                .param("currency", "INVALID_CURRENCY")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("ValidationException"))
-                .andExpect(jsonPath("$.message").value(containsString("Невалидная валюта")));
+        
+        // Шаг 1: Выполнение HTTP запроса с некорректной валютой
+        Allure.step("Выполнение HTTP запроса с некорректной валютой", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "api")
+                    .param("currency", "INVALID_CURRENCY")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error").value("ValidationException"))
+                    .andExpect(jsonPath("$.message").value(containsString("Невалидная валюта")));
+        });
 
-        // Verify - сервис не должен вызываться при невалидной валюте
-        verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        // Шаг 2: Проверка отсутствия вызовов сервиса
+        Allure.step("Проверка отсутствия вызовов сервиса для некорректной валюты", () -> {
+            verify(instrumentService, never()).getShares(any(), any(), any(), any(), any());
+        });
     }
 
     @Test
@@ -1091,26 +1294,33 @@ class InstrumentsControllerTest {
     @Tag("shares")
     @Tag("filter")
     void getSharesFromDatabase_ShouldReturnSharesList_WhenParametersProvided() throws Exception {
-        // Given - настройка мока для БД с параметрами
-        when(instrumentService.getSharesFromDatabase(any(ShareFilterDto.class)))
-            .thenReturn(createMockShares());
+        
+        // Шаг 1: Настройка моков сервиса для БД с параметрами
+        Allure.step("Настройка моков сервиса для БД с параметрами", () -> {
+            when(instrumentService.getSharesFromDatabase(any(ShareFilterDto.class)))
+                .thenReturn(TestDataFactory.createMoexSharesList());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares")
-                .param("source", "database")
-                .param("exchange", "moex_mrng_evng_e_wknd_dlr")
-                .param("currency", "RUB")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].ticker").value("SBER"))
-                .andExpect(jsonPath("$[1].ticker").value("GAZP"))
-                .andExpect(jsonPath("$[2].ticker").value("LKOH"));
+        // Шаг 2: Выполнение HTTP запроса к БД с параметрами
+        Allure.step("Выполнение HTTP запроса к БД с параметрами", () -> {
+            mockMvc.perform(get("/api/instruments/shares")
+                    .param("source", "database")
+                    .param("exchange", "moex_mrng_evng_e_wknd_dlr")
+                    .param("currency", "RUB")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                    .andExpect(jsonPath("$[1].ticker").value("GAZP"))
+                    .andExpect(jsonPath("$[2].ticker").value("LKOH"));
+        });
 
-        // Verify
-        verify(instrumentService).getSharesFromDatabase(any(ShareFilterDto.class));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для БД с параметрами", () -> {
+            verify(instrumentService).getSharesFromDatabase(any(ShareFilterDto.class));
+        });
     }
 
     @Test
@@ -1122,22 +1332,29 @@ class InstrumentsControllerTest {
     @Tag("futures")
     @Tag("no-params")
     void getFutures_ShouldReturnFuturesList_WhenNoParametersProvided() throws Exception {
-        // Given - настройка мока для фьючерсов без параметров
-        when(instrumentService.getFutures(isNull(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(createMockFutures());
+        
+        // Шаг 1: Настройка моков сервиса для фьючерсов без параметров
+        Allure.step("Настройка моков сервиса для фьючерсов без параметров", () -> {
+            when(instrumentService.getFutures(isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(TestDataFactory.createCommodityFuturesList());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/futures")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].ticker").value("SI0624"))
-                .andExpect(jsonPath("$[1].ticker").value("GZ0624"));
+        // Шаг 2: Выполнение HTTP запроса без параметров
+        Allure.step("Выполнение HTTP запроса без параметров", () -> {
+            mockMvc.perform(get("/api/instruments/futures")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].ticker").value("SI0624"))
+                    .andExpect(jsonPath("$[1].ticker").value("GZ0624"));
+        });
 
-        // Verify
-        verify(instrumentService).getFutures(isNull(), isNull(), isNull(), isNull(), isNull());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для фьючерсов без параметров", () -> {
+            verify(instrumentService).getFutures(isNull(), isNull(), isNull(), isNull(), isNull());
+        });
     }
 
     @Test
@@ -1149,22 +1366,29 @@ class InstrumentsControllerTest {
     @Tag("indicatives")
     @Tag("no-params")
     void getIndicatives_ShouldReturnIndicativesList_WhenNoParametersProvided() throws Exception {
-        // Given - настройка мока для индикативов без параметров
-        when(instrumentService.getIndicatives(isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(createMockIndicatives());
+        
+        // Шаг 1: Настройка моков сервиса для индикативов без параметров
+        Allure.step("Настройка моков сервиса для индикативов без параметров", () -> {
+            when(instrumentService.getIndicatives(isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(TestDataFactory.createCurrencyIndicativesList());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].ticker").value("USD000UTSTOM"))
-                .andExpect(jsonPath("$[1].ticker").value("EUR000UTSTOM"));
+        // Шаг 2: Выполнение HTTP запроса без параметров
+        Allure.step("Выполнение HTTP запроса без параметров", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].ticker").value("USD000UTSTOM"))
+                    .andExpect(jsonPath("$[1].ticker").value("EUR000UTSTOM"));
+        });
 
-        // Verify
-        verify(instrumentService).getIndicatives(isNull(), isNull(), isNull(), isNull());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для индикативов без параметров", () -> {
+            verify(instrumentService).getIndicatives(isNull(), isNull(), isNull(), isNull());
+        });
     }
 
     @Test
@@ -1177,21 +1401,28 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getShareByIdentifier_ShouldSearchByFigi_WhenContainsDash() throws Exception {
-        // Given - настройка мока для FIGI с дефисом
-        when(instrumentService.getShareByFigi("BBG-004730-N88"))
-            .thenReturn(createMockShare());
+        
+        // Шаг 1: Настройка моков сервиса для FIGI с дефисом
+        Allure.step("Настройка моков сервиса для FIGI с дефисом", () -> {
+            when(instrumentService.getShareByFigi("BBG-004730-N88"))
+                .thenReturn(TestDataFactory.createSberShare());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/shares/BBG-004730-N88")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG004730N88"))
-                .andExpect(jsonPath("$.ticker").value("SBER"));
+        // Шаг 2: Выполнение HTTP запроса с FIGI с дефисом
+        Allure.step("Выполнение HTTP запроса с FIGI с дефисом", () -> {
+            mockMvc.perform(get("/api/instruments/shares/BBG-004730-N88")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG004730N88"))
+                    .andExpect(jsonPath("$.ticker").value("SBER"));
+        });
 
-        // Verify
-        verify(instrumentService).getShareByFigi("BBG-004730-N88");
-        verify(instrumentService, never()).getShareByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для FIGI с дефисом", () -> {
+            verify(instrumentService).getShareByFigi("BBG-004730-N88");
+            verify(instrumentService, never()).getShareByTicker(any());
+        });
     }
 
     @Test
@@ -1204,22 +1435,29 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getFutureByIdentifier_ShouldSearchByFigi_WhenContainsDash() throws Exception {
-        // Given - настройка мока для FIGI фьючерса с дефисом
-        when(instrumentService.getFutureByFigi("FUT-SI0624-000"))
-            .thenReturn(createMockFuture());
+        
+        // Шаг 1: Настройка моков сервиса для FIGI фьючерса с дефисом
+        Allure.step("Настройка моков сервиса для FIGI фьючерса с дефисом", () -> {
+            when(instrumentService.getFutureByFigi("FUT-SI0624-000"))
+                .thenReturn(TestDataFactory.createSilverFuture());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/futures/FUT-SI0624-000")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
-                .andExpect(jsonPath("$.ticker").value("SI0624"))
-                .andExpect(jsonPath("$.assetType").value("COMMODITY"));
+        // Шаг 2: Выполнение HTTP запроса с FIGI фьючерса с дефисом
+        Allure.step("Выполнение HTTP запроса с FIGI фьючерса с дефисом", () -> {
+            mockMvc.perform(get("/api/instruments/futures/FUT-SI0624-000")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("FUTSI0624000"))
+                    .andExpect(jsonPath("$.ticker").value("SI0624"))
+                    .andExpect(jsonPath("$.assetType").value("COMMODITY"));
+        });
 
-        // Verify
-        verify(instrumentService).getFutureByFigi("FUT-SI0624-000");
-        verify(instrumentService, never()).getFutureByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для FIGI фьючерса с дефисом", () -> {
+            verify(instrumentService).getFutureByFigi("FUT-SI0624-000");
+            verify(instrumentService, never()).getFutureByTicker(any());
+        });
     }
 
     @Test
@@ -1232,21 +1470,28 @@ class InstrumentsControllerTest {
     @Tag("identifier")
     @Tag("figi")
     void getIndicativeByIdentifier_ShouldSearchByFigi_WhenContainsDash() throws Exception {
-        // Given - настройка мока для FIGI индикатива с дефисом
-        when(instrumentService.getIndicativeBy("BBG-0013HG-FT4"))
-            .thenReturn(createMockIndicative());
+        
+        // Шаг 1: Настройка моков сервиса для FIGI индикатива с дефисом
+        Allure.step("Настройка моков сервиса для FIGI индикатива с дефисом", () -> {
+            when(instrumentService.getIndicativeBy("BBG-0013HG-FT4"))
+                .thenReturn(TestDataFactory.createUsdRubIndicative());
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/instruments/indicatives/BBG-0013HG-FT4")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
-                .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
-                .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+        // Шаг 2: Выполнение HTTP запроса с FIGI индикатива с дефисом
+        Allure.step("Выполнение HTTP запроса с FIGI индикатива с дефисом", () -> {
+            mockMvc.perform(get("/api/instruments/indicatives/BBG-0013HG-FT4")
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.figi").value("BBG0013HGFT4"))
+                    .andExpect(jsonPath("$.ticker").value("USD000UTSTOM"))
+                    .andExpect(jsonPath("$.name").value("Доллар США / Российский рубль"));
+        });
 
-        // Verify
-        verify(instrumentService).getIndicativeBy("BBG-0013HG-FT4");
-        verify(instrumentService, never()).getIndicativeByTicker(any());
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для FIGI индикатива с дефисом", () -> {
+            verify(instrumentService).getIndicativeBy("BBG-0013HG-FT4");
+            verify(instrumentService, never()).getIndicativeByTicker(any());
+        });
     }
 }

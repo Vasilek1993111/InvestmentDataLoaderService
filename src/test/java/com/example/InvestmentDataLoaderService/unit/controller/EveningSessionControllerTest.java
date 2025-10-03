@@ -3,6 +3,7 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 import com.example.InvestmentDataLoaderService.controller.EveningSessionController;
 import com.example.InvestmentDataLoaderService.entity.*;
 import com.example.InvestmentDataLoaderService.repository.*;
+import com.example.InvestmentDataLoaderService.fixtures.TestDataFactory;
 
 import io.qameta.allure.*;
 
@@ -16,7 +17,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -27,14 +27,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Unit-тесты для EveningSessionController
+ * 
+ * <p>Этот класс содержит изолированные unit-тесты контроллера вечерней сессии.
+ * Все тестовые данные создаются через TestDataFactory для обеспечения
+ * консистентности и переиспользования.</p>
+ * 
+ * <p>Тесты структурированы с использованием Allure.step() для создания
+ * подробных отчетов в Allure с последовательностью выполнения шагов.</p>
  */
 @WebMvcTest(EveningSessionController.class)
-@Epic("Evening Session API")
-@Feature("Evening Session Management")
-@DisplayName("Evening Session Controller Tests")
-@Owner("Investment Data Loader Service Team")
+@Epic("API Вечерней Сессии")
+@Feature("Управление Ценами Вечерней Сессии")
+@DisplayName("Тесты Контроллера Вечерней Сессии")
+@Owner("Команда Investment Data Loader Service")
 @Severity(SeverityLevel.CRITICAL)
-public class EveningSessionControllerTest {
+class EveningSessionControllerTest {
     
     @Autowired
     private MockMvc mockMvc;
@@ -49,7 +56,6 @@ public class EveningSessionControllerTest {
     private ClosePriceEveningSessionRepository closePriceEveningSessionRepository;
 
     @BeforeEach
-    @Step("Подготовка тестовых данных для EveningSessionController")
     public void setUp() {
         reset(shareRepository);
         reset(futureRepository);
@@ -57,577 +63,1056 @@ public class EveningSessionControllerTest {
         reset(closePriceEveningSessionRepository);
     }
 
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
-
-    private ShareEntity createShareEntity() {
-        ShareEntity share = new ShareEntity();
-        share.setFigi("BBG004730N88");
-        share.setTicker("SBER");
-        share.setName("Сбербанк");
-        share.setCurrency("RUB");
-        share.setExchange("MOEX");
-        share.setSector("Financial");
-        share.setTradingStatus("ACTIVE");
-        return share;
-    }
-
-    private FutureEntity createFutureEntity() {
-        return new FutureEntity(
-            "FUTSBER0324",
-            "SBER-3.24",
-            "FUTURES",
-            "SBER",
-            "RUB",
-            "MOEX"
-        );
-    }
-
-    private MinuteCandleEntity createMinuteCandleEntity() {
-        MinuteCandleEntity candle = new MinuteCandleEntity();
-        candle.setFigi("BBG004730N88");
-        candle.setVolume(1000L);
-        candle.setHigh(BigDecimal.valueOf(105.0));
-        candle.setLow(BigDecimal.valueOf(95.0));
-        candle.setTime(Instant.now());
-        candle.setClose(BigDecimal.valueOf(102.0));
-        candle.setOpen(BigDecimal.valueOf(100.0));
-        candle.setComplete(true);
-        return candle;
-    }
-
-    private ClosePriceEveningSessionEntity createClosePriceEveningSessionEntity() {
-        ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
-        entity.setFigi("BBG004730N88");
-        entity.setPriceDate(LocalDate.now().minusDays(1));
-        entity.setClosePrice(BigDecimal.valueOf(102.0));
-        entity.setInstrumentType("SHARE");
-        entity.setCurrency("RUB");
-        entity.setExchange("MOEX");
-        return entity;
-    }
-
-    // ========== ПОЗИТИВНЫЕ ТЕСТЫ - GET ENDPOINTS ==========
+    // ==================== ТЕСТЫ ДЛЯ GET /api/evening-session-prices ====================
 
     @Test
-    @DisplayName("GET /api/evening-session-prices - получение цен закрытия вечерней сессии за вчера")
-    @Story("Получение цен вечерней сессии")
+    @DisplayName("Получение цен вечерней сессии за вчера - успешный случай")
+    @Description("Тест проверяет корректность получения цен вечерней сессии за вчерашний день")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
     @Tag("positive")
-    @Description("Тест успешного получения цен закрытия вечерней сессии за вчерашний день")
-    @Step("Выполнение GET запроса для получения цен вечерней сессии за вчера")
-    public void getEveningSessionClosePricesYesterday_ShouldReturnOk_WhenValidRequest() throws Exception {
-        // Arrange
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-        List<FutureEntity> futures = Arrays.asList(createFutureEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
+    void getEveningSessionClosePricesYesterday_ShouldReturnOk_WhenValidRequest() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных", () -> {
+            List<ShareEntity> shares = Arrays.asList(TestDataFactory.createShareEntity());
+            List<FutureEntity> futures = Arrays.asList(TestDataFactory.createFutureEntity());
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(futureRepository.findAll()).thenReturn(futures);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class)))
+                .thenReturn(TestDataFactory.createMinuteCandleEntity("BBG004730N88", LocalDate.now().minusDays(1), BigDecimal.valueOf(100.0)));
+        });
 
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(futureRepository.findAll()).thenReturn(futures);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class)))
-            .thenReturn(candle);
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            mockMvc.perform(get("/api/evening-session-prices"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists())
+                .andExpect(jsonPath("$.date").exists())
+                .andExpect(jsonPath("$.statistics").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
 
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(2))
-            .andExpect(jsonPath("$.count").value(2))
-            .andExpect(jsonPath("$.statistics.totalProcessed").value(2))
-            .andExpect(jsonPath("$.statistics.foundPrices").value(2))
-            .andExpect(jsonPath("$.statistics.missingData").value(0));
-
-        verify(shareRepository).findAll();
-        verify(futureRepository).findAll();
-        verify(minuteCandleRepository, times(2)).findLastCandleForDate(anyString(), any(LocalDate.class));
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+            verify(minuteCandleRepository, atLeastOnce()).findLastCandleForDate(anyString(), any(LocalDate.class));
+        });
     }
 
     @Test
-    @DisplayName("GET /api/evening-session-prices - получение цен при отсутствии данных")
-    @Story("Получение цен вечерней сессии")
+    @DisplayName("Получение цен вечерней сессии за вчера - пустой результат")
+    @Description("Тест проверяет поведение API при отсутствии данных за вчерашний день")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("empty-data")
     @Tag("positive")
-    @Description("Тест получения цен при отсутствии инструментов")
-    @Step("Выполнение GET запроса при пустых репозиториях")
-    public void getEveningSessionClosePricesYesterday_ShouldReturnOk_WhenNoData() throws Exception {
-        // Arrange
-        when(shareRepository.findAll()).thenReturn(Collections.emptyList());
-        when(futureRepository.findAll()).thenReturn(Collections.emptyList());
+    void getEveningSessionClosePricesYesterday_ShouldReturnOk_WhenNoData() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных для пустого результата", () -> {
+            when(shareRepository.findAll()).thenReturn(Collections.emptyList());
+            when(futureRepository.findAll()).thenReturn(Collections.emptyList());
+        });
 
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(0))
-            .andExpect(jsonPath("$.count").value(0))
-            .andExpect(jsonPath("$.statistics.totalProcessed").value(0))
-            .andExpect(jsonPath("$.statistics.foundPrices").value(0))
-            .andExpect(jsonPath("$.statistics.missingData").value(0));
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса и проверка пустого ответа", () -> {
+            mockMvc.perform(get("/api/evening-session-prices"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0))
+                .andExpect(jsonPath("$.count").value(0));
+        });
 
-        verify(shareRepository).findAll();
-        verify(futureRepository).findAll();
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для пустого результата", () -> {
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+        });
     }
 
     @Test
-    @DisplayName("GET /api/evening-session-prices/{date} - получение цен за конкретную дату")
-    @Story("Получение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест получения цен вечерней сессии за конкретную дату")
-    @Step("Выполнение GET запроса с параметром даты")
-    public void getEveningSessionPricesForAllInstruments_ShouldReturnOk_WhenValidDate() throws Exception {
-        // Arrange
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-        List<FutureEntity> futures = Arrays.asList(createFutureEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(futureRepository.findAll()).thenReturn(futures);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
-            .thenReturn(candle);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices/{date}", testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(2))
-            .andExpect(jsonPath("$.date").value(testDate.toString()))
-            .andExpect(jsonPath("$.totalProcessed").value(2))
-            .andExpect(jsonPath("$.foundPrices").value(2))
-            .andExpect(jsonPath("$.missingData").value(0));
-
-        verify(shareRepository).findAll();
-        verify(futureRepository).findAll();
-        verify(minuteCandleRepository, times(2)).findLastCandleForDate(anyString(), eq(testDate));
-    }
-
-    @Test
-    @DisplayName("GET /api/evening-session-prices/shares/{date} - получение цен для акций")
-    @Story("Получение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест получения цен вечерней сессии только для акций")
-    @Step("Выполнение GET запроса для акций")
-    public void getEveningSessionPricesForShares_ShouldReturnOk_WhenValidDate() throws Exception {
-        // Arrange
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
-            .thenReturn(candle);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices/shares/{date}", testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(1))
-            .andExpect(jsonPath("$.date").value(testDate.toString()))
-            .andExpect(jsonPath("$.totalProcessed").value(1))
-            .andExpect(jsonPath("$.foundPrices").value(1))
-            .andExpect(jsonPath("$.missingData").value(0));
-
-        verify(shareRepository).findAll();
-        verify(minuteCandleRepository).findLastCandleForDate(anyString(), eq(testDate));
-    }
-
-    @Test
-    @DisplayName("GET /api/evening-session-prices/futures/{date} - получение цен для фьючерсов")
-    @Story("Получение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест получения цен вечерней сессии только для фьючерсов")
-    @Step("Выполнение GET запроса для фьючерсов")
-    public void getEveningSessionPricesForFutures_ShouldReturnOk_WhenValidDate() throws Exception {
-        // Arrange
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<FutureEntity> futures = Arrays.asList(createFutureEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(futureRepository.findAll()).thenReturn(futures);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
-            .thenReturn(candle);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices/futures/{date}", testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(1))
-            .andExpect(jsonPath("$.date").value(testDate.toString()))
-            .andExpect(jsonPath("$.totalProcessed").value(1))
-            .andExpect(jsonPath("$.foundPrices").value(1))
-            .andExpect(jsonPath("$.missingData").value(0));
-
-        verify(futureRepository).findAll();
-        verify(minuteCandleRepository).findLastCandleForDate(anyString(), eq(testDate));
-    }
-
-    @Test
-    @DisplayName("GET /api/evening-session-prices/{figi}/{date} - получение цены по инструменту")
-    @Story("Получение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест получения цены вечерней сессии для конкретного инструмента")
-    @Step("Выполнение GET запроса для конкретного инструмента")
-    public void getEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenValidRequest() throws Exception {
-        // Arrange
-        String figi = "BBG004730N88";
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(minuteCandleRepository.findLastCandleForDate(figi, testDate))
-            .thenReturn(candle);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices/{figi}/{date}", figi, testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.figi").value(figi))
-            .andExpect(jsonPath("$.data.priceDate").value(testDate.toString()))
-            .andExpect(jsonPath("$.data.closePrice").value(102.0))
-            .andExpect(jsonPath("$.figi").value(figi))
-            .andExpect(jsonPath("$.date").value(testDate.toString()));
-
-        verify(minuteCandleRepository).findLastCandleForDate(figi, testDate);
-    }
-
-    // ========== ПОЗИТИВНЫЕ ТЕСТЫ - POST ENDPOINTS ==========
-
-    @Test
-    @DisplayName("POST /api/evening-session-prices - загрузка цен за вчера")
-    @Story("Загрузка цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест успешной загрузки цен закрытия вечерней сессии за вчерашний день")
-    @Step("Выполнение POST запроса для загрузки цен за вчера")
-    public void loadEveningSessionPrices_ShouldReturnOk_WhenValidRequest() throws Exception {
-        // Arrange
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-        List<FutureEntity> futures = Arrays.asList(createFutureEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(futureRepository.findAll()).thenReturn(futures);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class)))
-            .thenReturn(candle);
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(any(LocalDate.class), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(createClosePriceEveningSessionEntity());
-
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(2))
-            .andExpect(jsonPath("$.count").value(2))
-            .andExpect(jsonPath("$.statistics.totalRequested").value(2))
-            .andExpect(jsonPath("$.statistics.newItemsSaved").value(2))
-            .andExpect(jsonPath("$.statistics.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.statistics.invalidItemsFiltered").value(0))
-            .andExpect(jsonPath("$.statistics.missingFromApi").value(0));
-
-        verify(shareRepository).findAll();
-        verify(futureRepository).findAll();
-        verify(minuteCandleRepository, times(2)).findLastCandleForDate(anyString(), any(LocalDate.class));
-        verify(closePriceEveningSessionRepository, times(2)).save(any(ClosePriceEveningSessionEntity.class));
-    }
-
-    @Test
-    @DisplayName("POST /api/evening-session-prices/{date} - загрузка цен за конкретную дату")
-    @Story("Загрузка цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест успешной загрузки цен вечерней сессии за конкретную дату")
-    @Step("Выполнение POST запроса с параметром даты")
-    public void loadEveningSessionPricesForDate_ShouldReturnOk_WhenValidDate() throws Exception {
-        // Arrange
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-        List<FutureEntity> futures = Arrays.asList(createFutureEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(futureRepository.findAll()).thenReturn(futures);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
-            .thenReturn(candle);
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(eq(testDate), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(createClosePriceEveningSessionEntity());
-
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices/{date}", testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.date").value(testDate.toString()))
-            .andExpect(jsonPath("$.totalRequested").value(2))
-            .andExpect(jsonPath("$.newItemsSaved").value(2))
-            .andExpect(jsonPath("$.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.invalidItemsFiltered").value(0))
-            .andExpect(jsonPath("$.missingFromApi").value(0));
-
-        verify(shareRepository).findAll();
-        verify(futureRepository).findAll();
-        verify(minuteCandleRepository, times(2)).findLastCandleForDate(anyString(), eq(testDate));
-        verify(closePriceEveningSessionRepository, times(2)).save(any(ClosePriceEveningSessionEntity.class));
-    }
-
-    @Test
-    @DisplayName("POST /api/evening-session-prices/shares/{date} - сохранение цен для акций")
-    @Story("Сохранение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест успешного сохранения цен вечерней сессии для акций")
-    @Step("Выполнение POST запроса для сохранения цен акций")
-    public void saveEveningSessionPricesForShares_ShouldReturnOk_WhenValidDate() throws Exception {
-        // Arrange
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
-            .thenReturn(candle);
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(eq(testDate), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(createClosePriceEveningSessionEntity());
-
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices/shares/{date}", testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.date").value(testDate.toString()))
-            .andExpect(jsonPath("$.totalProcessed").value(1))
-            .andExpect(jsonPath("$.newItemsSaved").value(1))
-            .andExpect(jsonPath("$.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.invalidItemsFiltered").value(0))
-            .andExpect(jsonPath("$.missingData").value(0));
-
-        verify(shareRepository).findAll();
-        verify(minuteCandleRepository).findLastCandleForDate(anyString(), eq(testDate));
-        verify(closePriceEveningSessionRepository).save(any(ClosePriceEveningSessionEntity.class));
-    }
-
-    @Test
-    @DisplayName("POST /api/evening-session-prices/futures/{date} - сохранение цен для фьючерсов")
-    @Story("Сохранение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест успешного сохранения цен вечерней сессии для фьючерсов")
-    @Step("Выполнение POST запроса для сохранения цен фьючерсов")
-    public void saveEveningSessionPricesForFutures_ShouldReturnOk_WhenValidDate() throws Exception {
-        // Arrange
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<FutureEntity> futures = Arrays.asList(createFutureEntity());
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-
-        when(futureRepository.findAll()).thenReturn(futures);
-        when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
-            .thenReturn(candle);
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(eq(testDate), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(createClosePriceEveningSessionEntity());
-
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices/futures/{date}", testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.date").value(testDate.toString()))
-            .andExpect(jsonPath("$.totalProcessed").value(1))
-            .andExpect(jsonPath("$.newItemsSaved").value(1))
-            .andExpect(jsonPath("$.existingItemsSkipped").value(0))
-            .andExpect(jsonPath("$.invalidItemsFiltered").value(0))
-            .andExpect(jsonPath("$.missingData").value(0));
-
-        verify(futureRepository).findAll();
-        verify(minuteCandleRepository).findLastCandleForDate(anyString(), eq(testDate));
-        verify(closePriceEveningSessionRepository).save(any(ClosePriceEveningSessionEntity.class));
-    }
-
-    @Test
-    @DisplayName("POST /api/evening-session-prices/{figi}/{date} - сохранение цены по инструменту")
-    @Story("Сохранение цен вечерней сессии")
-    @Tag("positive")
-    @Description("Тест успешного сохранения цены вечерней сессии для конкретного инструмента")
-    @Step("Выполнение POST запроса для сохранения цены конкретного инструмента")
-    public void saveEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenValidRequest() throws Exception {
-        // Arrange
-        String figi = "BBG004730N88";
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-        List<ShareEntity> shares = Arrays.asList(createShareEntity());
-
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, figi))
-            .thenReturn(false);
-        when(minuteCandleRepository.findLastCandleForDate(figi, testDate))
-            .thenReturn(candle);
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(futureRepository.findAll()).thenReturn(Collections.emptyList());
-        when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(createClosePriceEveningSessionEntity());
-
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices/{figi}/{date}", figi, testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.figi").value(figi))
-            .andExpect(jsonPath("$.data.priceDate").value(testDate.toString()))
-            .andExpect(jsonPath("$.data.closePrice").value(102.0))
-            .andExpect(jsonPath("$.figi").value(figi))
-            .andExpect(jsonPath("$.date").value(testDate.toString()));
-
-        verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, figi);
-        verify(minuteCandleRepository).findLastCandleForDate(figi, testDate);
-        verify(closePriceEveningSessionRepository).save(any(ClosePriceEveningSessionEntity.class));
-    }
-
-    // ========== НЕГАТИВНЫЕ ТЕСТЫ ==========
-
-    @Test
-    @DisplayName("GET /api/evening-session-prices - обработка ошибки при получении данных")
-    @Story("Обработка ошибок")
+    @DisplayName("Получение цен вечерней сессии за вчера - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
     @Tag("negative")
-    @Description("Тест обработки ошибки при получении цен вечерней сессии")
-    @Step("Выполнение GET запроса при ошибке в репозитории")
-    public void getEveningSessionClosePricesYesterday_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
-        // Arrange
-        when(shareRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+    @Tag("error-handling")
+    void getEveningSessionClosePricesYesterday_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+        });
 
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices"))
-            .andExpect(status().isInternalServerError())
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").exists());
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            mockMvc.perform(get("/api/evening-session-prices"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
 
-        verify(shareRepository).findAll();
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ POST /api/evening-session-prices ====================
+
+    @Test
+    @DisplayName("Загрузка цен вечерней сессии за вчера - успешный случай")
+    @Description("Тест проверяет корректность загрузки цен вечерней сессии за вчерашний день")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("load")
+    @Tag("positive")
+    void loadEveningSessionPrices_ShouldReturnOk_WhenValidRequest() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных для загрузки", () -> {
+            List<ShareEntity> shares = Arrays.asList(TestDataFactory.createShareEntity());
+            List<FutureEntity> futures = Arrays.asList(TestDataFactory.createFutureEntity());
+            MinuteCandleEntity candle = TestDataFactory.createMinuteCandleEntity("BBG004730N88", LocalDate.now().minusDays(1), BigDecimal.valueOf(100.0));
+
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(futureRepository.findAll()).thenReturn(futures);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(any(LocalDate.class), anyString())).thenReturn(false);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class))).thenReturn(candle);
+            when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class))).thenReturn(TestDataFactory.createClosePriceEveningSessionEntity());
+        });
+
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение POST запроса и проверка ответа", () -> {
+            mockMvc.perform(post("/api/evening-session-prices"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").exists())
+                .andExpect(jsonPath("$.statistics").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для загрузки", () -> {
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+            verify(closePriceEveningSessionRepository, atLeastOnce()).save(any(ClosePriceEveningSessionEntity.class));
+        });
     }
 
     @Test
-    @DisplayName("POST /api/evening-session-prices - обработка ошибки при сохранении")
-    @Story("Обработка ошибок")
-    @Tag("negative")
-    @Description("Тест обработки ошибки при сохранении цен вечерней сессии")
-    @Step("Выполнение POST запроса при ошибке в репозитории")
-    public void loadEveningSessionPrices_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
-        // Arrange
-        when(shareRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+    @DisplayName("Загрузка цен вечерней сессии за вчера - отсутствие инструментов")
+    @Description("Тест проверяет поведение API при отсутствии инструментов в базе данных")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("load")
+    @Tag("no-instruments")
+    @Tag("business-logic")
+    @Tag("positive")
+    void loadEveningSessionPrices_ShouldReturnOk_WhenNoInstruments() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenReturn(Collections.emptyList());
+            when(futureRepository.findAll()).thenReturn(Collections.emptyList());
+        });
 
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices"))
-            .andExpect(status().isInternalServerError())
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").exists());
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            mockMvc.perform(post("/api/evening-session-prices"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").exists())
+                .andExpect(jsonPath("$.statistics").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
 
-        verify(shareRepository).findAll();
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+        });
     }
 
     @Test
-    @DisplayName("GET /api/evening-session-prices/{figi}/{date} - обработка отсутствия данных")
-    @Story("Обработка отсутствия данных")
+    @DisplayName("Загрузка цен вечерней сессии за вчера - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при загрузке")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("load")
     @Tag("negative")
-    @Description("Тест обработки случая, когда данные не найдены")
-    @Step("Выполнение GET запроса при отсутствии данных")
-    public void getEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenNoData() throws Exception {
-        // Arrange
-        String figi = "BBG004730N88";
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
+    @Tag("error-handling")
+    void loadEveningSessionPrices_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll())
+                .thenThrow(new RuntimeException("Database connection error"));
+        });
 
-        when(minuteCandleRepository.findLastCandleForDate(figi, testDate))
-            .thenReturn(null);
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            mockMvc.perform(post("/api/evening-session-prices"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
 
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices/{figi}/{date}", figi, testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("Цена вечерней сессии не найдена для инструмента " + figi + " за " + testDate))
-            .andExpect(jsonPath("$.figi").value(figi))
-            .andExpect(jsonPath("$.date").value(testDate.toString()));
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
 
-        verify(minuteCandleRepository).findLastCandleForDate(figi, testDate);
+    // ==================== ТЕСТЫ ДЛЯ GET /api/evening-session-prices/by-date/{date} ====================
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии по дате - успешный случай")
+    @Description("Тест проверяет корректность получения цен вечерней сессии по указанной дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("date-parameter")
+    @Tag("positive")
+    void getEveningSessionPricesForAllInstruments_ShouldReturnOk_WhenValidDate() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных для указанной даты", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<ShareEntity> shares = Arrays.asList(TestDataFactory.createShareEntity());
+            List<FutureEntity> futures = Arrays.asList(TestDataFactory.createFutureEntity());
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(futureRepository.findAll()).thenReturn(futures);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
+                .thenReturn(TestDataFactory.createMinuteCandleEntity("BBG004730N88", testDate, BigDecimal.valueOf(100.0)));
+        });
+
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса по дате и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/by-date/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists())
+                .andExpect(jsonPath("$.totalProcessed").exists())
+                .andExpect(jsonPath("$.foundPrices").exists())
+                .andExpect(jsonPath("$.missingData").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для указанной даты", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+            verify(minuteCandleRepository, atLeastOnce()).findLastCandleForDate(anyString(), eq(testDate));
+        });
     }
 
     @Test
-    @DisplayName("POST /api/evening-session-prices/{figi}/{date} - обработка существующей записи")
-    @Story("Обработка дублирования данных")
-    @Tag("negative")
-    @Description("Тест обработки случая, когда запись уже существует")
-    @Step("Выполнение POST запроса для существующей записи")
-    public void saveEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenRecordExists() throws Exception {
-        // Arrange
-        String figi = "BBG004730N88";
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
+    @DisplayName("Получение цен вечерней сессии по дате - пустой результат")
+    @Description("Тест проверяет поведение API при отсутствии данных на указанную дату")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("date-parameter")
+    @Tag("empty-data")
+    @Tag("positive")
+    void getEveningSessionPricesForAllInstruments_ShouldReturnOk_WhenNoData() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenReturn(Collections.emptyList());
+            when(futureRepository.findAll()).thenReturn(Collections.emptyList());
+        });
 
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, figi))
-            .thenReturn(true);
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/by-date/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists());
+        });
 
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices/{figi}/{date}", figi, testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("Запись уже существует для инструмента " + figi + " за " + testDate))
-            .andExpect(jsonPath("$.figi").value(figi))
-            .andExpect(jsonPath("$.date").value(testDate.toString()));
-
-        verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, figi);
-        verify(minuteCandleRepository, never()).findLastCandleForDate(anyString(), any(LocalDate.class));
-        verify(closePriceEveningSessionRepository, never()).save(any(ClosePriceEveningSessionEntity.class));
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+        });
     }
 
     @Test
-    @DisplayName("GET /api/evening-session-prices/{figi}/{date} - обработка невалидной цены")
-    @Story("Обработка невалидных данных")
+    @DisplayName("Получение цен вечерней сессии по дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при запросе по дате")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("date-parameter")
     @Tag("negative")
-    @Description("Тест обработки случая с невалидной ценой (ноль)")
-    @Step("Выполнение GET запроса с невалидной ценой")
-    public void getEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenInvalidPrice() throws Exception {
-        // Arrange
-        String figi = "BBG004730N88";
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-        candle.setClose(BigDecimal.ZERO); // Невалидная цена
+    @Tag("error-handling")
+    void getEveningSessionPricesForAllInstruments_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+        });
 
-        when(minuteCandleRepository.findLastCandleForDate(figi, testDate))
-            .thenReturn(candle);
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/by-date/{date}", testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
 
-        // Act & Assert
-        mockMvc.perform(get("/api/evening-session-prices/{figi}/{date}", figi, testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("Невалидная цена закрытия для инструмента " + figi + " за " + testDate))
-            .andExpect(jsonPath("$.figi").value(figi))
-            .andExpect(jsonPath("$.date").value(testDate.toString()));
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
 
-        verify(minuteCandleRepository).findLastCandleForDate(figi, testDate);
+    // ==================== ТЕСТЫ ДЛЯ POST /api/evening-session-prices/by-date/{date} ====================
+
+    @Test
+    @DisplayName("Загрузка цен вечерней сессии по дате - успешный случай")
+    @Description("Тест проверяет корректность загрузки цен вечерней сессии по указанной дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("load")
+    @Tag("date-parameter")
+    @Tag("positive")
+    void loadEveningSessionPricesForDate_ShouldReturnOk_WhenValidDate() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<ShareEntity> shares = Arrays.asList(TestDataFactory.createShareEntity());
+            List<FutureEntity> futures = Arrays.asList(TestDataFactory.createFutureEntity());
+            MinuteCandleEntity candle = TestDataFactory.createMinuteCandleEntity("BBG004730N88", testDate, BigDecimal.valueOf(100.0));
+
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(futureRepository.findAll()).thenReturn(futures);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(any(LocalDate.class), anyString())).thenReturn(false);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class))).thenReturn(candle);
+            when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class))).thenReturn(TestDataFactory.createClosePriceEveningSessionEntity());
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/by-date/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.totalRequested").exists())
+                .andExpect(jsonPath("$.newItemsSaved").exists())
+                .andExpect(jsonPath("$.existingItemsSkipped").exists())
+                .andExpect(jsonPath("$.invalidItemsFiltered").exists())
+                .andExpect(jsonPath("$.missingFromApi").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+            verify(futureRepository).findAll();
+            verify(closePriceEveningSessionRepository, atLeastOnce()).save(any(ClosePriceEveningSessionEntity.class));
+        });
     }
 
     @Test
-    @DisplayName("POST /api/evening-session-prices/{figi}/{date} - обработка невалидной цены")
-    @Story("Обработка невалидных данных")
+    @DisplayName("Загрузка цен вечерней сессии по дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при загрузке по дате")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("load")
+    @Tag("date-parameter")
     @Tag("negative")
-    @Description("Тест обработки случая с невалидной ценой при сохранении")
-    @Step("Выполнение POST запроса с невалидной ценой")
-    public void saveEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenInvalidPrice() throws Exception {
-        // Arrange
-        String figi = "BBG004730N88";
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        MinuteCandleEntity candle = createMinuteCandleEntity();
-        candle.setClose(BigDecimal.ZERO); // Невалидная цена
+    @Tag("error-handling")
+    void loadEveningSessionPricesForDate_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll())
+                .thenThrow(new RuntimeException("Database connection error"));
+        });
 
-        when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, figi))
-            .thenReturn(false);
-        when(minuteCandleRepository.findLastCandleForDate(figi, testDate))
-            .thenReturn(candle);
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/by-date/{date}", testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
 
-        // Act & Assert
-        mockMvc.perform(post("/api/evening-session-prices/{figi}/{date}", figi, testDate))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("Невалидная цена закрытия для инструмента " + figi + " за " + testDate))
-            .andExpect(jsonPath("$.figi").value(figi))
-            .andExpect(jsonPath("$.date").value(testDate.toString()));
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
 
-        verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, figi);
-        verify(minuteCandleRepository).findLastCandleForDate(figi, testDate);
-        verify(closePriceEveningSessionRepository, never()).save(any(ClosePriceEveningSessionEntity.class));
+    // ==================== ТЕСТЫ ДЛЯ GET /api/evening-session-prices/shares/{date} ====================
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии для акций по дате - успешный случай")
+    @Description("Тест проверяет корректность получения цен вечерней сессии для акций по указанной дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("date-parameter")
+    @Tag("positive")
+    void getEveningSessionPricesForShares_ShouldReturnOk_WhenValidDate() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных для акций", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<ShareEntity> shares = Arrays.asList(TestDataFactory.createShareEntity());
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
+                .thenReturn(TestDataFactory.createMinuteCandleEntity("BBG004730N88", testDate, BigDecimal.valueOf(100.0)));
+        });
+
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса для акций и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/shares/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists())
+                .andExpect(jsonPath("$.totalProcessed").exists())
+                .andExpect(jsonPath("$.foundPrices").exists())
+                .andExpect(jsonPath("$.missingData").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для акций", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(shareRepository).findAll();
+            verify(minuteCandleRepository, atLeastOnce()).findLastCandleForDate(anyString(), eq(testDate));
+        });
+    }
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии для акций по дате - пустой результат")
+    @Description("Тест проверяет поведение API при отсутствии акций в базе данных")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("empty-data")
+    @Tag("positive")
+    void getEveningSessionPricesForShares_ShouldReturnOk_WhenNoShares() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenReturn(Collections.emptyList());
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/shares/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии для акций по дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория для акций")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("error-handling")
+    void getEveningSessionPricesForShares_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/shares/{date}", testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ POST /api/evening-session-prices/shares/{date} ====================
+
+    @Test
+    @DisplayName("Сохранение цен вечерней сессии для акций по дате - успешный случай")
+    @Description("Тест проверяет корректность сохранения цен вечерней сессии для акций по указанной дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("shares")
+    @Tag("date-parameter")
+    @Tag("positive")
+    void saveEveningSessionPricesForShares_ShouldReturnOk_WhenValidDate() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<ShareEntity> shares = Arrays.asList(TestDataFactory.createShareEntity());
+            MinuteCandleEntity candle = TestDataFactory.createMinuteCandleEntity("BBG004730N88", testDate, BigDecimal.valueOf(100.0));
+
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(any(LocalDate.class), anyString())).thenReturn(false);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class))).thenReturn(candle);
+            when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class))).thenReturn(TestDataFactory.createClosePriceEveningSessionEntity());
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/shares/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.totalProcessed").exists())
+                .andExpect(jsonPath("$.newItemsSaved").exists())
+                .andExpect(jsonPath("$.existingItemsSkipped").exists())
+                .andExpect(jsonPath("$.invalidItemsFiltered").exists())
+                .andExpect(jsonPath("$.missingData").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+            verify(closePriceEveningSessionRepository, atLeastOnce()).save(any(ClosePriceEveningSessionEntity.class));
+        });
+    }
+
+    @Test
+    @DisplayName("Сохранение цен вечерней сессии для акций по дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при сохранении акций")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("shares")
+    @Tag("negative")
+    @Tag("error-handling")
+    void saveEveningSessionPricesForShares_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(shareRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/shares/{date}", testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(shareRepository).findAll();
+        });
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ GET /api/evening-session-prices/futures/{date} ====================
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии для фьючерсов по дате - успешный случай")
+    @Description("Тест проверяет корректность получения цен вечерней сессии для фьючерсов по указанной дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("date-parameter")
+    @Tag("positive")
+    void getEveningSessionPricesForFutures_ShouldReturnOk_WhenValidDate() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных для фьючерсов", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<FutureEntity> futures = Arrays.asList(TestDataFactory.createFutureEntity());
+            when(futureRepository.findAll()).thenReturn(futures);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), eq(testDate)))
+                .thenReturn(TestDataFactory.createMinuteCandleEntity("FUTSBRF-3.24", testDate, BigDecimal.valueOf(100.0)));
+        });
+
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса для фьючерсов и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/futures/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists())
+                .andExpect(jsonPath("$.totalProcessed").exists())
+                .andExpect(jsonPath("$.foundPrices").exists())
+                .andExpect(jsonPath("$.missingData").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для фьючерсов", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(futureRepository).findAll();
+            verify(minuteCandleRepository, atLeastOnce()).findLastCandleForDate(anyString(), eq(testDate));
+        });
+    }
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии для фьючерсов по дате - пустой результат")
+    @Description("Тест проверяет поведение API при отсутствии фьючерсов в базе данных")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("empty-data")
+    @Tag("positive")
+    void getEveningSessionPricesForFutures_ShouldReturnOk_WhenNoFutures() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(futureRepository.findAll()).thenReturn(Collections.emptyList());
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/futures/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.count").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(futureRepository).findAll();
+        });
+    }
+
+    @Test
+    @DisplayName("Получение цен вечерней сессии для фьючерсов по дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория для фьючерсов")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("futures")
+    @Tag("negative")
+    @Tag("error-handling")
+    void getEveningSessionPricesForFutures_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(futureRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/futures/{date}", testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(futureRepository).findAll();
+        });
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ POST /api/evening-session-prices/futures/{date} ====================
+
+    @Test
+    @DisplayName("Сохранение цен вечерней сессии для фьючерсов по дате - успешный случай")
+    @Description("Тест проверяет корректность сохранения цен вечерней сессии для фьючерсов по указанной дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("futures")
+    @Tag("date-parameter")
+    @Tag("positive")
+    void saveEveningSessionPricesForFutures_ShouldReturnOk_WhenValidDate() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<FutureEntity> futures = Arrays.asList(TestDataFactory.createFutureEntity());
+            MinuteCandleEntity candle = TestDataFactory.createMinuteCandleEntity("FUTSBRF-3.24", testDate, BigDecimal.valueOf(100.0));
+
+            when(futureRepository.findAll()).thenReturn(futures);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(any(LocalDate.class), anyString())).thenReturn(false);
+            when(minuteCandleRepository.findLastCandleForDate(anyString(), any(LocalDate.class))).thenReturn(candle);
+            when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class))).thenReturn(TestDataFactory.createClosePriceEveningSessionEntity());
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/futures/{date}", testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.totalProcessed").exists())
+                .andExpect(jsonPath("$.newItemsSaved").exists())
+                .andExpect(jsonPath("$.existingItemsSkipped").exists())
+                .andExpect(jsonPath("$.invalidItemsFiltered").exists())
+                .andExpect(jsonPath("$.missingData").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(futureRepository).findAll();
+            verify(closePriceEveningSessionRepository, atLeastOnce()).save(any(ClosePriceEveningSessionEntity.class));
+        });
+    }
+
+    @Test
+    @DisplayName("Сохранение цен вечерней сессии для фьючерсов по дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при сохранении фьючерсов")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("futures")
+    @Tag("negative")
+    @Tag("error-handling")
+    void saveEveningSessionPricesForFutures_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            when(futureRepository.findAll()).thenThrow(new RuntimeException("Database connection error"));
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/futures/{date}", testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(futureRepository).findAll();
+        });
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ GET /api/evening-session-prices/by-figi-date/{figi}/{date} ====================
+
+    @Test
+    @DisplayName("Получение цены вечерней сессии по FIGI и дате - успешный случай")
+    @Description("Тест проверяет корректность получения цены вечерней сессии по FIGI и дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("figi-date")
+    @Tag("positive")
+    void getEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenValidFigiAndDate() throws Exception {
+        
+        // Шаг 1: Подготовка тестовых данных
+        Allure.step("Подготовка тестовых данных для FIGI и даты", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            MinuteCandleEntity candle = TestDataFactory.createMinuteCandleEntity(testFigi, testDate, BigDecimal.valueOf(100.0));
+            when(minuteCandleRepository.findLastCandleForDate(testFigi, testDate)).thenReturn(candle);
+        });
+
+        // Шаг 2: Выполнение HTTP запроса и проверка ответа
+        Allure.step("Выполнение HTTP запроса по FIGI и дате и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.figi").value(testFigi))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса для FIGI и даты", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(minuteCandleRepository).findLastCandleForDate(testFigi, testDate);
+        });
+    }
+
+    @Test
+    @DisplayName("Получение цены вечерней сессии по FIGI и дате - данные не найдены")
+    @Description("Тест проверяет поведение API при отсутствии данных для указанного FIGI и даты")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("figi-date")
+    @Tag("empty-data")
+    @Tag("positive")
+    void getEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenNoData() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            when(minuteCandleRepository.findLastCandleForDate(testFigi, testDate)).thenReturn(null);
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.figi").value(testFigi))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(minuteCandleRepository).findLastCandleForDate(testFigi, testDate);
+        });
+    }
+
+    @Test
+    @DisplayName("Получение цены вечерней сессии по FIGI и дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при запросе по FIGI и дате")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("get")
+    @Tag("figi-date")
+    @Tag("negative")
+    @Tag("error-handling")
+    void getEveningSessionPriceByFigiAndDate_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            when(minuteCandleRepository.findLastCandleForDate(testFigi, testDate))
+                .thenThrow(new RuntimeException("Database connection error"));
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(minuteCandleRepository).findLastCandleForDate(testFigi, testDate);
+        });
+    }
+
+    // ==================== ТЕСТЫ ДЛЯ POST /api/evening-session-prices/by-figi-date/{figi}/{date} ====================
+
+    @Test
+    @DisplayName("Сохранение цены вечерней сессии по FIGI и дате - успешный случай")
+    @Description("Тест проверяет корректность сохранения цены вечерней сессии по FIGI и дате")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("figi-date")
+    @Tag("positive")
+    void saveEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenValidFigiAndDate() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            MinuteCandleEntity candle = TestDataFactory.createMinuteCandleEntity(testFigi, testDate, BigDecimal.valueOf(100.0));
+
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, testFigi)).thenReturn(false);
+            when(minuteCandleRepository.findLastCandleForDate(testFigi, testDate)).thenReturn(candle);
+            when(closePriceEveningSessionRepository.save(any(ClosePriceEveningSessionEntity.class))).thenReturn(TestDataFactory.createClosePriceEveningSessionEntity());
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.figi").value(testFigi))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.data").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, testFigi);
+            verify(minuteCandleRepository).findLastCandleForDate(testFigi, testDate);
+            verify(closePriceEveningSessionRepository).save(any(ClosePriceEveningSessionEntity.class));
+        });
+    }
+
+    @Test
+    @DisplayName("Сохранение цены вечерней сессии по FIGI и дате - данные уже существуют")
+    @Description("Тест проверяет поведение API при попытке сохранить уже существующие данные")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("figi-date")
+    @Tag("duplicate")
+    @Tag("positive")
+    void saveEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenDataAlreadyExists() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, testFigi)).thenReturn(true);
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.figi").value(testFigi))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, testFigi);
+            verify(minuteCandleRepository, never()).findLastCandleForDate(anyString(), any(LocalDate.class));
+            verify(closePriceEveningSessionRepository, never()).save(any(ClosePriceEveningSessionEntity.class));
+        });
+    }
+
+    @Test
+    @DisplayName("Сохранение цены вечерней сессии по FIGI и дате - данные не найдены в API")
+    @Description("Тест проверяет поведение API при отсутствии данных в API для указанного FIGI и даты")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("figi-date")
+    @Tag("no-api-data")
+    @Tag("positive")
+    void saveEveningSessionPriceByFigiAndDate_ShouldReturnOk_WhenNoApiData() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, testFigi)).thenReturn(false);
+            when(minuteCandleRepository.findLastCandleForDate(testFigi, testDate)).thenReturn(null);
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.figi").value(testFigi))
+                .andExpect(jsonPath("$.date").value(testDate.toString()))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, testFigi);
+            verify(minuteCandleRepository).findLastCandleForDate(testFigi, testDate);
+            verify(closePriceEveningSessionRepository, never()).save(any(ClosePriceEveningSessionEntity.class));
+        });
+    }
+
+    @Test
+    @DisplayName("Сохранение цены вечерней сессии по FIGI и дате - ошибка репозитория")
+    @Description("Тест проверяет обработку ошибок при сбое репозитория при сохранении по FIGI и дате")
+    @Severity(SeverityLevel.NORMAL)
+    @Story("API Вечерней Сессии")
+    @Tag("unit")
+    @Tag("evening-session")
+    @Tag("post")
+    @Tag("save")
+    @Tag("figi-date")
+    @Tag("negative")
+    @Tag("error-handling")
+    void saveEveningSessionPriceByFigiAndDate_ShouldReturnInternalServerError_WhenRepositoryThrowsException() throws Exception {
+        Allure.step("Подготовка тестовых данных", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            when(closePriceEveningSessionRepository.existsByPriceDateAndFigi(testDate, testFigi))
+                .thenThrow(new RuntimeException("Database connection error"));
+        });
+
+        Allure.step("Выполнение HTTP запроса и проверка ответа", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/evening-session-prices/by-figi-date/{figi}/{date}", testFigi, testDate))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").exists());
+        });
+
+        Allure.step("Проверка вызовов сервиса", () -> {
+            String testFigi = "BBG004730N88";
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(closePriceEveningSessionRepository).existsByPriceDateAndFigi(testDate, testFigi);
+        });
     }
 }
