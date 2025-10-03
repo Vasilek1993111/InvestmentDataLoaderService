@@ -7,7 +7,11 @@ public enum AssetType {
     /**
      * Товарные активы (нефть, золото, серебро и т.д.)
      */
-   
+    TYPE_COMMODITY("TYPE_COMMODITY"),
+    TYPE_CURRENCY("TYPE_CURRENCY"),
+    TYPE_INDEX("TYPE_INDEX"),
+    TYPE_SECURITY("TYPE_SECURITY");
+    
     private final String value;
     
     AssetType(String value) {
