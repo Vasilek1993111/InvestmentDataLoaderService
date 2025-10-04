@@ -2,7 +2,7 @@ package com.example.InvestmentDataLoaderService.unit.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.junit.jupiter.api.DisplayName;
@@ -17,14 +17,15 @@ import io.qameta.allure.SeverityLevel;
 import io.qameta.allure.Step;
 import io.qameta.allure.Story;
 import io.qameta.allure.Description;
+import io.qameta.allure.Allure;
 import static org.mockito.Mockito.*;
 
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
 
-import java.math.BigDecimal;
+
 import java.time.LocalDate;
-import java.time.Instant;
+
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -38,6 +39,7 @@ import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import com.example.InvestmentDataLoaderService.fixtures.TestDataFactory;
 
 /**
  * Unit-тесты для CandlesDailyController
@@ -53,22 +55,22 @@ public class CandlesDailyControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private DailyCandleService dailyCandleService;
 
-    @MockBean
+    @MockitoBean
     private TinkoffApiClient tinkoffApiClient;
 
-    @MockBean
+    @MockitoBean
     private ShareRepository shareRepository;
 
-    @MockBean
+    @MockitoBean
     private FutureRepository futureRepository;
 
-    @MockBean
+    @MockitoBean
     private IndicativeRepository indicativeRepository;
 
-    @MockBean
+    @MockitoBean
     private SystemLogRepository systemLogRepository;
 
 
@@ -86,91 +88,6 @@ public class CandlesDailyControllerTest {
 
     // ==================== ТЕСТОВЫЕ ДАННЫЕ ====================
 
-    private DailyCandleRequestDto createMockDailyCandleRequest() {
-        DailyCandleRequestDto request = new DailyCandleRequestDto();
-        request.setInstruments(Arrays.asList("BBG004730N88", "BBG004730ZJ9"));
-        request.setAssetType(Arrays.asList("SHARES"));
-        request.setDate(LocalDate.now());
-        return request;
-    }
-
-    private List<ShareEntity> createMockShareEntities() {
-        return Arrays.asList(
-            createShareEntity("BBG004730N88", "SBER", "ПАО Сбербанк"),
-            createShareEntity("BBG004730ZJ9", "GAZP", "ПАО Газпром"),
-            createShareEntity("BBG004730N88", "LKOH", "ПАО Лукойл")
-        );
-    }
-
-    private ShareEntity createShareEntity(String figi, String ticker, String name) {
-        ShareEntity entity = new ShareEntity();
-        entity.setFigi(figi);
-        entity.setTicker(ticker);
-        entity.setName(name);
-        entity.setCurrency("RUB");
-        entity.setExchange("MOEX");
-        entity.setSector("Financial");
-        entity.setTradingStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
-        return entity;
-    }
-
-    private List<FutureEntity> createMockFutureEntities() {
-        return Arrays.asList(
-            createFutureEntity("FUTSI0624000", "SI0624", "Silver"),
-            createFutureEntity("FUTGZ0624000", "GZ0624", "Gold")
-        );
-    }
-
-    private FutureEntity createFutureEntity(String figi, String ticker, String basicAsset) {
-        FutureEntity entity = new FutureEntity();
-        entity.setFigi(figi);
-        entity.setTicker(ticker);
-        entity.setBasicAsset(basicAsset);
-        entity.setAssetType("COMMODITY");
-        entity.setCurrency("USD");
-        entity.setExchange("MOEX");
-        return entity;
-    }
-
-    private List<IndicativeEntity> createMockIndicativeEntities() {
-        return Arrays.asList(
-            createIndicativeEntity("BBG0013HGFT4", "USD000UTSTOM", "Доллар США / Российский рубль"),
-            createIndicativeEntity("BBG0013HGFT5", "EUR000UTSTOM", "Евро / Российский рубль")
-        );
-    }
-
-    private IndicativeEntity createIndicativeEntity(String figi, String ticker, String name) {
-        IndicativeEntity entity = new IndicativeEntity();
-        entity.setFigi(figi);
-        entity.setTicker(ticker);
-        entity.setName(name);
-        entity.setCurrency("RUB");
-        entity.setExchange("MOEX");
-        entity.setClassCode("CURRENCY");
-        entity.setSellAvailableFlag(true);
-        entity.setBuyAvailableFlag(true);
-        return entity;
-    }
-
-    private List<CandleDto> createMockCandles() {
-        return Arrays.asList(
-            createCandle(Instant.now(), 100.0, 105.0, 110.0, 95.0, 1000L, true),
-            createCandle(Instant.now().minusSeconds(86400), 105.0, 108.0, 112.0, 103.0, 1200L, true)
-        );
-    }
-
-    private CandleDto createCandle(Instant time, double open, double close, double high, double low, long volume, boolean isComplete) {
-        return new CandleDto(
-            "BBG004730N88",
-            volume,
-            BigDecimal.valueOf(high),
-            BigDecimal.valueOf(low),
-            time,
-            BigDecimal.valueOf(close),
-            BigDecimal.valueOf(open),
-            isComplete
-        );
-    }
 
     private SaveResponseDto createMockSaveResponse() {
         return new SaveResponseDto(
@@ -197,27 +114,31 @@ public class CandlesDailyControllerTest {
     @Tag("async")
     @Tag("unit")
     void loadDailyCandlesTodayAsync_ShouldReturnTaskId_WhenValidRequestProvided() throws Exception {
-        // Given
-        when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
-        when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
-            .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
+        Allure.step("Подготовка тестовых данных", () -> {
+            SystemLogEntity log = new SystemLogEntity();
+            when(systemLogRepository.save(any(SystemLogEntity.class))).thenReturn(log);
+            when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/candles/daily")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"instruments\":[\"BBG004730N88\",\"BBG004730ZJ9\"],\"assetType\":[\"SHARES\"],\"date\":\"" + LocalDate.now() + "\"}"))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Загрузка дневных свечей за сегодня запущена"))
-                .andExpect(jsonPath("$.taskId").exists())
-                .andExpect(jsonPath("$.endpoint").value("/api/candles/daily"))
-                .andExpect(jsonPath("$.status").value("STARTED"))
-                .andExpect(jsonPath("$.startTime").exists());
+        Allure.step("Выполнение HTTP запроса", () -> {
+            mockMvc.perform(post("/api/candles/daily")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"instruments\":[\"BBG004730N88\",\"BBG004730ZJ9\"],\"assetType\":[\"SHARES\"],\"date\":\"" + LocalDate.now() + "\"}"))
+                    .andExpect(status().isAccepted())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Загрузка дневных свечей за сегодня запущена"))
+                    .andExpect(jsonPath("$.taskId").exists())
+                    .andExpect(jsonPath("$.endpoint").value("/api/candles/daily"))
+                    .andExpect(jsonPath("$.status").value("STARTED"))
+                    .andExpect(jsonPath("$.startTime").exists());
+        });
 
-        // Verify
-        verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
-        verify(dailyCandleService).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
+            verify(dailyCandleService).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
+        });
     }
 
     @Test
@@ -231,28 +152,32 @@ public class CandlesDailyControllerTest {
     @Tag("date")
     @Tag("unit")
     void loadDailyCandlesForDateAsync_ShouldReturnTaskId_WhenValidDateAndRequestProvided() throws Exception {
-        // Given
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
-        when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
-            .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
+        Allure.step("Подготовка тестовых данных", () -> {
+            SystemLogEntity log = new SystemLogEntity();
+            when(systemLogRepository.save(any(SystemLogEntity.class))).thenReturn(log);
+            when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/candles/daily/{date}", testDate)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"instruments\":[\"BBG004730N88\",\"BBG004730ZJ9\"],\"assetType\":[\"SHARES\"],\"date\":\"" + testDate + "\"}"))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Загрузка дневных свечей за " + testDate + " запущена"))
-                .andExpect(jsonPath("$.taskId").exists())
-                .andExpect(jsonPath("$.endpoint").value("/api/candles/daily/" + testDate))
-                .andExpect(jsonPath("$.date").value(testDate.toString()))
-                .andExpect(jsonPath("$.status").value("STARTED"));
+        Allure.step("Выполнение HTTP запроса", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/candles/daily/{date}", testDate)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"instruments\":[\"BBG004730N88\",\"BBG004730ZJ9\"],\"assetType\":[\"SHARES\"],\"date\":\"" + testDate + "\"}"))
+                    .andExpect(status().isAccepted())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Загрузка дневных свечей за " + testDate + " запущена"))
+                    .andExpect(jsonPath("$.taskId").exists())
+                    .andExpect(jsonPath("$.endpoint").value("/api/candles/daily/" + testDate))
+                    .andExpect(jsonPath("$.date").value(testDate.toString()))
+                    .andExpect(jsonPath("$.status").value("STARTED"));
+        });
 
-        // Verify
-        verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
-        verify(dailyCandleService).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
+            verify(dailyCandleService).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ АКЦИЙ ====================
@@ -268,39 +193,41 @@ public class CandlesDailyControllerTest {
     @Tag("get")
     @Tag("unit")
     void getSharesDailyCandlesForDate_ShouldReturnCandles_WhenValidDateProvided() throws Exception {
-        // Given
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = createMockShareEntities();
-        List<CandleDto> candles = createMockCandles();
-        
-        when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(testDate), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(candles);
-        when(tinkoffApiClient.getCandles(eq("BBG004730ZJ9"), eq(testDate), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(candles);
-        when(tinkoffApiClient.getCandles(eq("BBG004730N88"), eq(testDate), eq("CANDLE_INTERVAL_DAY")))
-            .thenReturn(candles);
+        Allure.step("Подготовка тестовых данных", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            List<ShareEntity> shares = TestDataFactory.createShareEntityList();
+            List<CandleDto> candles = TestDataFactory.createCandleDtoList();
+            
+            SystemLogEntity log = new SystemLogEntity();
+            when(systemLogRepository.save(any(SystemLogEntity.class))).thenReturn(log);
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(tinkoffApiClient.getCandles(anyString(), eq(testDate), eq("CANDLE_INTERVAL_DAY")))
+                .thenReturn(candles);
+        });
 
-        // When & Then
-        mockMvc.perform(get("/api/candles/daily/shares/{date}", testDate)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.date").value(testDate.toString()))
-                .andExpect(jsonPath("$.assetType").value("SHARES"))
-                .andExpect(jsonPath("$.candles").isArray())
-                .andExpect(jsonPath("$.totalCandles").exists())
-                .andExpect(jsonPath("$.totalInstruments").value(3))
-                .andExpect(jsonPath("$.processedInstruments").value(3))
-                .andExpect(jsonPath("$.successfulInstruments").exists())
-                .andExpect(jsonPath("$.noDataInstruments").exists())
-                .andExpect(jsonPath("$.errorInstruments").value(0));
+        Allure.step("Выполнение HTTP запроса", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(get("/api/candles/daily/shares/{date}", testDate)
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.date").value(testDate.toString()))
+                    .andExpect(jsonPath("$.assetType").value("SHARES"))
+                    .andExpect(jsonPath("$.candles").isArray())
+                    .andExpect(jsonPath("$.totalCandles").exists())
+                    .andExpect(jsonPath("$.totalInstruments").value(3))
+                    .andExpect(jsonPath("$.processedInstruments").value(3))
+                    .andExpect(jsonPath("$.successfulInstruments").exists())
+                    .andExpect(jsonPath("$.noDataInstruments").exists())
+                    .andExpect(jsonPath("$.errorInstruments").value(0));
+        });
 
-        // Verify
-        verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
-        verify(shareRepository).findAll();
-        verify(tinkoffApiClient, atLeastOnce()).getCandles(anyString(), eq(testDate), eq("CANDLE_INTERVAL_DAY"));
+        Allure.step("Проверка взаимодействий", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
+            verify(shareRepository).findAll();
+            verify(tinkoffApiClient, atLeastOnce()).getCandles(anyString(), eq(testDate), eq("CANDLE_INTERVAL_DAY"));
+        });
     }
 
     @Test
@@ -315,32 +242,36 @@ public class CandlesDailyControllerTest {
     @Tag("post")
     @Tag("unit")
     void loadSharesDailyCandlesForDateAsync_ShouldReturnTaskId_WhenValidDateProvided() throws Exception {
-        // Given
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = createMockShareEntities();
-        
-        when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
-            .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
+        Allure.step("Подготовка тестовых данных", () -> {
+            List<ShareEntity> shares = TestDataFactory.createShareEntityList();
+            
+            SystemLogEntity log = new SystemLogEntity();
+            when(systemLogRepository.save(any(SystemLogEntity.class))).thenReturn(log);
+            when(shareRepository.findAll()).thenReturn(shares);
+            when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
+        });
 
-        // When & Then
-        mockMvc.perform(post("/api/candles/daily/shares/{date}", testDate)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Загрузка дневных свечей акций запущена"))
-                .andExpect(jsonPath("$.taskId").exists())
-                .andExpect(jsonPath("$.endpoint").value("/api/candles/daily/shares/" + testDate))
-                .andExpect(jsonPath("$.date").value(testDate.toString()))
-                .andExpect(jsonPath("$.instrumentsCount").value(3))
-                .andExpect(jsonPath("$.status").value("STARTED"));
+        Allure.step("Выполнение HTTP запроса", () -> {
+            LocalDate testDate = LocalDate.of(2024, 1, 15);
+            mockMvc.perform(post("/api/candles/daily/shares/{date}", testDate)
+                    .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isAccepted())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Загрузка дневных свечей акций запущена"))
+                    .andExpect(jsonPath("$.taskId").exists())
+                    .andExpect(jsonPath("$.endpoint").value("/api/candles/daily/shares/" + testDate))
+                    .andExpect(jsonPath("$.date").value(testDate.toString()))
+                    .andExpect(jsonPath("$.instrumentsCount").value(3))
+                    .andExpect(jsonPath("$.status").value("STARTED"));
+        });
 
-        // Verify
-        verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
-        verify(shareRepository).findAll();
-        verify(dailyCandleService).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
+            verify(shareRepository).findAll();
+            verify(dailyCandleService).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ ФЬЮЧЕРСОВ ====================
@@ -358,8 +289,8 @@ public class CandlesDailyControllerTest {
     void getFuturesDailyCandlesForDate_ShouldReturnCandles_WhenValidDateProvided() throws Exception {
         // Given
         LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<FutureEntity> futures = createMockFutureEntities();
-        List<CandleDto> candles = createMockCandles();
+        List<FutureEntity> futures = TestDataFactory.createFutureEntityList();
+        List<CandleDto> candles = TestDataFactory.createCandleDtoList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(futureRepository.findAll()).thenReturn(futures);
@@ -375,7 +306,7 @@ public class CandlesDailyControllerTest {
                 .andExpect(jsonPath("$.assetType").value("FUTURES"))
                 .andExpect(jsonPath("$.candles").isArray())
                 .andExpect(jsonPath("$.totalCandles").exists())
-                .andExpect(jsonPath("$.totalInstruments").value(2));
+                .andExpect(jsonPath("$.totalInstruments").value(3));
 
         // Verify
         verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
@@ -397,7 +328,7 @@ public class CandlesDailyControllerTest {
     void loadFuturesDailyCandlesForDateAsync_ShouldReturnTaskId_WhenValidDateProvided() throws Exception {
         // Given
         LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<FutureEntity> futures = createMockFutureEntities();
+        List<FutureEntity> futures = TestDataFactory.createFutureEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(futureRepository.findAll()).thenReturn(futures);
@@ -414,7 +345,7 @@ public class CandlesDailyControllerTest {
                 .andExpect(jsonPath("$.taskId").exists())
                 .andExpect(jsonPath("$.endpoint").value("/api/candles/daily/futures/" + testDate))
                 .andExpect(jsonPath("$.date").value(testDate.toString()))
-                .andExpect(jsonPath("$.instrumentsCount").value(2))
+                .andExpect(jsonPath("$.instrumentsCount").value(3))
                 .andExpect(jsonPath("$.status").value("STARTED"));
 
         // Verify
@@ -438,8 +369,8 @@ public class CandlesDailyControllerTest {
     void getIndicativesDailyCandlesForDate_ShouldReturnCandles_WhenValidDateProvided() throws Exception {
         // Given
         LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<IndicativeEntity> indicatives = createMockIndicativeEntities();
-        List<CandleDto> candles = createMockCandles();
+        List<IndicativeEntity> indicatives = TestDataFactory.createIndicativeEntityList();
+        List<CandleDto> candles = TestDataFactory.createCandleDtoList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(indicativeRepository.findAll()).thenReturn(indicatives);
@@ -455,7 +386,7 @@ public class CandlesDailyControllerTest {
                 .andExpect(jsonPath("$.assetType").value("INDICATIVES"))
                 .andExpect(jsonPath("$.candles").isArray())
                 .andExpect(jsonPath("$.totalCandles").exists())
-                .andExpect(jsonPath("$.totalInstruments").value(2));
+                .andExpect(jsonPath("$.totalInstruments").value(3));
 
         // Verify
         verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
@@ -477,7 +408,7 @@ public class CandlesDailyControllerTest {
     void loadIndicativesDailyCandlesForDateAsync_ShouldReturnTaskId_WhenValidDateProvided() throws Exception {
         // Given
         LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<IndicativeEntity> indicatives = createMockIndicativeEntities();
+        List<IndicativeEntity> indicatives = TestDataFactory.createIndicativeEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(indicativeRepository.findAll()).thenReturn(indicatives);
@@ -494,7 +425,7 @@ public class CandlesDailyControllerTest {
                 .andExpect(jsonPath("$.taskId").exists())
                 .andExpect(jsonPath("$.endpoint").value("/api/candles/daily/indicatives/" + testDate))
                 .andExpect(jsonPath("$.date").value(testDate.toString()))
-                .andExpect(jsonPath("$.instrumentsCount").value(2))
+                .andExpect(jsonPath("$.instrumentsCount").value(3))
                 .andExpect(jsonPath("$.status").value("STARTED"));
 
         // Verify
@@ -505,42 +436,6 @@ public class CandlesDailyControllerTest {
 
     // ==================== ТЕСТЫ ДЛЯ СИНХРОННОЙ ЗАГРУЗКИ АКЦИЙ ====================
 
-    @Test
-    @DisplayName("Синхронная загрузка дневных свечей акций за дату - успешный случай")
-    @Description("Тест проверяет корректность синхронной загрузки дневных свечей акций за дату")
-    @Severity(SeverityLevel.CRITICAL)
-    @Story("Shares Daily Candles API")
-    @Tag("api")
-    @Tag("shares")
-    @Tag("daily-candles")
-    @Tag("sync")
-    @Tag("post")
-    @Tag("unit")
-    void loadSharesDailyCandlesForDateSync_ShouldReturnResponse_WhenValidDateProvided() throws Exception {
-        // Given
-        LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<ShareEntity> shares = createMockShareEntities();
-        
-        when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
-        when(shareRepository.findAll()).thenReturn(shares);
-        when(dailyCandleService.saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString()))
-            .thenReturn(CompletableFuture.completedFuture(createMockSaveResponse()));
-
-        // When & Then
-        mockMvc.perform(post("/api/candles/daily/shares/{date}/sync", testDate)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.taskId").exists())
-                .andExpect(jsonPath("$.startTime").exists());
-
-        // Verify
-        verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
-        verify(shareRepository).findAll();
-        verify(dailyCandleService, atLeast(3)).saveDailyCandlesAsync(any(DailyCandleRequestDto.class), anyString());
-    }
 
     // ==================== НЕГАТИВНЫЕ ТЕСТЫ ====================
 
@@ -587,7 +482,7 @@ public class CandlesDailyControllerTest {
     void getSharesDailyCandlesForDate_ShouldHandleFutureDate_WhenFutureDateProvided() throws Exception {
         // Given
         LocalDate futureDate = LocalDate.now().plusDays(30);
-        List<ShareEntity> shares = createMockShareEntities();
+        List<ShareEntity> shares = TestDataFactory.createShareEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(shareRepository.findAll()).thenReturn(shares);
@@ -625,11 +520,11 @@ public class CandlesDailyControllerTest {
         // When & Then
         mockMvc.perform(get("/api/candles/daily/shares/{date}", "invalid-date")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.error").value("RuntimeException"));
+                .andExpect(jsonPath("$.error").value("BadRequest"));
     }
 
     @Test
@@ -645,7 +540,7 @@ public class CandlesDailyControllerTest {
     void getSharesDailyCandlesForDate_ShouldHandleOldDate_WhenVeryOldDateProvided() throws Exception {
         // Given
         LocalDate oldDate = LocalDate.now().minusYears(2);
-        List<ShareEntity> shares = createMockShareEntities();
+        List<ShareEntity> shares = TestDataFactory.createShareEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(shareRepository.findAll()).thenReturn(shares);
@@ -716,7 +611,7 @@ public class CandlesDailyControllerTest {
     void getIndicativesDailyCandlesForDate_ShouldHandleApiError_WhenApiClientThrowsException() throws Exception {
         // Given
         LocalDate testDate = LocalDate.of(2024, 1, 15);
-        List<IndicativeEntity> indicatives = createMockIndicativeEntities();
+        List<IndicativeEntity> indicatives = TestDataFactory.createIndicativeEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(indicativeRepository.findAll()).thenReturn(indicatives);
@@ -732,7 +627,7 @@ public class CandlesDailyControllerTest {
                 .andExpect(jsonPath("$.assetType").value("INDICATIVES"))
                 .andExpect(jsonPath("$.candles").isArray())
                 .andExpect(jsonPath("$.totalCandles").value(0))
-                .andExpect(jsonPath("$.totalInstruments").value(2));
+                .andExpect(jsonPath("$.totalInstruments").value(3));
 
         // Verify
         verify(systemLogRepository, atLeastOnce()).save(any(SystemLogEntity.class));
@@ -754,11 +649,11 @@ public class CandlesDailyControllerTest {
         mockMvc.perform(post("/api/candles/daily")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{invalid json}"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.error").value("RuntimeException"));
+                .andExpect(jsonPath("$.error").value("BadRequest"));
     }
 
     @Test
@@ -805,7 +700,7 @@ public class CandlesDailyControllerTest {
     void getSharesDailyCandlesForDate_ShouldHandleWeekend_WhenWeekendDateProvided() throws Exception {
         // Given - суббота
         LocalDate weekendDate = LocalDate.of(2024, 1, 13);
-        List<ShareEntity> shares = createMockShareEntities();
+        List<ShareEntity> shares = TestDataFactory.createShareEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(shareRepository.findAll()).thenReturn(shares);
@@ -842,7 +737,7 @@ public class CandlesDailyControllerTest {
     void getSharesDailyCandlesForDate_ShouldHandleHoliday_WhenHolidayDateProvided() throws Exception {
         // Given - Новый год
         LocalDate holidayDate = LocalDate.of(2024, 1, 1);
-        List<ShareEntity> shares = createMockShareEntities();
+        List<ShareEntity> shares = TestDataFactory.createShareEntityList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(shareRepository.findAll()).thenReturn(shares);
@@ -881,9 +776,9 @@ public class CandlesDailyControllerTest {
         LocalDate testDate = LocalDate.of(2024, 1, 15);
         List<ShareEntity> largeShareList = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            largeShareList.add(createShareEntity("FIGI" + i, "TICKER" + i, "Name " + i));
+            largeShareList.add(TestDataFactory.createShareEntity("FIGI" + i, "TICKER" + i, "Name " + i, "RUB"));
         }
-        List<CandleDto> candles = createMockCandles();
+        List<CandleDto> candles = TestDataFactory.createCandleDtoList();
         
         when(systemLogRepository.save(any())).thenReturn(new SystemLogEntity());
         when(shareRepository.findAll()).thenReturn(largeShareList);

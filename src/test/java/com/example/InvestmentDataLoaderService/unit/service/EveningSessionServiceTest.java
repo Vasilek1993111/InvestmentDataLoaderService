@@ -63,41 +63,55 @@ public class EveningSessionServiceTest {
     @Tag("positive")
     @Tag("evening-session")
     @Tag("success")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("evening-session")
     void saveClosePricesEveningSession_ShouldReturnSuccessResponse_WhenInstrumentsProvided() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals("Цены вечерней сессии успешно сохранены", result.getMessage());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved());
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
-        assertNotNull(result.getSavedItems());
-        assertEquals(2, result.getSavedItems().size());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals("Цены вечерней сессии успешно сохранены", result.getMessage());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved());
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+            assertNotNull(result.getSavedItems());
+            assertEquals(2, result.getSavedItems().size());
+        });
 
-        // Verify interactions
-        verify(mainSessionPriceService, times(1)).getClosePrices(anyList(), isNull());
-        verify(shareRepo, times(1)).findById("TEST_SHARE_001");
-        verify(futureRepo, times(1)).findById("TEST_FUTURE_001");
-        verify(closePriceEveningSessionRepo, times(2)).save(any(ClosePriceEveningSessionEntity.class));
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(mainSessionPriceService, times(1)).getClosePrices(anyList(), isNull());
+            verify(shareRepo, times(1)).findById("TEST_SHARE_001");
+            verify(futureRepo, times(1)).findById("TEST_FUTURE_001");
+            verify(closePriceEveningSessionRepo, times(2)).save(any(ClosePriceEveningSessionEntity.class));
+        });
     }
 
     @Test
@@ -108,9 +122,15 @@ public class EveningSessionServiceTest {
     @Tag("positive")
     @Tag("evening-session")
     @Tag("database")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("auto-instruments")
     void saveClosePricesEveningSession_ShouldLoadInstrumentsFromDatabase_WhenInstrumentsListIsEmpty() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
+        });
         
         ShareEntity share1 = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
         ShareEntity share2 = TestDataFactory.createShareEntity("TEST_SHARE_002", "GAZP", "Газпром", "TESTNASDAQ"); // Не RUB
@@ -119,29 +139,39 @@ public class EveningSessionServiceTest {
         
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
 
-        // Настраиваем моки
-        when(shareRepo.findAll()).thenReturn(Arrays.asList(share1, share2));
-        when(futureRepo.findAll()).thenReturn(Arrays.asList(future1, future2));
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share1));
-        when(futureRepo.findById("TEST_FUTURE_001")).thenReturn(Optional.of(future1));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(shareRepo.findAll()).thenReturn(Arrays.asList(share1, share2));
+            when(futureRepo.findAll()).thenReturn(Arrays.asList(future1, future2));
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share1));
+            when(futureRepo.findById("TEST_FUTURE_001")).thenReturn(Optional.of(future1));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals("Цены вечерней сессии успешно сохранены", result.getMessage());
-        assertEquals(4, result.getTotalRequested()); // Все инструменты (2 shares + 2 futures)
-        assertEquals(2, result.getNewItemsSaved()); // Только 2 цены из API
-        verify(shareRepo, times(1)).findAll();
-        verify(futureRepo, times(1)).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals("Цены вечерней сессии успешно сохранены", result.getMessage());
+            assertEquals(4, result.getTotalRequested()); // Все инструменты (2 shares + 2 futures)
+            assertEquals(2, result.getNewItemsSaved()); // Только 2 цены из API
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepo, times(1)).findAll();
+            verify(futureRepo, times(1)).findAll();
+        });
     }
 
     @Test
@@ -152,34 +182,46 @@ public class EveningSessionServiceTest {
     @Tag("positive")
     @Tag("evening-session")
     @Tag("existing")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("duplicate-handling")
     void saveClosePricesEveningSession_ShouldSkipExistingRecords_WhenRecordsAlreadyExist() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки - первая запись уже существует, вторая - новая
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), eq("TEST_SHARE_001")))
-            .thenReturn(true); // Первая запись уже существует
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), eq("TEST_FUTURE_001")))
-            .thenReturn(false); // Вторая запись новая
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков - первая запись уже существует, вторая - новая
+        Allure.step("Настройка моков - первая запись уже существует, вторая - новая", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), eq("TEST_SHARE_001")))
+                .thenReturn(true); // Первая запись уже существует
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), eq("TEST_FUTURE_001")))
+                .thenReturn(false); // Вторая запись новая
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(1, result.getNewItemsSaved());
-        assertEquals(1, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(1, result.getNewItemsSaved());
+            assertEquals(1, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     @Test
@@ -190,32 +232,44 @@ public class EveningSessionServiceTest {
     @Tag("positive")
     @Tag("evening-session")
     @Tag("filter")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("data-validation")
     void saveClosePricesEveningSession_ShouldFilterInvalidPrices_WhenPricesHaveInvalidDate() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createInvalidDateEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(1, result.getNewItemsSaved()); // Только одна валидная цена
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(1, result.getInvalidItemsFiltered()); // Одна цена с неверной датой отфильтрована
-        assertEquals(1, result.getMissingFromApi()); // Один инструмент не вернул данных из-за фильтрации
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(1, result.getNewItemsSaved()); // Только одна валидная цена
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(1, result.getInvalidItemsFiltered()); // Одна цена с неверной датой отфильтрована
+            assertEquals(1, result.getMissingFromApi()); // Один инструмент не вернул данных из-за фильтрации
+        });
     }
 
     @Test
@@ -226,32 +280,48 @@ public class EveningSessionServiceTest {
     @Tag("positive")
     @Tag("evening-session")
     @Tag("evening-price")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("price-priority")
     void saveClosePricesEveningSession_ShouldUseEveningSessionPrice_WhenAvailable() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto(
-            Arrays.asList("TEST_SHARE_001")
-        );
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto(
+                Arrays.asList("TEST_SHARE_001")
+            );
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningPriceClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.getTotalRequested());
-        assertEquals(1, result.getNewItemsSaved());
-        verify(closePriceEveningSessionRepo, times(1)).save(any(ClosePriceEveningSessionEntity.class));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(1, result.getTotalRequested());
+            assertEquals(1, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(closePriceEveningSessionRepo, times(1)).save(any(ClosePriceEveningSessionEntity.class));
+        });
     }
 
     @Test
@@ -262,32 +332,48 @@ public class EveningSessionServiceTest {
     @Tag("positive")
     @Tag("evening-session")
     @Tag("batching")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("batch-processing")
     void saveClosePricesEveningSession_ShouldBatchRequests_WhenManyInstrumentsProvided() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createLargeInstrumentsEveningSessionRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createLargeInstrumentsEveningSessionRequest();
+        });
         
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById(anyString())).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById(anyString())).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(250, result.getTotalRequested());
-        assertEquals(6, result.getNewItemsSaved()); // 3 батча * 2 цены = 6
-        // Проверяем, что getClosePrices вызывался 3 раза (250 / 100 = 3 батча)
-        verify(mainSessionPriceService, times(3)).getClosePrices(anyList(), isNull());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(250, result.getTotalRequested());
+            assertEquals(6, result.getNewItemsSaved()); // 3 батча * 2 цены = 6
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            // Проверяем, что getClosePrices вызывался 3 раза (250 / 100 = 3 батча)
+            verify(mainSessionPriceService, times(3)).getClosePrices(anyList(), isNull());
+        });
     }
 
     // ========== НЕГАТИВНЫЕ ТЕСТЫ ==========
@@ -300,27 +386,39 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("api-error")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("error-handling")
     void saveClosePricesEveningSession_ShouldHandleApiError_WhenMainSessionPriceServiceThrowsException() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
 
-        // Настраиваем моки - API выбрасывает исключение
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenThrow(new RuntimeException("API недоступен"));
+        // Шаг 2: Настройка моков - API выбрасывает исключение
+        Allure.step("Настройка моков - API выбрасывает исключение", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenThrow(new RuntimeException("API недоступен"));
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("Ошибка при получении цен закрытия из API для evening session"));
-        assertTrue(result.getMessage().contains("API недоступен"));
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertFalse(result.isSuccess());
+            assertTrue(result.getMessage().contains("Ошибка при получении цен закрытия из API для evening session"));
+            assertTrue(result.getMessage().contains("API недоступен"));
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     @Test
@@ -331,25 +429,37 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("empty-response")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("no-data")
     void saveClosePricesEveningSession_ShouldHandleEmptyApiResponse_WhenNoDataAvailable() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
 
-        // Настраиваем моки - API возвращает пустой список
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(TestDataFactory.createEmptyEveningSessionClosePriceDtoList());
+        // Шаг 2: Настройка моков - API возвращает пустой список
+        Allure.step("Настройка моков - API возвращает пустой список", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(TestDataFactory.createEmptyEveningSessionClosePriceDtoList());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(2, result.getMissingFromApi()); // Два инструмента без данных
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(2, result.getMissingFromApi()); // Два инструмента без данных
+        });
     }
 
     @Test
@@ -360,33 +470,45 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("database-error")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("persistence-error")
     void saveClosePricesEveningSession_ShouldHandleDatabaseError_WhenSaveFails() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки - БД выбрасывает исключение
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenThrow(new DataIntegrityViolationException("Ошибка целостности данных"));
+        // Шаг 2: Настройка моков - БД выбрасывает исключение
+        Allure.step("Настройка моков - БД выбрасывает исключение", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("Ошибка целостности данных"));
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertEquals("Цены вечерней сессии сохранены с ошибками", result.getMessage());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за ошибки БД
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertFalse(result.isSuccess());
+            assertEquals("Цены вечерней сессии сохранены с ошибками", result.getMessage());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за ошибки БД
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     @Test
@@ -397,25 +519,41 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("empty-database")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("no-instruments")
     void saveClosePricesEveningSession_ShouldHandleEmptyInstrumentsAndEmptyDatabase_WhenNoInstrumentsAvailable() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
+        });
 
-        // Настраиваем моки для получения инструментов из БД
-        when(shareRepo.findAll()).thenReturn(Arrays.asList()); // Пустой список
-        when(futureRepo.findAll()).thenReturn(Arrays.asList()); // Пустой список
+        // Шаг 2: Настройка моков для получения инструментов из БД
+        Allure.step("Настройка моков для получения инструментов из БД", () -> {
+            when(shareRepo.findAll()).thenReturn(Arrays.asList()); // Пустой список
+            when(futureRepo.findAll()).thenReturn(Arrays.asList()); // Пустой список
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("Нет инструментов для загрузки цен вечерней сессии"));
-        assertEquals(0, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved());
-        verify(shareRepo, times(1)).findAll();
-        verify(futureRepo, times(1)).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertFalse(result.isSuccess());
+            assertTrue(result.getMessage().contains("Нет инструментов для загрузки цен вечерней сессии"));
+            assertEquals(0, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepo, times(1)).findAll();
+            verify(futureRepo, times(1)).findAll();
+        });
     }
 
     @Test
@@ -426,35 +564,51 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("null-values")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("data-validation")
     void saveClosePricesEveningSession_ShouldHandleNullValues_WhenRequestContainsNulls() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createNullValuesEveningSessionRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createNullValuesEveningSessionRequest();
+        });
 
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
         FutureEntity future = TestDataFactory.createFutureEntity("TEST_FUTURE_001", "Si-3.24", "FUTURES");
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
 
-        // Настраиваем моки для получения инструментов из БД
-        when(shareRepo.findAll()).thenReturn(Arrays.asList(share));
-        when(futureRepo.findAll()).thenReturn(Arrays.asList(future));
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков для получения инструментов из БД
+        Allure.step("Настройка моков для получения инструментов из БД", () -> {
+            when(shareRepo.findAll()).thenReturn(Arrays.asList(share));
+            when(futureRepo.findAll()).thenReturn(Arrays.asList(future));
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved());
-        verify(shareRepo, times(1)).findAll();
-        verify(futureRepo, times(1)).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepo, times(1)).findAll();
+            verify(futureRepo, times(1)).findAll();
+        });
     }
 
     @Test
@@ -465,29 +619,45 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("no-prices")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("data-validation")
     void saveClosePricesEveningSession_ShouldSkipPricesWithoutValues_WhenNoPricesAvailable() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto(
-            Arrays.asList("TEST_SHARE_001")
-        );
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto(
+                Arrays.asList("TEST_SHARE_001")
+            );
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createNoPricesEveningSessionClosePriceDtoList();
 
-        // Настраиваем моки
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за отсутствия цен
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
-        verify(closePriceEveningSessionRepo, never()).save(any(ClosePriceEveningSessionEntity.class));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(1, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за отсутствия цен
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(closePriceEveningSessionRepo, never()).save(any(ClosePriceEveningSessionEntity.class));
+        });
     }
 
     @Test
@@ -498,31 +668,47 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("unknown-instrument")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("data-validation")
     void saveClosePricesEveningSession_ShouldHandleUnknownInstrumentType_WhenInstrumentNotFoundInDatabase() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
 
-        // Настраиваем моки - инструмент не найден в БД
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.empty());
-        when(futureRepo.findById("TEST_SHARE_001")).thenReturn(Optional.empty());
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков - инструмент не найден в БД
+        Allure.step("Настройка моков - инструмент не найден в БД", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.empty());
+            when(futureRepo.findById("TEST_SHARE_001")).thenReturn(Optional.empty());
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved());
-        // Проверяем, что сохранились записи с типом "UNKNOWN"
-        verify(closePriceEveningSessionRepo, times(2)).save(any(ClosePriceEveningSessionEntity.class));
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved());
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            // Проверяем, что сохранились записи с типом "UNKNOWN"
+            verify(closePriceEveningSessionRepo, times(2)).save(any(ClosePriceEveningSessionEntity.class));
+        });
     }
 
     @Test
@@ -533,33 +719,45 @@ public class EveningSessionServiceTest {
     @Tag("negative")
     @Tag("evening-session")
     @Tag("unexpected-error")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("error-handling")
     void saveClosePricesEveningSession_ShouldHandleUnexpectedError_WhenSaveThrowsUnexpectedException() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки - неожиданное исключение
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenThrow(new RuntimeException("Неожиданная ошибка"));
+        // Шаг 2: Настройка моков - неожиданное исключение
+        Allure.step("Настройка моков - неожиданное исключение", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenThrow(new RuntimeException("Неожиданная ошибка"));
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertEquals("Цены вечерней сессии сохранены с ошибками", result.getMessage());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за ошибки
-        assertEquals(0, result.getExistingItemsSkipped());
-        assertEquals(0, result.getInvalidItemsFiltered());
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertFalse(result.isSuccess());
+            assertEquals("Цены вечерней сессии сохранены с ошибками", result.getMessage());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(0, result.getNewItemsSaved()); // Ничего не сохранилось из-за ошибки
+            assertEquals(0, result.getExistingItemsSkipped());
+            assertEquals(0, result.getInvalidItemsFiltered());
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     // ========== ГРАНИЧНЫЕ СЛУЧАИ ==========
@@ -572,32 +770,48 @@ public class EveningSessionServiceTest {
     @Tag("boundary")
     @Tag("evening-session")
     @Tag("large-scale")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("performance")
     void saveClosePricesEveningSession_ShouldHandleLargeNumberOfInstruments_WhenManyInstrumentsProvided() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createVeryLargeInstrumentsEveningSessionRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createVeryLargeInstrumentsEveningSessionRequest();
+        });
         
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_0001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices);
-        when(shareRepo.findById(anyString())).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков
+        Allure.step("Настройка моков", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices);
+            when(shareRepo.findById(anyString())).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(1000, result.getTotalRequested());
-        assertEquals(20, result.getNewItemsSaved()); // 10 батчей * 2 цены = 20
-        // Проверяем, что getClosePrices вызывался 10 раз (1000 / 100 = 10 батчей)
-        verify(mainSessionPriceService, times(10)).getClosePrices(anyList(), isNull());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(1000, result.getTotalRequested());
+            assertEquals(20, result.getNewItemsSaved()); // 10 батчей * 2 цены = 20
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            // Проверяем, что getClosePrices вызывался 10 раз (1000 / 100 = 10 батчей)
+            verify(mainSessionPriceService, times(10)).getClosePrices(anyList(), isNull());
+        });
     }
 
     @Test
@@ -608,31 +822,43 @@ public class EveningSessionServiceTest {
     @Tag("boundary")
     @Tag("evening-session")
     @Tag("mixed-results")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("partial-success")
     void saveClosePricesEveningSession_ShouldHandleMixedApiResults_WhenSomeInstrumentsReturnDataAndSomeDoNot() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEveningSessionRequestDto();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEveningSessionRequestDto();
+        });
         List<ClosePriceDto> testClosePrices = TestDataFactory.createEveningSessionClosePriceDtoList();
         ShareEntity share = TestDataFactory.createShareEntity("TEST_SHARE_001", "SBER", "Сбербанк", "TESTMOEX");
 
-        // Настраиваем моки - первый батч возвращает данные, второй - пустой список
-        when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
-            .thenReturn(testClosePrices)
-            .thenReturn(TestDataFactory.createEmptyEveningSessionClosePriceDtoList());
-        when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
-        when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
-            .thenReturn(false);
-        when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
-            .thenReturn(new ClosePriceEveningSessionEntity());
+        // Шаг 2: Настройка моков - первый батч возвращает данные, второй - пустой список
+        Allure.step("Настройка моков - первый батч возвращает данные, второй - пустой список", () -> {
+            when(mainSessionPriceService.getClosePrices(anyList(), isNull()))
+                .thenReturn(testClosePrices)
+                .thenReturn(TestDataFactory.createEmptyEveningSessionClosePriceDtoList());
+            when(shareRepo.findById("TEST_SHARE_001")).thenReturn(Optional.of(share));
+            when(closePriceEveningSessionRepo.existsByPriceDateAndFigi(any(), anyString()))
+                .thenReturn(false);
+            when(closePriceEveningSessionRepo.save(any(ClosePriceEveningSessionEntity.class)))
+                .thenReturn(new ClosePriceEveningSessionEntity());
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRequested());
-        assertEquals(2, result.getNewItemsSaved());
-        assertEquals(0, result.getMissingFromApi());
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess());
+            assertEquals(2, result.getTotalRequested());
+            assertEquals(2, result.getNewItemsSaved());
+            assertEquals(0, result.getMissingFromApi());
+        });
     }
 
     @Test
@@ -643,28 +869,44 @@ public class EveningSessionServiceTest {
     @Tag("boundary")
     @Tag("evening-session")
     @Tag("usd-only")
+    @Tag("unit")
+    @Tag("service")
+    @Tag("currency-handling")
     void saveClosePricesEveningSession_ShouldHandleOnlyUsdInstruments_WhenNoRubInstrumentsAvailable() {
-        // Given
-        ClosePriceEveningSessionRequestDto request = TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
+        
+        // Шаг 1: Подготовка тестовых данных
+        ClosePriceEveningSessionRequestDto request = Allure.step("Подготовка тестовых данных", () -> {
+            return TestDataFactory.createEmptyInstrumentsEveningSessionRequest();
+        });
         
         ShareEntity share1 = TestDataFactory.createShareEntity("TEST_SHARE_001", "AAPL", "Apple Inc", "TESTNASDAQ");
         ShareEntity share2 = TestDataFactory.createShareEntity("TEST_SHARE_002", "GOOGL", "Google Inc", "TESTNASDAQ");
         FutureEntity future1 = TestDataFactory.createFutureEntity("TEST_FUTURE_001", "ES-3.24", "FUTURES");
         FutureEntity future2 = TestDataFactory.createFutureEntity("TEST_FUTURE_002", "NQ-3.24", "FUTURES");
 
-        // Настраиваем моки для получения инструментов из БД
-        when(shareRepo.findAll()).thenReturn(Arrays.asList(share1, share2));
-        when(futureRepo.findAll()).thenReturn(Arrays.asList(future1, future2));
+        // Шаг 2: Настройка моков для получения инструментов из БД
+        Allure.step("Настройка моков для получения инструментов из БД", () -> {
+            when(shareRepo.findAll()).thenReturn(Arrays.asList(share1, share2));
+            when(futureRepo.findAll()).thenReturn(Arrays.asList(future1, future2));
+        });
 
-        // When
-        SaveResponseDto result = eveningSessionService.saveClosePricesEveningSession(request);
+        // Шаг 3: Выполнение операции
+        SaveResponseDto result = Allure.step("Выполнение операции", () -> {
+            return eveningSessionService.saveClosePricesEveningSession(request);
+        });
 
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isSuccess()); // Сервис обрабатывает все инструменты, не только RUB
-        assertEquals(4, result.getTotalRequested()); // Все инструменты (2 shares + 2 futures)
-        assertEquals(0, result.getNewItemsSaved()); // Нет данных от API
-        verify(shareRepo, times(1)).findAll();
-        verify(futureRepo, times(1)).findAll();
+        // Шаг 4: Проверка результата
+        Allure.step("Проверка результата", () -> {
+            assertNotNull(result);
+            assertTrue(result.isSuccess()); // Сервис обрабатывает все инструменты, не только RUB
+            assertEquals(4, result.getTotalRequested()); // Все инструменты (2 shares + 2 futures)
+            assertEquals(0, result.getNewItemsSaved()); // Нет данных от API
+        });
+
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка взаимодействий", () -> {
+            verify(shareRepo, times(1)).findAll();
+            verify(futureRepo, times(1)).findAll();
+        });
     }
 }

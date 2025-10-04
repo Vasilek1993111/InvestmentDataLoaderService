@@ -43,7 +43,7 @@ public record TradingRequestParams(
             }
         }
         
-        Instant now = Instant.now();
+        // Instant now = Instant.now();
         // Получаем начало текущего дня (00:00:00) в UTC
         Instant startOfToday = LocalDate.now(ZoneId.of("UTC")).atStartOfDay(ZoneId.of("UTC")).toInstant();
         // Получаем максимально допустимую дату (начало текущего дня + 14 дней)
