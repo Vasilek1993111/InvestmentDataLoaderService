@@ -84,6 +84,7 @@ public class TinkoffRestClient {
             
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("instrumentStatus", "INSTRUMENT_STATUS_BASE");
+            requestBody.put("instrumentExchange","INSTRUMENT_EXCHANGE_UNSPECIFIED");
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             
@@ -173,5 +174,38 @@ public class TinkoffRestClient {
         } catch (Exception e) {
             throw new RuntimeException("Failed to get indicative by FIGI from Tinkoff API", e);
         }
+    } 
+    
+    public JsonNode getShareByFigi(String figi){
+        try {
+        String url = baseUrl + "/tinkoff.public.invest.api.contract.v1.InstrumentsService/ShareBy";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + apiToken);
+        
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("idType", "INSTRUMENT_ID_TYPE_FIGI");
+        requestBody.put("id", figi);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        ResponseEntity<String> response = restTemplate.exchange(
+                url, 
+                HttpMethod.POST, 
+                entity, 
+                String.class
+            );
+            
+            if (response.getStatusCode() == HttpStatus.OK) {
+                return objectMapper.readTree(response.getBody());
+            } else {
+                throw new RuntimeException("API request failed with status: " + response.getStatusCode());
+            }
+        
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get indicative by FIGI from Tinkoff API", e);
+        }
+        }
+
     }
-}
+

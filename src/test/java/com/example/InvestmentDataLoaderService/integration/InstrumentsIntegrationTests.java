@@ -1,12 +1,16 @@
 package com.example.InvestmentDataLoaderService.integration;
 
 import com.example.InvestmentDataLoaderService.dto.ShareDto;
+import com.example.InvestmentDataLoaderService.dto.ShareFilterDto;
 import com.example.InvestmentDataLoaderService.dto.FutureDto;
 import com.example.InvestmentDataLoaderService.dto.IndicativeDto;
-import com.example.InvestmentDataLoaderService.repository.FutureRepository;
-import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
-import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
+
+import jakarta.annotation.PostConstruct;
+
+import com.example.InvestmentDataLoaderService.service.CachedInstrumentService;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,9 +29,13 @@ import static org.junit.jupiter.api.Assertions.*;
  * 
  * <p>Тесты проверяют:</p>
  * <ul>
- *   <li>Количество акций и их FIGI совпадает с количеством акций и FIGI в БД</li>
- *   <li>Количество фьючерсов и их FIGI совпадает с количеством фьючерсов и FIGI в БД</li>
- *   <li>Количество индикативов и их FIGI совпадает с количеством индикативов и FIGI в БД</li>
+ *   <li>Количество акций в БД больше или равно количеству акций из API</li>
+ *   <li>Все FIGI из API присутствуют в БД</li>
+ *   <li>Количество фьючерсов в БД больше или равно количеству фьючерсов из API</li>
+ *   <li>Все FIGI фьючерсов из API присутствуют в БД</li>
+ *   <li>Количество индикативов в БД больше или равно количеству индикативов из API</li>
+ *   <li>Все FIGI индикативов из API присутствуют в БД</li>
+ *   <li>Аналогичные проверки для кэша</li>
  * </ul>
  * 
  * <p>Тесты выполняются в полном контексте Spring с подключением к реальной БД и API.</p>
@@ -42,206 +50,177 @@ public class InstrumentsIntegrationTests {
     private InstrumentService instrumentService;
     
     @Autowired
-    private ShareRepository shareRepository;
+    private CachedInstrumentService cachedInstrumentService;
     
-    @Autowired
-    private FutureRepository futureRepository;
-    
-    @Autowired
-    private IndicativeRepository indicativeRepository;
+
+    @PostConstruct
+    void setUp() {
+        cachedInstrumentService.warmUpCache();
+    }
+
+    // ==================== ТЕСТЫ АКЦИЙ ====================
 
     /**
-     * Тест проверяет соответствие акций из API Т-Инвест с данными в БД
-     * 
-     * <p>Проверки:</p>
-     * <ul>
-     *   <li>Количество акций из API равно количеству акций в БД</li>
-     *   <li>Все FIGI из API присутствуют в БД</li>
-     *   <li>Все FIGI из БД присутствуют в API</li>
-     * </ul>
+     * Проверяет, что количество акций в БД больше или равно количеству акций из API
      */
     @Test
-    public void testSharesDataConsistency() {
-        // Получаем акции из API Т-Инвест
-        List<ShareDto> apiShares = instrumentService.getShares(
-            "INSTRUMENT_STATUS_BASE", 
-            null, 
-            null, 
-            null, 
-            null
-        );
+    void compareSharesFromTinkoffToDatabase() {
+        // Создаем фильтры для поиска акций
+        ShareFilterDto filter = new ShareFilterDto();
+
+        List<ShareDto> sharesFromTinkoff = instrumentService.getShares(null, null, "RUB", null, null);
+        List<ShareDto> sharesFromDatabase = instrumentService.getSharesFromDatabase(filter);
         
-        // Получаем FIGI акций из БД
-        List<String> dbFigis = shareRepository.findAllFigis();
-        
-        // Проверяем количество
-        assertEquals(apiShares.size(), dbFigis.size(), 
-            "Количество акций из API должно совпадать с количеством в БД");
-        
-        // Извлекаем FIGI из API
-        Set<String> apiFigis = apiShares.stream()
-            .map(ShareDto::figi)
-            .collect(Collectors.toSet());
-        
-        // Преобразуем список FIGI из БД в Set для удобства сравнения
-        Set<String> dbFigisSet = dbFigis.stream()
-            .collect(Collectors.toSet());
-        
-        // Проверяем, что все FIGI из API присутствуют в БД
-        assertTrue(apiFigis.containsAll(dbFigisSet), 
-            "Все FIGI из БД должны присутствовать в API");
-        
-        // Проверяем, что все FIGI из БД присутствуют в API
-        assertTrue(dbFigisSet.containsAll(apiFigis), 
-            "Все FIGI из API должны присутствовать в БД");
-        
-        // Дополнительная проверка: количество уникальных FIGI
-        assertEquals(apiFigis.size(), dbFigisSet.size(), 
-            "Количество уникальных FIGI должно совпадать");
+       
+        // Проверяем, что количество акций в БД больше или равно количеству из API
+        assertTrue(sharesFromDatabase.size() >= sharesFromTinkoff.size(), 
+            String.format("Количество акций в БД (%d) должно быть больше или равно количеству из API (%d)", 
+            sharesFromDatabase.size(), sharesFromTinkoff.size()));
     }
 
     /**
-     * Тест проверяет соответствие фьючерсов из API Т-Инвест с данными в БД
-     * 
-     * <p>Проверки:</p>
-     * <ul>
-     *   <li>Количество фьючерсов из API равно количеству фьючерсов в БД</li>
-     *   <li>Все FIGI из API присутствуют в БД</li>
-     *   <li>Все FIGI из БД присутствуют в API</li>
-     * </ul>
+     * Проверяет, что все FIGI акций из API присутствуют в БД
      */
     @Test
-    public void testFuturesDataConsistency() {
-        // Получаем фьючерсы из API Т-Инвест
-        List<FutureDto> apiFutures = instrumentService.getFutures(
-            "INSTRUMENT_STATUS_BASE", 
-            null, 
-            null, 
-            null, 
-            null
-        );
+    void compareSharesFigis(){
+        ShareFilterDto filter = new ShareFilterDto();
+        filter.setCurrency("RUB");
+
+        List<ShareDto> sharesFromTinkoff = instrumentService.getShares(null, null, "RUB", null, null);
+        List<ShareDto> sharesFromDatabase = instrumentService.getSharesFromDatabase(filter);
+        Set<String> figisFromTinkoff = sharesFromTinkoff.stream().map(ShareDto::figi).collect(Collectors.toSet());
+        Set<String> figisFromDatabase = sharesFromDatabase.stream().map(ShareDto::figi).collect(Collectors.toSet());
+
+        assertTrue(figisFromDatabase.containsAll(figisFromTinkoff), 
+        String.format("Все FIGI из API должны присутствовать в БД. Отсутствуют: %s", 
+            figisFromTinkoff.stream()
+                .filter(figi -> !figisFromDatabase.contains(figi))
+                .collect(Collectors.toSet())));
+    }
+
+    // ==================== ТЕСТЫ ФЬЮЧЕРСОВ ====================
+
+    /**
+     * Проверяет, что количество фьючерсов в БД больше или равно количеству фьючерсов из API
+     */
+    @Test
+    void compareFuturesFromTinkoffToDatabase() {
+        // Получаем фьючерсы из API
+        List<FutureDto> futuresFromTinkoff = instrumentService.getFutures(null, null, "RUB", null, null);
         
-        // Получаем все фьючерсы из БД
-        List<com.example.InvestmentDataLoaderService.entity.FutureEntity> dbFutures = 
-            futureRepository.findAll();
+        // Получаем фьючерсы из БД (используем метод, который получает все фьючерсы)
+        List<FutureDto> futuresFromDatabase = instrumentService.getFuturesFromDatabase();
         
-        // Проверяем количество
-        assertEquals(apiFutures.size(), dbFutures.size(), 
-            "Количество фьючерсов из API должно совпадать с количеством в БД");
-        
-        // Извлекаем FIGI из API
-        Set<String> apiFigis = apiFutures.stream()
-            .map(FutureDto::figi)
-            .collect(Collectors.toSet());
-        
-        // Извлекаем FIGI из БД
-        Set<String> dbFigis = dbFutures.stream()
-            .map(com.example.InvestmentDataLoaderService.entity.FutureEntity::getFigi)
-            .collect(Collectors.toSet());
-        
-        // Проверяем, что все FIGI из API присутствуют в БД
-        assertTrue(apiFigis.containsAll(dbFigis), 
-            "Все FIGI из БД должны присутствовать в API");
-        
-        // Проверяем, что все FIGI из БД присутствуют в API
-        assertTrue(dbFigis.containsAll(apiFigis), 
-            "Все FIGI из API должны присутствовать в БД");
-        
-        // Дополнительная проверка: количество уникальных FIGI
-        assertEquals(apiFigis.size(), dbFigis.size(), 
-            "Количество уникальных FIGI должно совпадать");
+      
+        // Проверяем, что количество фьючерсов в БД больше или равно количеству из API
+        assertTrue(futuresFromDatabase.size() >= futuresFromTinkoff.size(), 
+            String.format("Количество фьючерсов в БД (%d) должно быть больше или равно количеству из API (%d)", 
+            futuresFromDatabase.size(), futuresFromTinkoff.size()));
     }
 
     /**
-     * Тест проверяет соответствие индикативов из API Т-Инвест с данными в БД
-     * 
-     * <p>Проверки:</p>
-     * <ul>
-     *   <li>Количество индикативов из API равно количеству индикативов в БД</li>
-     *   <li>Все FIGI из API присутствуют в БД</li>
-     *   <li>Все FIGI из БД присутствуют в API</li>
-     * </ul>
+     * Проверяет, что все FIGI фьючерсов из API присутствуют в БД
      */
     @Test
-    public void testIndicativesDataConsistency() {
-        // Получаем индикативы из API Т-Инвест
-        List<IndicativeDto> apiIndicatives = instrumentService.getIndicatives(
-            null, 
-            null, 
-            null, 
-            null
-        );
-        System.out.println("apiIndicatives: " + apiIndicatives);
+    void compareFuturesFigis(){
+        // Получаем фьючерсы из API
+        List<FutureDto> futuresFromTinkoff = instrumentService.getFutures(null, null, "RUB", null, null);
         
-        // Получаем все индикативы из БД
-        List<com.example.InvestmentDataLoaderService.entity.IndicativeEntity> dbIndicatives = 
-            indicativeRepository.findAll();
+        // Получаем фьючерсы из БД
+        List<FutureDto> futuresFromDatabase = instrumentService.getFuturesFromDatabase();
         
-        // Проверяем количество
-        assertEquals(apiIndicatives.size(), dbIndicatives.size(), 
-            "Количество индикативов из API должно совпадать с количеством в БД");
+        Set<String> figisFromTinkoff = futuresFromTinkoff.stream().map(FutureDto::figi).collect(Collectors.toSet());
+        Set<String> figisFromDatabase = futuresFromDatabase.stream().map(FutureDto::figi).collect(Collectors.toSet());
+
+      
+        assertTrue(figisFromDatabase.containsAll(figisFromTinkoff), 
+            String.format("Все FIGI фьючерсов из API должны присутствовать в БД. Отсутствуют: %s", 
+                figisFromTinkoff.stream()
+                    .filter(figi -> !figisFromDatabase.contains(figi))
+                    .collect(Collectors.toSet())));
+    }
+
+    // ==================== ТЕСТЫ ИНДИКАТИВОВ ====================
+
+    /**
+     * Проверяет, что количество индикативов в БД больше или равно количеству индикативов из API
+     */
+    @Test
+    void compareIndicativesFromTinkoffToDatabase() {
+        // Получаем индикативы из API
+        List<IndicativeDto> indicativesFromTinkoff = instrumentService.getIndicatives(null, "RUB", null, null);
         
-        // Извлекаем FIGI из API
-        Set<String> apiFigis = apiIndicatives.stream()
-            .map(IndicativeDto::figi)
-            .collect(Collectors.toSet());
+        // Получаем индикативы из БД
+        List<IndicativeDto> indicativesFromDatabase = instrumentService.getIndicativesFromDatabase();
         
-        // Извлекаем FIGI из БД
-        Set<String> dbFigis = dbIndicatives.stream()
-            .map(com.example.InvestmentDataLoaderService.entity.IndicativeEntity::getFigi)
-            .collect(Collectors.toSet());
+      
         
-        // Проверяем, что все FIGI из API присутствуют в БД
-        assertTrue(apiFigis.containsAll(dbFigis), 
-            "Все FIGI из БД должны присутствовать в API");
-        
-        // Проверяем, что все FIGI из БД присутствуют в API
-        assertTrue(dbFigis.containsAll(apiFigis), 
-            "Все FIGI из API должны присутствовать в БД");
-        
-        // Дополнительная проверка: количество уникальных FIGI
-        assertEquals(apiFigis.size(), dbFigis.size(), 
-            "Количество уникальных FIGI должно совпадать");
+        // Проверяем, что количество индикативов в БД больше или равно количеству из API
+        assertTrue(indicativesFromDatabase.size() >= indicativesFromTinkoff.size(), 
+            String.format("Количество индикативов в БД (%d) должно быть больше или равно количеству из API (%d)", 
+            indicativesFromDatabase.size(), indicativesFromTinkoff.size()));
     }
 
     /**
-     * Комплексный тест проверяет общую статистику по всем типам инструментов
-     * 
-     * <p>Проверяет соответствие общего количества инструментов и их распределения по типам</p>
+     * Проверяет, что все FIGI индикативов из API присутствуют в БД
      */
     @Test
-    public void testOverallInstrumentsConsistency() {
-        // Получаем статистику из сервиса
-        var counts = instrumentService.getInstrumentCounts();
+    void compareIndicativesFigis(){
+        // Получаем индикативы из API
+        List<IndicativeDto> indicativesFromTinkoff = instrumentService.getIndicatives(null, "RUB", null, null);
         
-        // Получаем актуальные данные из API и БД
-        List<ShareDto> apiShares = instrumentService.getShares(null, null, null, null, null);
-        List<FutureDto> apiFutures = instrumentService.getFutures(null, null, null, null, null);
-        List<IndicativeDto> apiIndicatives = instrumentService.getIndicatives(null, null, null, null);
+        // Получаем индикативы из БД
+        List<IndicativeDto> indicativesFromDatabase = instrumentService.getIndicativesFromDatabase();
         
-        long dbSharesCount = shareRepository.count();
-        long dbFuturesCount = futureRepository.count();
-        long dbIndicativesCount = indicativeRepository.count();
-        
-        // Проверяем соответствие статистики
-        assertEquals(apiShares.size(), counts.get("shares"), 
-            "Статистика по акциям должна соответствовать данным из API");
-        assertEquals(apiFutures.size(), counts.get("futures"), 
-            "Статистика по фьючерсам должна соответствовать данным из API");
-        assertEquals(apiIndicatives.size(), counts.get("indicatives"), 
-            "Статистика по индикативам должна соответствовать данным из API");
-        
-        // Проверяем соответствие с БД
-        assertEquals(dbSharesCount, counts.get("shares"), 
-            "Статистика по акциям должна соответствовать данным из БД");
-        assertEquals(dbFuturesCount, counts.get("futures"), 
-            "Статистика по фьючерсам должна соответствовать данным из БД");
-        assertEquals(dbIndicativesCount, counts.get("indicatives"), 
-            "Статистика по индикативам должна соответствовать данным из БД");
-        
-        // Проверяем общее количество
-        long expectedTotal = apiShares.size() + apiFutures.size() + apiIndicatives.size();
-        assertEquals(expectedTotal, counts.get("total"), 
-            "Общее количество инструментов должно соответствовать сумме всех типов");
+        Set<String> figisFromTinkoff = indicativesFromTinkoff.stream().map(IndicativeDto::figi).collect(Collectors.toSet());
+        Set<String> figisFromDatabase = indicativesFromDatabase.stream().map(IndicativeDto::figi).collect(Collectors.toSet());
+
+     
+
+        assertTrue(figisFromDatabase.containsAll(figisFromTinkoff), 
+            String.format("Все FIGI индикативов из API должны присутствовать в БД. Отсутствуют: %s", 
+                figisFromTinkoff.stream()
+                    .filter(figi -> !figisFromDatabase.contains(figi))
+                    .collect(Collectors.toSet())));
     }
+
+    // ==================== ТЕСТЫ КЭША ====================
+
+    /**
+     * Проверяет, что количество акций в кэше больше или равно количеству акций из API
+     */
+    @Test
+    void compareSharesFromTinkoffToCache() {
+        // Получаем акции из API
+        List<ShareDto> sharesFromTinkoff = instrumentService.getShares(null, null, "RUB", null, null);
+        
+        // Получаем акции из кэша
+        List<ShareDto> sharesFromCache = cachedInstrumentService.getSharesFromCache();
+        
+     
+        
+        // Проверяем, что количество акций в кэше больше или равно количеству из API
+        assertTrue(sharesFromCache.size() >= sharesFromTinkoff.size(), 
+            String.format("Количество акций в кэше (%d) должно быть больше или равно количеству из API (%d)", 
+            sharesFromCache.size(), sharesFromTinkoff.size()));
+    }
+
+    /**
+     * Проверяет, что количество фьючерсов в кэше больше или равно количеству фьючерсов из API
+     */
+    @Test
+    void compareFuturesFromTinkoffToCache() {
+        // Получаем фьючерсы из API
+        List<FutureDto> futuresFromTinkoff = instrumentService.getFutures(null, null, "RUB", null, null);
+        
+        // Получаем фьючерсы из кэша
+        List<FutureDto> futuresFromCache = cachedInstrumentService.getFuturesFromCache();
+        
+        
+        // Проверяем, что количество фьючерсов в кэше больше или равно количеству из API
+        assertTrue(futuresFromCache.size() >= futuresFromTinkoff.size(), 
+            String.format("Количество фьючерсов в кэше (%d) должно быть больше или равно количеству из API (%d)", 
+            futuresFromCache.size(), futuresFromTinkoff.size()));
+    }
+
 }

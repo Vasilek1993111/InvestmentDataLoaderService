@@ -96,7 +96,7 @@ public class CachedInstrumentService {
     /**
      * Получает акции из кэша
      */
-    private List<ShareDto> getSharesFromCache() {
+    public List<ShareDto> getSharesFromCache() {
         Cache cache = cacheManager.getCache("sharesCache");
         if (cache == null) {
             return new ArrayList<>();
@@ -154,7 +154,7 @@ public class CachedInstrumentService {
     /**
      * Получает фьючерсы из кэша
      */
-    private List<FutureDto> getFuturesFromCache() {
+    public List<FutureDto> getFuturesFromCache() {
         Cache cache = cacheManager.getCache("futuresCache");
         if (cache == null) {
             return new ArrayList<>();
@@ -308,4 +308,9 @@ public class CachedInstrumentService {
             return "Ошибка получения информации о кэше: " + e.getMessage();
         }
     }
+
+	public void warmUpCache() {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException("Unimplemented method 'warmUpCache'");
+	}
 }

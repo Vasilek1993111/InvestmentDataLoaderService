@@ -26,6 +26,7 @@ public class ShareEntity {
     private String sector;
     private String tradingStatus;
     private Boolean shortEnabled;
+    private String assetUid;
     
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -33,7 +34,7 @@ public class ShareEntity {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // Совместимость со старой сигнатурой (без shortEnabled)
+    //Совместимость со старой сигнатурой (без shortEnabled и assetUid)
     public ShareEntity(String figi,
                        String ticker,
                        String name,
@@ -51,7 +52,10 @@ public class ShareEntity {
         this.sector = sector;
         this.tradingStatus = tradingStatus;
         this.shortEnabled = null;
+        this.assetUid = null;
+    
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    
     }
 }

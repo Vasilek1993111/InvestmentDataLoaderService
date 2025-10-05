@@ -4,6 +4,9 @@ import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.*;
 import ru.tinkoff.piapi.contract.v1.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,6 +25,8 @@ import java.util.Map;
  */
 public class TestDataFactory {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
    
     public static ShareDto createShareDto() {
         return new ShareDto(
@@ -32,7 +37,8 @@ public class TestDataFactory {
             "moex_mrng_evng_e_wknd_dlr",
             "Financials",
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            true
+            true,
+            "test-asset-uid-sber"
         );
     }
 
@@ -45,7 +51,8 @@ public class TestDataFactory {
             "moex_mrng_evng_e_wknd_dlr",
             "Financials",
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            true
+            true,
+            "test-asset-uid-" + ticker.toLowerCase()
         );
     }
 
@@ -210,7 +217,8 @@ public class TestDataFactory {
             "moex_mrng_evng_e_wknd_dlr", 
             "Financial", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            true
+            true,
+            "test-asset-uid-sber"
         );
     }
 
@@ -223,7 +231,8 @@ public class TestDataFactory {
             "moex_mrng_evng_e_wknd_dlr", 
             "Energy", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            true
+            true,
+            "test-asset-uid-gazp"
         );
     }
 
@@ -236,7 +245,8 @@ public class TestDataFactory {
             "moex_mrng_evng_e_wknd_dlr", 
             "Energy", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            true
+            true,
+            "test-asset-uid-lkoh"
         );
     }
 
@@ -491,6 +501,125 @@ public class TestDataFactory {
     }
 
     // ==================== JSON ОБЪЕКТЫ ДЛЯ REST API ====================
+
+    public static JsonNode createSharesJsonNode() {
+        try {
+            String json = """
+                {
+                    "instruments": [
+                        {
+                            "figi": "BBG004730N88",
+                            "ticker": "SBER",
+                            "name": "Сбербанк",
+                            "currency": "RUB",
+                            "exchange": "moex_mrng_evng_e_wknd_dlr",
+                            "sector": "Financials",
+                            "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+                            "shortEnabledFlag": true,
+                            "assetUid": "test-asset-uid-sber"
+                        },
+                        {
+                            "figi": "BBG004730ZJ9",
+                            "ticker": "GAZP",
+                            "name": "Газпром",
+                            "currency": "RUB",
+                            "exchange": "moex_mrng_evng_e_wknd_dlr",
+                            "sector": "Energy",
+                            "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+                            "shortEnabledFlag": true,
+                            "assetUid": "test-asset-uid-gazp"
+                        }
+                    ]
+                }
+                """;
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create shares JsonNode", e);
+        }
+    }
+
+    public static JsonNode createFuturesJsonNode() {
+        try {
+            String json = """
+                {
+                    "instruments": [
+                        {
+                            "figi": "FUTSBER0324",
+                            "ticker": "SBER-3.24",
+                            "assetType": "COMMODITY",
+                            "basicAsset": "SBER",
+                            "currency": "RUB",
+                            "exchange": "moex_mrng_evng_e_wknd_dlr",
+                            "shortEnabled": true,
+                            "expirationDate": "2024-03-15T18:45:00"
+                        },
+                        {
+                            "figi": "FUTGAZP0324",
+                            "ticker": "GAZP-3.24",
+                            "assetType": "COMMODITY",
+                            "basicAsset": "GAZP",
+                            "currency": "RUB",
+                            "exchange": "moex_mrng_evng_e_wknd_dlr",
+                            "shortEnabled": true,
+                            "expirationDate": "2024-03-15T18:45:00"
+                        }
+                    ]
+                }
+                """;
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create futures JsonNode", e);
+        }
+    }
+
+    public static JsonNode createIndicativesJsonNode() {
+        try {
+            String json = """
+                {
+                    "instruments": [
+                        {
+                            "figi": "BBG00M5X5S47",
+                            "ticker": "RTSI",
+                            "name": "Индекс РТС",
+                            "currency": "RUB",
+                            "exchange": "moex_mrng_evng_e_wknd_dlr",
+                            "classCode": "SPBXM",
+                            "uid": "test-uid",
+                            "sellAvailableFlag": true,
+                            "buyAvailableFlag": true
+                        },
+                        {
+                            "figi": "BBG00M5X5S48",
+                            "ticker": "MOEX",
+                            "name": "Индекс МосБиржи",
+                            "currency": "RUB",
+                            "exchange": "moex_mrng_evng_e_wknd_dlr",
+                            "classCode": "SPBXM",
+                            "uid": "test-uid",
+                            "sellAvailableFlag": true,
+                            "buyAvailableFlag": true
+                        }
+                    ]
+                }
+                """;
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create indicatives JsonNode", e);
+        }
+    }
+
+    public static JsonNode createEmptyJsonNode() {
+        try {
+            String json = """
+                {
+                    "instruments": []
+                }
+                """;
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create empty JsonNode", e);
+        }
+    }
 
     public static String createIndicativesJsonResponse() {
         return """
@@ -1116,5 +1245,205 @@ public class TestDataFactory {
                dto.instrumentType() != null && !dto.instrumentType().trim().isEmpty() &&
                dto.currency() != null && !dto.currency().trim().isEmpty() &&
                dto.exchange() != null && !dto.exchange().trim().isEmpty();
+    }
+
+    // ==================== ASSET FUNDAMENTAL DTO ОБЪЕКТЫ ====================
+
+    public static AssetFundamentalDto createAssetFundamentalDto() {
+        AssetFundamentalDto dto = new AssetFundamentalDto();
+        dto.setAssetUid("test-asset-uid-sber");
+        dto.setCurrency("RUB");
+        dto.setDomicileIndicatorCode("RU");
+        dto.setMarketCapitalization(BigDecimal.valueOf(1000000000L));
+        dto.setHighPriceLast52Weeks(BigDecimal.valueOf(300.0));
+        dto.setLowPriceLast52Weeks(BigDecimal.valueOf(200.0));
+        dto.setAverageDailyVolumeLast10Days(BigDecimal.valueOf(1000000L));
+        dto.setAverageDailyVolumeLast4Weeks(BigDecimal.valueOf(1200000L));
+        dto.setBeta(BigDecimal.valueOf(1.2));
+        dto.setFreeFloat(BigDecimal.valueOf(0.8));
+        dto.setForwardAnnualDividendYield(BigDecimal.valueOf(0.05));
+        dto.setSharesOutstanding(BigDecimal.valueOf(1000000000L));
+        dto.setRevenueTtm(BigDecimal.valueOf(5000000000L));
+        dto.setEbitdaTtm(BigDecimal.valueOf(1000000000L));
+        dto.setNetIncomeTtm(BigDecimal.valueOf(200000000L));
+        dto.setEpsTtm(BigDecimal.valueOf(2.0));
+        dto.setDilutedEpsTtm(BigDecimal.valueOf(1.95));
+        dto.setFreeCashFlowTtm(BigDecimal.valueOf(300000000L));
+        dto.setFiveYearAnnualRevenueGrowthRate(BigDecimal.valueOf(0.1));
+        dto.setThreeYearAnnualRevenueGrowthRate(BigDecimal.valueOf(0.08));
+        dto.setOneYearAnnualRevenueGrowthRate(BigDecimal.valueOf(0.05));
+        dto.setPeRatioTtm(BigDecimal.valueOf(15.0));
+        dto.setPriceToSalesTtm(BigDecimal.valueOf(2.0));
+        dto.setPriceToBookTtm(BigDecimal.valueOf(1.5));
+        dto.setPriceToFreeCashFlowTtm(BigDecimal.valueOf(20.0));
+        dto.setTotalEnterpriseValueMrq(BigDecimal.valueOf(1200000000L));
+        dto.setEvToEbitdaMrq(BigDecimal.valueOf(12.0));
+        dto.setEvToSales(BigDecimal.valueOf(2.4));
+        dto.setNetMarginMrq(BigDecimal.valueOf(0.04));
+        dto.setNetInterestMarginMrq(BigDecimal.valueOf(0.03));
+        dto.setRoe(BigDecimal.valueOf(0.15));
+        dto.setRoa(BigDecimal.valueOf(0.08));
+        dto.setRoic(BigDecimal.valueOf(0.12));
+        dto.setTotalDebtMrq(BigDecimal.valueOf(200000000L));
+        dto.setTotalDebtToEquityMrq(BigDecimal.valueOf(0.3));
+        dto.setTotalDebtToEbitdaMrq(BigDecimal.valueOf(0.2));
+        dto.setFreeCashFlowToPrice(BigDecimal.valueOf(0.05));
+        dto.setNetDebtToEbitda(BigDecimal.valueOf(0.15));
+        dto.setCurrentRatioMrq(BigDecimal.valueOf(1.5));
+        dto.setFixedChargeCoverageRatioFy(BigDecimal.valueOf(5.0));
+        dto.setDividendYieldDailyTtm(BigDecimal.valueOf(0.04));
+        dto.setDividendRateTtm(BigDecimal.valueOf(0.8));
+        dto.setDividendsPerShare(BigDecimal.valueOf(0.8));
+        dto.setFiveYearsAverageDividendYield(BigDecimal.valueOf(0.06));
+        dto.setFiveYearAnnualDividendGrowthRate(BigDecimal.valueOf(0.1));
+        dto.setDividendPayoutRatioFy(BigDecimal.valueOf(0.4));
+        dto.setBuyBackTtm(BigDecimal.valueOf(10000000L));
+        dto.setAdrToCommonShareRatio(BigDecimal.valueOf(1.0));
+        dto.setNumberOfEmployees(BigDecimal.valueOf(300000L));
+        dto.setExDividendDate("2024-03-15T00:00:00.000Z");
+        dto.setFiscalPeriodStartDate("2024-01-01T00:00:00.000Z");
+        dto.setFiscalPeriodEndDate("2024-12-31T00:00:00.000Z");
+        dto.setRevenueChangeFiveYears(BigDecimal.valueOf(0.5));
+        dto.setEpsChangeFiveYears(BigDecimal.valueOf(0.3));
+        dto.setEbitdaChangeFiveYears(BigDecimal.valueOf(0.4));
+        dto.setTotalDebtChangeFiveYears(BigDecimal.valueOf(0.2));
+        return dto;
+    }
+
+    public static AssetFundamentalDto createAssetFundamentalDto(String assetUid) {
+        AssetFundamentalDto dto = createAssetFundamentalDto();
+        dto.setAssetUid(assetUid);
+        return dto;
+    }
+
+    public static List<AssetFundamentalDto> createAssetFundamentalDtoList() {
+        return Arrays.asList(
+            createAssetFundamentalDto("test-asset-uid-sber"),
+            createAssetFundamentalDto("test-asset-uid-gazp"),
+            createAssetFundamentalDto("test-asset-uid-lkoh")
+        );
+    }
+
+    public static List<AssetFundamentalDto> createEmptyAssetFundamentalDtoList() {
+        return new ArrayList<>();
+    }
+
+    public static AssetFundamentalsRequestDto createAssetFundamentalsRequestDto() {
+        AssetFundamentalsRequestDto request = new AssetFundamentalsRequestDto();
+        request.setAssets(Arrays.asList("test-asset-uid-sber", "test-asset-uid-gazp"));
+        return request;
+    }
+
+    public static AssetFundamentalsRequestDto createAssetFundamentalsRequestDto(List<String> assets) {
+        AssetFundamentalsRequestDto request = new AssetFundamentalsRequestDto();
+        request.setAssets(assets);
+        return request;
+    }
+
+    public static AssetFundamentalsRequestDto createSharesAssetFundamentalsRequestDto() {
+        AssetFundamentalsRequestDto request = new AssetFundamentalsRequestDto();
+        request.setAssets(Arrays.asList("shares"));
+        return request;
+    }
+
+    public static AssetFundamentalsRequestDto createEmptyAssetFundamentalsRequestDto() {
+        AssetFundamentalsRequestDto request = new AssetFundamentalsRequestDto();
+        request.setAssets(Arrays.asList());
+        return request;
+    }
+
+    public static AssetFundamentalsRequestDto createNullAssetFundamentalsRequestDto() {
+        AssetFundamentalsRequestDto request = new AssetFundamentalsRequestDto();
+        request.setAssets(null);
+        return request;
+    }
+
+    // ==================== ASSET FUNDAMENTAL ENTITY ОБЪЕКТЫ ====================
+
+    public static AssetFundamentalEntity createAssetFundamentalEntity() {
+        AssetFundamentalEntity entity = new AssetFundamentalEntity();
+        entity.setAssetUid("test-asset-uid-sber");
+        entity.setCurrency("RUB");
+        entity.setDomicileIndicatorCode("RU");
+        entity.setMarketCapitalization(BigDecimal.valueOf(1000000000L));
+        entity.setHighPriceLast52Weeks(BigDecimal.valueOf(300.0));
+        entity.setLowPriceLast52Weeks(BigDecimal.valueOf(200.0));
+        entity.setAverageDailyVolumeLast10Days(BigDecimal.valueOf(1000000L));
+        entity.setAverageDailyVolumeLast4Weeks(BigDecimal.valueOf(1200000L));
+        entity.setBeta(BigDecimal.valueOf(1.2));
+        entity.setFreeFloat(BigDecimal.valueOf(0.8));
+        entity.setForwardAnnualDividendYield(BigDecimal.valueOf(0.05));
+        entity.setSharesOutstanding(BigDecimal.valueOf(1000000000L));
+        entity.setRevenueTtm(BigDecimal.valueOf(5000000000L));
+        entity.setEbitdaTtm(BigDecimal.valueOf(1000000000L));
+        entity.setNetIncomeTtm(BigDecimal.valueOf(200000000L));
+        entity.setEpsTtm(BigDecimal.valueOf(2.0));
+        entity.setDilutedEpsTtm(BigDecimal.valueOf(1.95));
+        entity.setFreeCashFlowTtm(BigDecimal.valueOf(300000000L));
+        entity.setFiveYearAnnualRevenueGrowthRate(BigDecimal.valueOf(0.1));
+        entity.setThreeYearAnnualRevenueGrowthRate(BigDecimal.valueOf(0.08));
+        entity.setOneYearAnnualRevenueGrowthRate(BigDecimal.valueOf(0.05));
+        entity.setPeRatioTtm(BigDecimal.valueOf(15.0));
+        entity.setPriceToSalesTtm(BigDecimal.valueOf(2.0));
+        entity.setPriceToBookTtm(BigDecimal.valueOf(1.5));
+        entity.setPriceToFreeCashFlowTtm(BigDecimal.valueOf(20.0));
+        entity.setTotalEnterpriseValueMrq(BigDecimal.valueOf(1200000000L));
+        entity.setEvToEbitdaMrq(BigDecimal.valueOf(12.0));
+        entity.setEvToSales(BigDecimal.valueOf(2.4));
+        entity.setNetMarginMrq(BigDecimal.valueOf(0.04));
+        entity.setNetInterestMarginMrq(BigDecimal.valueOf(0.03));
+        entity.setRoe(BigDecimal.valueOf(0.15));
+        entity.setRoa(BigDecimal.valueOf(0.08));
+        entity.setRoic(BigDecimal.valueOf(0.12));
+        entity.setTotalDebtMrq(BigDecimal.valueOf(200000000L));
+        entity.setTotalDebtToEquityMrq(BigDecimal.valueOf(0.3));
+        entity.setTotalDebtToEbitdaMrq(BigDecimal.valueOf(0.2));
+        entity.setFreeCashFlowToPrice(BigDecimal.valueOf(0.05));
+        entity.setNetDebtToEbitda(BigDecimal.valueOf(0.15));
+        entity.setCurrentRatioMrq(BigDecimal.valueOf(1.5));
+        entity.setFixedChargeCoverageRatioFy(BigDecimal.valueOf(5.0));
+        entity.setDividendYieldDailyTtm(BigDecimal.valueOf(0.04));
+        entity.setDividendRateTtm(BigDecimal.valueOf(0.8));
+        entity.setDividendsPerShare(BigDecimal.valueOf(0.8));
+        entity.setFiveYearsAverageDividendYield(BigDecimal.valueOf(0.06));
+        entity.setFiveYearAnnualDividendGrowthRate(BigDecimal.valueOf(0.1));
+        entity.setDividendPayoutRatioFy(BigDecimal.valueOf(0.4));
+        entity.setBuyBackTtm(BigDecimal.valueOf(10000000L));
+        entity.setAdrToCommonShareRatio(BigDecimal.valueOf(1.0));
+        entity.setNumberOfEmployees(BigDecimal.valueOf(300000L));
+        entity.setExDividendDate("2024-03-15T00:00:00.000Z");
+        entity.setFiscalPeriodStartDate("2024-01-01T00:00:00.000Z");
+        entity.setFiscalPeriodEndDate("2024-12-31T00:00:00.000Z");
+        entity.setRevenueChangeFiveYears(BigDecimal.valueOf(0.5));
+        entity.setEpsChangeFiveYears(BigDecimal.valueOf(0.3));
+        entity.setEbitdaChangeFiveYears(BigDecimal.valueOf(0.4));
+        entity.setTotalDebtChangeFiveYears(BigDecimal.valueOf(0.2));
+        return entity;
+    }
+
+    public static AssetFundamentalEntity createAssetFundamentalEntity(String assetUid) {
+        AssetFundamentalEntity entity = createAssetFundamentalEntity();
+        entity.setAssetUid(assetUid);
+        return entity;
+    }
+
+    public static List<AssetFundamentalEntity> createAssetFundamentalEntityList() {
+        return Arrays.asList(
+            createAssetFundamentalEntity("test-asset-uid-sber"),
+            createAssetFundamentalEntity("test-asset-uid-gazp"),
+            createAssetFundamentalEntity("test-asset-uid-lkoh")
+        );
+    }
+
+    public static List<AssetFundamentalEntity> createEmptyAssetFundamentalEntityList() {
+        return new ArrayList<>();
+    }
+
+    // ==================== ВАЛИДАЦИЯ ASSET FUNDAMENTAL DTO ====================
+
+    public static boolean isAssetFundamentalDtoValid(AssetFundamentalDto dto) {
+        return dto != null &&
+               dto.getAssetUid() != null && !dto.getAssetUid().trim().isEmpty() &&
+               dto.getCurrency() != null && !dto.getCurrency().trim().isEmpty();
     }
 }

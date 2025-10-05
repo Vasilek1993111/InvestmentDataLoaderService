@@ -52,32 +52,57 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Успешные сценарии")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldCompleteSuccessfully_WhenAllServicesWork() {
-        // Given
-        List<ShareDto> testShares = createTestShares();
-        List<FutureDto> testFutures = createTestFutures();
-        List<IndicativeDto> testIndicatives = createTestIndicatives();
+        
+        // Шаг 1: Подготовка тестовых данных
+        List<ShareDto> testShares = Allure.step("Подготовка тестовых данных для акций", () -> {
+            return createTestShares();
+        });
+        
+        List<FutureDto> testFutures = Allure.step("Подготовка тестовых данных для фьючерсов", () -> {
+            return createTestFutures();
+        });
+        
+        List<IndicativeDto> testIndicatives = Allure.step("Подготовка тестовых данных для индикативов", () -> {
+            return createTestIndicatives();
+        });
 
-        SaveResponseDto shareSaveResponse = createSuccessSaveResponse("Акции успешно сохранены", 10, 5, 5, 0, 0);
-        SaveResponseDto futureSaveResponse = createSuccessSaveResponse("Фьючерсы успешно сохранены", 8, 3, 5, 0, 0);
-        SaveResponseDto indicativeSaveResponse = createSuccessSaveResponse("Индикативы успешно сохранены", 5, 2, 3, 0, 0);
+        // Шаг 2: Создание ответов сервисов
+        SaveResponseDto shareSaveResponse = Allure.step("Создание ответа сервиса для акций", () -> {
+            return createSuccessSaveResponse("Акции успешно сохранены", 10, 5, 5, 0, 0);
+        });
+        
+        SaveResponseDto futureSaveResponse = Allure.step("Создание ответа сервиса для фьючерсов", () -> {
+            return createSuccessSaveResponse("Фьючерсы успешно сохранены", 8, 3, 5, 0, 0);
+        });
+        
+        SaveResponseDto indicativeSaveResponse = Allure.step("Создание ответа сервиса для индикативов", () -> {
+            return createSuccessSaveResponse("Индикативы успешно сохранены", 5, 2, 3, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(testIndicatives);
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+        // Шаг 3: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(testIndicatives);
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+        });
 
-        // When
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        // Шаг 4: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getShares(null, "moex_mrng_evng_e_wknd_dlr", null, null, null);
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(null, null, null, null, null);
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, times(1)).getIndicatives(null, null, null, null);
-        verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 5: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(null, "moex_mrng_evng_e_wknd_dlr", null, null, null);
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(null, null, null, null, null);
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, times(1)).getIndicatives(null, null, null, null);
+            verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -86,26 +111,36 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Граничные случаи")
     @Severity(SeverityLevel.NORMAL)
     void preloadAndPersistInstruments_ShouldHandleEmptyResults_WhenNoInstrumentsFound() {
-        // Given
-        SaveResponseDto emptySaveResponse = createSuccessSaveResponse("Нет новых инструментов для сохранения", 0, 0, 0, 0, 0);
+        
+        // Шаг 1: Создание пустого ответа сервиса
+        SaveResponseDto emptySaveResponse = Allure.step("Создание пустого ответа сервиса", () -> {
+            return createSuccessSaveResponse("Нет новых инструментов для сохранения", 0, 0, 0, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(emptySaveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(emptySaveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(emptySaveResponse);
+        // Шаг 2: Настройка моков сервиса для пустых результатов
+        Allure.step("Настройка моков сервиса для пустых результатов", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(emptySaveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(emptySaveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(emptySaveResponse);
+        });
 
-        // When
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        // Шаг 3: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -114,32 +149,57 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Граничные случаи")
     @Severity(SeverityLevel.NORMAL)
     void preloadAndPersistInstruments_ShouldHandlePartialResults_WhenSomeTypesEmpty() {
-        // Given
-        List<ShareDto> testShares = createTestShares();
-        List<FutureDto> testFutures = Collections.emptyList();
-        List<IndicativeDto> testIndicatives = createTestIndicatives();
+        
+        // Шаг 1: Подготовка тестовых данных с частичными результатами
+        List<ShareDto> testShares = Allure.step("Подготовка тестовых данных для акций", () -> {
+            return createTestShares();
+        });
+        
+        List<FutureDto> testFutures = Allure.step("Подготовка пустого списка фьючерсов", () -> {
+            return Collections.emptyList();
+        });
+        
+        List<IndicativeDto> testIndicatives = Allure.step("Подготовка тестовых данных для индикативов", () -> {
+            return createTestIndicatives();
+        });
 
-        SaveResponseDto shareSaveResponse = createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
-        SaveResponseDto futureSaveResponse = createSuccessSaveResponse("Нет фьючерсов", 0, 0, 0, 0, 0);
-        SaveResponseDto indicativeSaveResponse = createSuccessSaveResponse("Индикативы сохранены", 3, 1, 2, 0, 0);
+        // Шаг 2: Создание ответов сервисов
+        SaveResponseDto shareSaveResponse = Allure.step("Создание ответа сервиса для акций", () -> {
+            return createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
+        });
+        
+        SaveResponseDto futureSaveResponse = Allure.step("Создание пустого ответа сервиса для фьючерсов", () -> {
+            return createSuccessSaveResponse("Нет фьючерсов", 0, 0, 0, 0, 0);
+        });
+        
+        SaveResponseDto indicativeSaveResponse = Allure.step("Создание ответа сервиса для индикативов", () -> {
+            return createSuccessSaveResponse("Индикативы сохранены", 3, 1, 2, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(testIndicatives);
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+        // Шаг 3: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(testIndicatives);
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+        });
 
-        // When
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        // Шаг 4: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 5: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     // ========== ТЕСТЫ ОШИБОК ==========
@@ -150,19 +210,27 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Обработка ошибок")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldHandleSharesError_WhenSharesServiceFails() {
-        // Given
-        when(instrumentService.getShares(any(), any(), any(), any(), any()))
-            .thenThrow(new RuntimeException("Ошибка загрузки акций"));
-
-        // When & Then
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
         
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, never()).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, never()).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, never()).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 1: Настройка моков сервиса для ошибки загрузки акций
+        Allure.step("Настройка моков сервиса для ошибки загрузки акций", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Ошибка загрузки акций"));
+        });
+
+        // Шаг 2: Выполнение метода планировщика и проверка отсутствия исключений
+        Allure.step("Выполнение метода планировщика и проверка отсутствия исключений", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
+        
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, never()).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, never()).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, never()).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -171,28 +239,44 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Обработка ошибок")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldHandleFuturesSaveError_WhenFuturesSaveFails() {
-        // Given
-        List<ShareDto> testShares = createTestShares();
-        List<FutureDto> testFutures = createTestFutures();
-
-        SaveResponseDto shareSaveResponse = createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
-
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class)))
-            .thenThrow(new RuntimeException("Ошибка сохранения фьючерсов"));
-
-        // When & Then
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
         
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        // После ошибки сохранения фьючерсов, код не продолжает выполнение
-        verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 1: Подготовка тестовых данных
+        List<ShareDto> testShares = Allure.step("Подготовка тестовых данных для акций", () -> {
+            return createTestShares();
+        });
+        
+        List<FutureDto> testFutures = Allure.step("Подготовка тестовых данных для фьючерсов", () -> {
+            return createTestFutures();
+        });
+
+        SaveResponseDto shareSaveResponse = Allure.step("Создание ответа сервиса для акций", () -> {
+            return createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
+        });
+
+        // Шаг 2: Настройка моков сервиса с ошибкой сохранения фьючерсов
+        Allure.step("Настройка моков сервиса с ошибкой сохранения фьючерсов", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class)))
+                .thenThrow(new RuntimeException("Ошибка сохранения фьючерсов"));
+        });
+
+        // Шаг 3: Выполнение метода планировщика и проверка отсутствия исключений
+        Allure.step("Выполнение метода планировщика и проверка отсутствия исключений", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            // После ошибки сохранения фьючерсов, код не продолжает выполнение
+            verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -201,29 +285,48 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Обработка ошибок")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldHandleIndicativesError_WhenIndicativesServiceFails() {
-        // Given
-        List<ShareDto> testShares = createTestShares();
-        List<FutureDto> testFutures = createTestFutures();
-
-        SaveResponseDto shareSaveResponse = createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
-        SaveResponseDto futureSaveResponse = createSuccessSaveResponse("Фьючерсы сохранены", 3, 1, 2, 0, 0);
-
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any()))
-            .thenThrow(new RuntimeException("Ошибка загрузки индикативов"));
-
-        // When & Then
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
         
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 1: Подготовка тестовых данных
+        List<ShareDto> testShares = Allure.step("Подготовка тестовых данных для акций", () -> {
+            return createTestShares();
+        });
+        
+        List<FutureDto> testFutures = Allure.step("Подготовка тестовых данных для фьючерсов", () -> {
+            return createTestFutures();
+        });
+
+        SaveResponseDto shareSaveResponse = Allure.step("Создание ответа сервиса для акций", () -> {
+            return createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
+        });
+        
+        SaveResponseDto futureSaveResponse = Allure.step("Создание ответа сервиса для фьючерсов", () -> {
+            return createSuccessSaveResponse("Фьючерсы сохранены", 3, 1, 2, 0, 0);
+        });
+
+        // Шаг 2: Настройка моков сервиса с ошибкой загрузки индикативов
+        Allure.step("Настройка моков сервиса с ошибкой загрузки индикативов", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Ошибка загрузки индикативов"));
+        });
+
+        // Шаг 3: Выполнение метода планировщика и проверка отсутствия исключений
+        Allure.step("Выполнение метода планировщика и проверка отсутствия исключений", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -232,20 +335,28 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Обработка ошибок")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldHandleMultipleErrors_WhenMultipleServicesFail() {
-        // Given
-        when(instrumentService.getShares(any(), any(), any(), any(), any()))
-            .thenThrow(new RuntimeException("Ошибка загрузки акций"));
-
-        // When & Then
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
         
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, never()).saveShares(any(ShareFilterDto.class));
-        // После ошибки загрузки акций, код не продолжает выполнение
-        verify(instrumentService, never()).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, never()).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 1: Настройка моков сервиса для ошибки загрузки акций
+        Allure.step("Настройка моков сервиса для ошибки загрузки акций", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Ошибка загрузки акций"));
+        });
+
+        // Шаг 2: Выполнение метода планировщика и проверка отсутствия исключений
+        Allure.step("Выполнение метода планировщика и проверка отсутствия исключений", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
+        
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, never()).saveShares(any(ShareFilterDto.class));
+            // После ошибки загрузки акций, код не продолжает выполнение
+            verify(instrumentService, never()).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, never()).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     // ========== ГРАНИЧНЫЕ СЛУЧАИ ==========
@@ -256,20 +367,28 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Граничные случаи")
     @Severity(SeverityLevel.NORMAL)
     void preloadAndPersistInstruments_ShouldHandleNullResults_WhenServicesReturnNull() {
-        // Given
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(null);
-
-        // When & Then
-        // Код падает с NullPointerException при попытке вызвать .size() на null
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
         
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        // После NullPointerException код не продолжает выполнение
-        verify(instrumentService, never()).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, never()).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, never()).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 1: Настройка моков сервиса для возврата null
+        Allure.step("Настройка моков сервиса для возврата null", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(null);
+        });
+
+        // Шаг 2: Выполнение метода планировщика и проверка отсутствия исключений
+        Allure.step("Выполнение метода планировщика и проверка отсутствия исключений", () -> {
+            // Код падает с NullPointerException при попытке вызвать .size() на null
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
+        
+        // Шаг 3: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            // После NullPointerException код не продолжает выполнение
+            verify(instrumentService, never()).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, never()).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, never()).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, never()).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, never()).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -278,32 +397,56 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Граничные случаи")
     @Severity(SeverityLevel.NORMAL)
     void preloadAndPersistInstruments_ShouldHandleLargeDataVolumes_WhenManyInstrumentsReturned() {
-        // Given
-        List<ShareDto> largeSharesList = createLargeSharesList(1000);
-        List<FutureDto> largeFuturesList = createLargeFuturesList(500);
-        List<IndicativeDto> largeIndicativesList = createLargeIndicativesList(200);
+        
+        // Шаг 1: Подготовка больших объемов тестовых данных
+        List<ShareDto> largeSharesList = Allure.step("Подготовка большого списка акций", () -> {
+            return createLargeSharesList(1000);
+        });
+        
+        List<FutureDto> largeFuturesList = Allure.step("Подготовка большого списка фьючерсов", () -> {
+            return createLargeFuturesList(500);
+        });
+        
+        List<IndicativeDto> largeIndicativesList = Allure.step("Подготовка большого списка индикативов", () -> {
+            return createLargeIndicativesList(200);
+        });
 
-        SaveResponseDto shareSaveResponse = createSuccessSaveResponse("Много акций сохранено", 1000, 800, 200, 0, 0);
-        SaveResponseDto futureSaveResponse = createSuccessSaveResponse("Много фьючерсов сохранено", 500, 300, 200, 0, 0);
-        SaveResponseDto indicativeSaveResponse = createSuccessSaveResponse("Много индикативов сохранено", 200, 150, 50, 0, 0);
+        SaveResponseDto shareSaveResponse = Allure.step("Создание ответа сервиса для большого количества акций", () -> {
+            return createSuccessSaveResponse("Много акций сохранено", 1000, 800, 200, 0, 0);
+        });
+        
+        SaveResponseDto futureSaveResponse = Allure.step("Создание ответа сервиса для большого количества фьючерсов", () -> {
+            return createSuccessSaveResponse("Много фьючерсов сохранено", 500, 300, 200, 0, 0);
+        });
+        
+        SaveResponseDto indicativeSaveResponse = Allure.step("Создание ответа сервиса для большого количества индикативов", () -> {
+            return createSuccessSaveResponse("Много индикативов сохранено", 200, 150, 50, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(largeSharesList);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(largeFuturesList);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(largeIndicativesList);
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(largeSharesList);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(shareSaveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(largeFuturesList);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(futureSaveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(largeIndicativesList);
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(indicativeSaveResponse);
+        });
 
-        // When
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        // Шаг 3: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     @Test
@@ -312,29 +455,48 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Граничные случаи")
     @Severity(SeverityLevel.NORMAL)
     void preloadAndPersistInstruments_ShouldHandleInvalidResponses_WhenServicesReturnInvalidData() {
-        // Given
-        List<ShareDto> sharesWithNullFields = createSharesWithNullFields();
-        List<FutureDto> futuresWithNullFields = createFuturesWithNullFields();
-        List<IndicativeDto> indicativesWithNullFields = createIndicativesWithNullFields();
-
-        SaveResponseDto saveResponse = createSuccessSaveResponse("Обработано с предупреждениями", 5, 3, 2, 0, 0);
-
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(sharesWithNullFields);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(futuresWithNullFields);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(indicativesWithNullFields);
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
-
-        // When & Then
-        assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
         
-        verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
-        verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
-        verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
-        verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        // Шаг 1: Подготовка тестовых данных с некорректными полями
+        List<ShareDto> sharesWithNullFields = Allure.step("Подготовка акций с null полями", () -> {
+            return createSharesWithNullFields();
+        });
+        
+        List<FutureDto> futuresWithNullFields = Allure.step("Подготовка фьючерсов с null полями", () -> {
+            return createFuturesWithNullFields();
+        });
+        
+        List<IndicativeDto> indicativesWithNullFields = Allure.step("Подготовка индикативов с null полями", () -> {
+            return createIndicativesWithNullFields();
+        });
+
+        SaveResponseDto saveResponse = Allure.step("Создание ответа сервиса с предупреждениями", () -> {
+            return createSuccessSaveResponse("Обработано с предупреждениями", 5, 3, 2, 0, 0);
+        });
+
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(sharesWithNullFields);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(futuresWithNullFields);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(indicativesWithNullFields);
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        });
+
+        // Шаг 3: Выполнение метода планировщика и проверка отсутствия исключений
+        Allure.step("Выполнение метода планировщика и проверка отсутствия исключений", () -> {
+            assertDoesNotThrow(() -> schedulerService.preloadAndPersistInstruments());
+        });
+        
+        // Шаг 4: Проверка вызовов сервиса
+        Allure.step("Проверка вызовов сервиса", () -> {
+            verify(instrumentService, times(1)).getShares(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveShares(any(ShareFilterDto.class));
+            verify(instrumentService, times(1)).getFutures(any(), any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveFutures(any(FutureFilterDto.class));
+            verify(instrumentService, times(1)).getIndicatives(any(), any(), any(), any());
+            verify(instrumentService, times(1)).saveIndicatives(any(IndicativeFilterDto.class));
+        });
     }
 
     // ========== ТЕСТЫ ПОВЕДЕНИЯ ПЛАНИРОВЩИКА ==========
@@ -345,29 +507,42 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Поведение планировщика")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldUseCorrectShareFilter_WhenLoadingShares() {
-        // Given
-        List<ShareDto> testShares = createTestShares();
-        SaveResponseDto saveResponse = createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
+        
+        // Шаг 1: Подготовка тестовых данных
+        List<ShareDto> testShares = Allure.step("Подготовка тестовых данных для акций", () -> {
+            return createTestShares();
+        });
+        
+        SaveResponseDto saveResponse = Allure.step("Создание ответа сервиса", () -> {
+            return createSuccessSaveResponse("Акции сохранены", 5, 3, 2, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(testShares);
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        });
 
-        // When
-        schedulerService.preloadAndPersistInstruments();
+        // Шаг 3: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            schedulerService.preloadAndPersistInstruments();
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getShares(null, "moex_mrng_evng_e_wknd_dlr", null, null, null);
-        verify(instrumentService, times(1)).saveShares(argThat(filter -> 
-            filter.getExchange().equals("moex_mrng_evng_e_wknd_dlr") &&
-            filter.getStatus() == null &&
-            filter.getCurrency() == null &&
-            filter.getTicker() == null &&
-            filter.getFigi() == null
-        ));
+        // Шаг 4: Проверка правильности фильтров
+        Allure.step("Проверка правильности фильтров", () -> {
+            verify(instrumentService, times(1)).getShares(null, "moex_mrng_evng_e_wknd_dlr", null, null, null);
+            verify(instrumentService, times(1)).saveShares(argThat(filter -> 
+                filter.getExchange().equals("moex_mrng_evng_e_wknd_dlr") &&
+                filter.getStatus() == null &&
+                filter.getCurrency() == null &&
+                filter.getTicker() == null &&
+                filter.getFigi() == null
+            ));
+        });
     }
 
     @Test
@@ -376,29 +551,42 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Поведение планировщика")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldUseCorrectFutureFilter_WhenLoadingFutures() {
-        // Given
-        List<FutureDto> testFutures = createTestFutures();
-        SaveResponseDto saveResponse = createSuccessSaveResponse("Фьючерсы сохранены", 5, 3, 2, 0, 0);
+        
+        // Шаг 1: Подготовка тестовых данных
+        List<FutureDto> testFutures = Allure.step("Подготовка тестовых данных для фьючерсов", () -> {
+            return createTestFutures();
+        });
+        
+        SaveResponseDto saveResponse = Allure.step("Создание ответа сервиса", () -> {
+            return createSuccessSaveResponse("Фьючерсы сохранены", 5, 3, 2, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(testFutures);
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        });
 
-        // When
-        schedulerService.preloadAndPersistInstruments();
+        // Шаг 3: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            schedulerService.preloadAndPersistInstruments();
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getFutures(null, null, null, null, null);
-        verify(instrumentService, times(1)).saveFutures(argThat(filter -> 
-            filter.getStatus() == null &&
-            filter.getExchange() == null &&
-            filter.getCurrency() == null &&
-            filter.getTicker() == null &&
-            filter.getAssetType() == null
-        ));
+        // Шаг 4: Проверка правильности фильтров
+        Allure.step("Проверка правильности фильтров", () -> {
+            verify(instrumentService, times(1)).getFutures(null, null, null, null, null);
+            verify(instrumentService, times(1)).saveFutures(argThat(filter -> 
+                filter.getStatus() == null &&
+                filter.getExchange() == null &&
+                filter.getCurrency() == null &&
+                filter.getTicker() == null &&
+                filter.getAssetType() == null
+            ));
+        });
     }
 
     @Test
@@ -407,37 +595,50 @@ public class InstrumentPreloadSchedulerServiceTest {
     @Story("Поведение планировщика")
     @Severity(SeverityLevel.CRITICAL)
     void preloadAndPersistInstruments_ShouldUseCorrectIndicativeFilter_WhenLoadingIndicatives() {
-        // Given
-        List<IndicativeDto> testIndicatives = createTestIndicatives();
-        SaveResponseDto saveResponse = createSuccessSaveResponse("Индикативы сохранены", 5, 3, 2, 0, 0);
+        
+        // Шаг 1: Подготовка тестовых данных
+        List<IndicativeDto> testIndicatives = Allure.step("Подготовка тестовых данных для индикативов", () -> {
+            return createTestIndicatives();
+        });
+        
+        SaveResponseDto saveResponse = Allure.step("Создание ответа сервиса", () -> {
+            return createSuccessSaveResponse("Индикативы сохранены", 5, 3, 2, 0, 0);
+        });
 
-        when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
-        when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
-        when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(testIndicatives);
-        when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        // Шаг 2: Настройка моков сервиса
+        Allure.step("Настройка моков сервиса", () -> {
+            when(instrumentService.getShares(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveShares(any(ShareFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getFutures(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+            when(instrumentService.saveFutures(any(FutureFilterDto.class))).thenReturn(saveResponse);
+            when(instrumentService.getIndicatives(any(), any(), any(), any())).thenReturn(testIndicatives);
+            when(instrumentService.saveIndicatives(any(IndicativeFilterDto.class))).thenReturn(saveResponse);
+        });
 
-        // When
-        schedulerService.preloadAndPersistInstruments();
+        // Шаг 3: Выполнение метода планировщика
+        Allure.step("Выполнение метода планировщика", () -> {
+            schedulerService.preloadAndPersistInstruments();
+        });
 
-        // Then
-        verify(instrumentService, times(1)).getIndicatives(null, null, null, null);
-        verify(instrumentService, times(1)).saveIndicatives(argThat(filter -> 
-            filter.getExchange() == null &&
-            filter.getCurrency() == null &&
-            filter.getTicker() == null &&
-            filter.getFigi() == null
-        ));
+        // Шаг 4: Проверка правильности фильтров
+        Allure.step("Проверка правильности фильтров", () -> {
+            verify(instrumentService, times(1)).getIndicatives(null, null, null, null);
+            verify(instrumentService, times(1)).saveIndicatives(argThat(filter -> 
+                filter.getExchange() == null &&
+                filter.getCurrency() == null &&
+                filter.getTicker() == null &&
+                filter.getFigi() == null
+            ));
+        });
     }
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
     private List<ShareDto> createTestShares() {
         return Arrays.asList(
-            new ShareDto("BBG004730N88", "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true),
-            new ShareDto("BBG004730ZJ9", "GAZP", "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true),
-            new ShareDto("BBG004730N88", "LKOH", "Лукойл", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true)
+            new ShareDto("BBG004730N88", "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-sber"),
+            new ShareDto("BBG004730ZJ9", "GAZP", "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-gazp"),
+            new ShareDto("BBG004730N88", "LKOH", "Лукойл", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-lkoh")
         );
     }
 
@@ -458,7 +659,7 @@ public class InstrumentPreloadSchedulerServiceTest {
 
     private List<ShareDto> createLargeSharesList(int count) {
         return Arrays.asList(new ShareDto[count]).stream()
-            .map(i -> new ShareDto("BBG" + i, "TICKER" + i, "Name" + i, "RUB", "moex_mrng_evng_e_wknd_dlr", "Sector", "STATUS", true))
+            .map(i -> new ShareDto("BBG" + i, "TICKER" + i, "Name" + i, "RUB", "moex_mrng_evng_e_wknd_dlr", "Sector", "STATUS", true, "test-asset-uid-" + i))
             .toList();
     }
 
@@ -476,9 +677,9 @@ public class InstrumentPreloadSchedulerServiceTest {
 
     private List<ShareDto> createSharesWithNullFields() {
         return Arrays.asList(
-            new ShareDto(null, "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "STATUS", true),
-            new ShareDto("BBG004730N88", null, "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true),
-            new ShareDto("BBG004730N88", "LKOH", null, "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true)
+            new ShareDto(null, "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "STATUS", true, "test-asset-uid-sber"),
+            new ShareDto("BBG004730N88", null, "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true, "test-asset-uid-gazp"),
+            new ShareDto("BBG004730N88", "LKOH", null, "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true, "test-asset-uid-lkoh")
         );
     }
 
