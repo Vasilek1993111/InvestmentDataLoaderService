@@ -53,10 +53,7 @@ public class InstrumentsIntegrationTests {
     private CachedInstrumentService cachedInstrumentService;
     
 
-    @PostConstruct
-    void setUp() {
-        cachedInstrumentService.warmUpCache();
-    }
+
 
     // ==================== ТЕСТЫ АКЦИЙ ====================
 

@@ -89,37 +89,6 @@ class InstrumentServiceTest {
 
     // ==================== HELPER METHODS ====================
 
-    /**
-     * Создание тестовых данных для акций из API
-     */
-    private SharesResponse createMockSharesResponse() {
-        Share sber = Share.newBuilder()
-                .setFigi("BBG004730N88")
-                .setTicker("SBER")
-                .setName("ПАО Сбербанк")
-                .setCurrency("RUB")
-                .setExchange("MOEX")
-                .setSector("Financial")
-                .setTradingStatus(SecurityTradingStatus.SECURITY_TRADING_STATUS_NORMAL_TRADING)
-                .setShortEnabledFlag(true)
-                .build();
-
-        Share gazp = Share.newBuilder()
-                .setFigi("BBG004730ZJ9")
-                .setTicker("GAZP")
-                .setName("ПАО Газпром")
-                .setCurrency("RUB")
-                .setExchange("MOEX")
-                .setSector("Energy")
-                .setTradingStatus(SecurityTradingStatus.SECURITY_TRADING_STATUS_NORMAL_TRADING)
-                .setShortEnabledFlag(true)
-                .build();
-
-        return SharesResponse.newBuilder()
-                .addInstruments(sber)
-                .addInstruments(gazp)
-                .build();
-    }
 
 
     /**
@@ -163,7 +132,43 @@ class InstrumentServiceTest {
 
 
     /**
-     * Создание тестового JSON ответа для REST API
+     * Создание тестового JSON ответа для REST API акций
+     */
+    private JsonNode createMockSharesJsonResponse() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        String json = """
+            {
+                "instruments": [
+                    {
+                        "figi": "BBG004730N88",
+                        "ticker": "SBER",
+                        "name": "ПАО Сбербанк",
+                        "currency": "RUB",
+                        "exchange": "MOEX",
+                        "sector": "Financial",
+                        "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+                        "shortEnabledFlag": true,
+                        "assetUid": "test-asset-uid-sber"
+                    },
+                    {
+                        "figi": "BBG004730ZJ9",
+                        "ticker": "GAZP",
+                        "name": "ПАО Газпром",
+                        "currency": "RUB",
+                        "exchange": "MOEX",
+                        "sector": "Energy",
+                        "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+                        "shortEnabledFlag": true,
+                        "assetUid": "test-asset-uid-gazp"
+                    }
+                ]
+            }
+            """;
+        return mapper.readTree(json);
+    }
+
+    /**
+     * Создание тестового JSON ответа для REST API индикативов
      */
     private JsonNode createMockJsonResponse() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
@@ -209,22 +214,21 @@ class InstrumentServiceTest {
     @Tag("shares")
     @Tag("unit")
     @Tag("positive")
-    void getShares_ShouldReturnSharesList_WhenValidParametersProvided() {
+    void getShares_ShouldReturnSharesList_WhenValidParametersProvided() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        SharesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesResponse();
+        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
+            return createMockSharesJsonResponse();
         });
 
         // Шаг 2: Настройка моков
         Allure.step("Настройка моков", () -> {
-            when(instrumentsService.shares(any(InstrumentsRequest.class)))
-                .thenReturn(mockResponse);
+            when(restClient.getShares()).thenReturn(mockResponse);
         });
 
         // Шаг 3: Выполнение запроса
         List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
             return instrumentService.getShares(
-                "INSTRUMENT_STATUS_ACTIVE",
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING",
                 "MOEX",
                 "RUB",
                 null,
@@ -263,7 +267,7 @@ class InstrumentServiceTest {
 
         // Шаг 5: Проверка взаимодействий
         Allure.step("Проверка взаимодействий", () -> {
-            verify(instrumentsService).shares(any(InstrumentsRequest.class));
+            verify(restClient).getShares();
         });
     }
 
@@ -276,22 +280,21 @@ class InstrumentServiceTest {
     @Tag("shares")
     @Tag("unit")
     @Tag("negative")
-    void getShares_ShouldReturnEmptyList_WhenInvalidCurrency() {
+    void getShares_ShouldReturnEmptyList_WhenInvalidCurrency() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        SharesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return SharesResponse.newBuilder().build();
+        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
+            return createMockSharesJsonResponse();
         });
 
         // Шаг 2: Настройка моков
         Allure.step("Настройка моков", () -> {
-            when(instrumentsService.shares(any(InstrumentsRequest.class)))
-                .thenReturn(mockResponse);
+            when(restClient.getShares()).thenReturn(mockResponse);
         });
 
         // Шаг 3: Выполнение запроса
         List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
             return instrumentService.getShares(
-                "INSTRUMENT_STATUS_ACTIVE",
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING",
                 "MOEX",
                 "UNCORRECT_CURRENCY",
                 null,
@@ -307,7 +310,7 @@ class InstrumentServiceTest {
         
         // Шаг 4: Проверка взаимодействий
         Allure.step("Проверка взаимодействий", () -> {
-            verify(instrumentsService).shares(any(InstrumentsRequest.class));
+            verify(restClient).getShares();
         });
     }
 
@@ -320,16 +323,15 @@ class InstrumentServiceTest {
     @Tag("shares")
     @Tag("unit")
     @Tag("negative")
-    void getShares_ShouldReturnEmptyList_WhenInvalidStatus() {
+    void getShares_ShouldReturnEmptyList_WhenInvalidStatus() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        SharesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return SharesResponse.newBuilder().build();
+        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
+            return createMockSharesJsonResponse();
         });
 
         // Шаг 2: Настройка моков
         Allure.step("Настройка моков", () -> {
-            when(instrumentsService.shares(any(InstrumentsRequest.class)))
-                .thenReturn(mockResponse);
+            when(restClient.getShares()).thenReturn(mockResponse);
         });
             
         // Шаг 3: Выполнение запроса
@@ -351,7 +353,7 @@ class InstrumentServiceTest {
         
         // Шаг 4: Проверка взаимодействий
         Allure.step("Проверка взаимодействий", () -> {
-            verify(instrumentsService).shares(any(InstrumentsRequest.class));
+            verify(restClient).getShares();
         });
     }
 
@@ -365,22 +367,21 @@ class InstrumentServiceTest {
    @Tag("shares")
    @Tag("unit")
    @Tag("negative")
-   void getShares_ShouldReturnEmptyList_WhenInvalidExchange() {
+   void getShares_ShouldReturnEmptyList_WhenInvalidExchange() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        SharesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return SharesResponse.newBuilder().build();
+        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
+            return createMockSharesJsonResponse();
         });
 
         // Шаг 2: Настройка моков
         Allure.step("Настройка моков", () -> {
-            when(instrumentsService.shares(any(InstrumentsRequest.class)))
-                .thenReturn(mockResponse);
+            when(restClient.getShares()).thenReturn(mockResponse);
         });
             
         // Шаг 3: Выполнение запроса
         List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
             return instrumentService.getShares(
-                "INSTRUMENT_STATUS_ACTIVE",
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING",
                 "INVALID_EXCHANGE",
                 "RUB",
                 null,
@@ -396,7 +397,7 @@ class InstrumentServiceTest {
         
         // Шаг 4: Проверка взаимодействий
         Allure.step("Проверка взаимодействий", () -> {
-            verify(instrumentsService).shares(any(InstrumentsRequest.class));
+            verify(restClient).getShares();
         });
     }
 
@@ -410,18 +411,19 @@ class InstrumentServiceTest {
     @Tag("database")
     @Tag("unit")
     @Tag("positive")
-    void saveShares_ShouldSaveShares_WhenValidParametersProvided() {
+    void saveShares_ShouldSaveShares_WhenValidParametersProvided() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        SharesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesResponse();
+        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
+            return createMockSharesJsonResponse();
         });
         ShareFilterDto filter = TestDataFactory.createShareFilterDto();
         filter.setExchange("MOEX"); // Используем биржу из тестовых данных
+        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все акции
+        filter.setStatus(null); // Убираем фильтр по статусу, чтобы получить все акции
 
         // Шаг 2: Настройка моков
         Allure.step("Настройка моков", () -> {
-            when(instrumentsService.shares(any(InstrumentsRequest.class)))
-                .thenReturn(mockResponse);
+            when(restClient.getShares()).thenReturn(mockResponse);
             
             // Настраиваем моки для проверки существования акций в БД
             when(shareRepo.existsById("BBG004730N88")).thenReturn(false); // SBER не существует
@@ -442,7 +444,7 @@ class InstrumentServiceTest {
         Allure.step("Проверка результата", () -> {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isTrue();
-            assertThat(result.getTotalRequested()).isEqualTo(1); // Только SBER (фильтр по тикеру)
+            assertThat(result.getTotalRequested()).isEqualTo(1); // Только одна акция проходит фильтрацию
             assertThat(result.getNewItemsSaved()).isEqualTo(1);
             assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
             assertThat(result.getInvalidItemsFiltered()).isEqualTo(0);
@@ -456,7 +458,7 @@ class InstrumentServiceTest {
 
         // Шаг 5: Проверка взаимодействий
         Allure.step("Проверка взаимодействий", () -> {
-            verify(instrumentsService).shares(any(InstrumentsRequest.class));
+            verify(restClient).getShares();
             verify(shareRepo).existsById("BBG004730N88");
             verify(shareRepo, times(1)).save(any(ShareEntity.class));
         });
@@ -649,7 +651,7 @@ class InstrumentServiceTest {
         // Шаг 3: Выполнение запроса
         List<FutureDto> result = Allure.step("Выполнение запроса", () -> {
             return instrumentService.getFutures(
-                "INSTRUMENT_STATUS_ACTIVE",
+                "INSTRUMENT_STATUS_BASE",
                 "MOEX",
                 "USD",
                 null,
@@ -1003,27 +1005,42 @@ class InstrumentServiceTest {
         JsonNode mockJsonResponse = createMockJsonResponse();
         when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
         
+        // Настраиваем моки для проверки существования индикативов в БД
+        when(indicativeRepo.existsById("BBG0013HGFT4")).thenReturn(false);
+        when(indicativeRepo.existsById("BBG0013HGFT5")).thenReturn(false);
+        
+        // Настраиваем мок для сохранения индикативов
+        when(indicativeRepo.save(any(IndicativeEntity.class))).thenAnswer(invocation -> {
+            IndicativeEntity entity = invocation.getArgument(0);
+            return entity;
+        });
 
         IndicativeFilterDto filter = TestDataFactory.createIndicativeFilterDto();
+        filter.setExchange("MOEX");
+        filter.setCurrency("RUB");
+        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все индикативы
+        filter.setFigi(null); // Убираем фильтр по FIGI, чтобы получить все индикативы
 
         // When - вызов метода сервиса
         SaveResponseDto result = instrumentService.saveIndicatives(filter);
 
         // Then - проверка результата
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isFalse();
-        assertThat(result.getTotalRequested()).isEqualTo(0);
-        assertThat(result.getNewItemsSaved()).isEqualTo(0);
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getTotalRequested()).isEqualTo(2);
+        assertThat(result.getNewItemsSaved()).isEqualTo(2);
         assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
-        assertThat(result.getMessage()).isNotNull();
+        assertThat(result.getMessage()).contains("Успешно загружено 2 новых индикативных инструментов из 2 найденных");
         
-        // Проверяем, что сохраненных элементов нет
-        assertThat(result.getSavedItems()).hasSize(0);
+        // Проверяем, что сохраненные элементы содержат правильные данные
+        assertThat(result.getSavedItems()).hasSize(2);
+        assertThat(result.getSavedItems()).extracting("ticker").containsExactlyInAnyOrder("USD000UTSTOM", "EUR000UTSTOM");
 
         // Verify
         verify(restClient).getIndicatives();
-        verify(indicativeRepo, never()).existsById(any());
-        verify(indicativeRepo, never()).save(any(IndicativeEntity.class));
+        verify(indicativeRepo).existsById("BBG0013HGFT4");
+        verify(indicativeRepo).existsById("BBG0013HGFT5");
+        verify(indicativeRepo, times(2)).save(any(IndicativeEntity.class));
     }
 
     // ==================== ТЕСТЫ ДЛЯ СТАТИСТИКИ ====================
@@ -1080,20 +1097,19 @@ class InstrumentServiceTest {
     @Tag("negative")
     @Tag("unit")
     @Tag("duplicate")
-    void saveShares_ShouldSkipExistingShares_WhenSharesAlreadyExist() {
+    void saveShares_ShouldSkipExistingShares_WhenSharesAlreadyExist() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        SharesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesResponse();
+        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
+            return createMockSharesJsonResponse();
         });
         ShareFilterDto filter = TestDataFactory.createShareFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
+        filter.setStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
         filter.setExchange("MOEX");
         filter.setCurrency("RUB");
 
         // Шаг 2: Настройка моков
         Allure.step("Настройка моков", () -> {
-            when(instrumentsService.shares(any(InstrumentsRequest.class)))
-                .thenReturn(mockResponse);
+            when(restClient.getShares()).thenReturn(mockResponse);
             when(shareRepo.existsById(anyString())).thenReturn(true);
         });
 
@@ -1114,7 +1130,7 @@ class InstrumentServiceTest {
 
         // Шаг 5: Проверка взаимодействий
         Allure.step("Проверка взаимодействий", () -> {
-            verify(instrumentsService).shares(any(InstrumentsRequest.class));
+            verify(restClient).getShares();
             verify(shareRepo, times(1)).existsById(any()); // проверяем одну акцию
             verify(shareRepo, never()).save(any(ShareEntity.class));
         });
@@ -1130,15 +1146,14 @@ class InstrumentServiceTest {
     @Tag("filtering")
     @Tag("unit")
     @Tag("positive")
-    void getShares_ShouldReturnFilteredShares_WhenTickerFilterApplied() {
+    void getShares_ShouldReturnFilteredShares_WhenTickerFilterApplied() throws Exception {
         // Given - настройка мока для получения акций из API
-        SharesResponse mockResponse = createMockSharesResponse();
-        when(instrumentsService.shares(any(InstrumentsRequest.class)))
-            .thenReturn(mockResponse);
+        JsonNode mockResponse = createMockSharesJsonResponse();
+        when(restClient.getShares()).thenReturn(mockResponse);
 
         // When - вызов метода сервиса с фильтром по тикеру
         List<ShareDto> result = instrumentService.getShares(
-            "INSTRUMENT_STATUS_ACTIVE",
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             null,
             null,
             "SBER",
@@ -1155,7 +1170,7 @@ class InstrumentServiceTest {
         assertThat(share.shortEnabled()).isTrue();
 
         // Verify
-        verify(instrumentsService).shares(any(InstrumentsRequest.class));
+        verify(restClient).getShares();
     }
 
     @Test
@@ -1249,15 +1264,14 @@ class InstrumentServiceTest {
     @Tag("edge-case")
     @Tag("unit")
     @Tag("positive")
-    void getShares_ShouldReturnFilteredShares_WhenFigiFilterApplied() {
+    void getShares_ShouldReturnFilteredShares_WhenFigiFilterApplied() throws Exception {
         // Given - настройка мока для получения акций из API
-        SharesResponse mockResponse = createMockSharesResponse();
-        when(instrumentsService.shares(any(InstrumentsRequest.class)))
-            .thenReturn(mockResponse);
+        JsonNode mockResponse = createMockSharesJsonResponse();
+        when(restClient.getShares()).thenReturn(mockResponse);
 
         // When - вызов метода сервиса с фильтром по FIGI
         List<ShareDto> result = instrumentService.getShares(
-            "INSTRUMENT_STATUS_ACTIVE",
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             null,
             null,
             null,
@@ -1274,7 +1288,7 @@ class InstrumentServiceTest {
         assertThat(share.shortEnabled()).isTrue();
 
         // Verify
-        verify(instrumentsService).shares(any(InstrumentsRequest.class));
+        verify(restClient).getShares();
     }
 
     @Test
@@ -1315,17 +1329,16 @@ class InstrumentServiceTest {
     @Tag("mixed")
     @Tag("unit")
     @Tag("positive")
-    void saveShares_ShouldSaveOnlyNewShares_WhenSomeSharesExist() {
+    void saveShares_ShouldSaveOnlyNewShares_WhenSomeSharesExist() throws Exception {
         // Given - настройка моков для частично существующих акций
-        SharesResponse mockResponse = createMockSharesResponse();
-        when(instrumentsService.shares(any(InstrumentsRequest.class)))
-            .thenReturn(mockResponse);
+        JsonNode mockResponse = createMockSharesJsonResponse();
+        when(restClient.getShares()).thenReturn(mockResponse);
         
         // Одна акция существует, другая нет
         when(shareRepo.existsById(anyString())).thenReturn(true);  // все акции существуют
 
         ShareFilterDto filter = TestDataFactory.createShareFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
+        filter.setStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
         filter.setExchange("MOEX");
         filter.setCurrency("RUB");
 
@@ -1344,7 +1357,7 @@ class InstrumentServiceTest {
         assertThat(result.getSavedItems()).hasSize(0);
 
         // Verify
-        verify(instrumentsService).shares(any(InstrumentsRequest.class));
+        verify(restClient).getShares();
         verify(shareRepo, times(1)).existsById(any());
         verify(shareRepo, never()).save(any(ShareEntity.class));
     }
@@ -1420,7 +1433,7 @@ class InstrumentServiceTest {
         when(futureRepo.existsById("FUTGZ0624000")).thenReturn(true);
 
         FutureFilterDto filter = TestDataFactory.createFutureFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
+        filter.setStatus("INSTRUMENT_STATUS_BASE");
         filter.setExchange("MOEX");
         filter.setCurrency("USD");
         filter.setAssetType("COMMODITY");
@@ -1519,25 +1532,32 @@ class InstrumentServiceTest {
         // Given - настройка моков для уже существующих индикативов
         JsonNode mockJsonResponse = createMockJsonResponse();
         when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+        
+        // Настраиваем моки для проверки существования индикативов в БД
+        when(indicativeRepo.existsById("BBG0013HGFT4")).thenReturn(true);
+        when(indicativeRepo.existsById("BBG0013HGFT5")).thenReturn(true);
 
         IndicativeFilterDto filter = TestDataFactory.createIndicativeFilterDto();
         filter.setExchange("MOEX");
         filter.setCurrency("RUB");
+        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все индикативы
+        filter.setFigi(null); // Убираем фильтр по FIGI, чтобы получить все индикативы
 
         // When - вызов метода сервиса
         SaveResponseDto result = instrumentService.saveIndicatives(filter);
 
         // Then - проверка результата
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isFalse();
-        assertThat(result.getTotalRequested()).isEqualTo(0);
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getTotalRequested()).isEqualTo(2);
         assertThat(result.getNewItemsSaved()).isEqualTo(0);
-        assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
-        assertThat(result.getMessage()).isNotNull();
+        assertThat(result.getExistingItemsSkipped()).isEqualTo(2);
+        assertThat(result.getMessage()).contains("уже существуют в базе данных");
 
         // Verify
         verify(restClient).getIndicatives();
-        verify(indicativeRepo, never()).existsById(any());
+        verify(indicativeRepo).existsById("BBG0013HGFT4");
+        verify(indicativeRepo).existsById("BBG0013HGFT5");
         verify(indicativeRepo, never()).save(any(IndicativeEntity.class));
     }
 
@@ -1583,15 +1603,20 @@ class InstrumentServiceTest {
     @Tag("empty-response")
     @Tag("unit")
     @Tag("positive")
-    void getShares_ShouldReturnEmptyList_WhenApiReturnsEmptyResponse() {
+    void getShares_ShouldReturnEmptyList_WhenApiReturnsEmptyResponse() throws Exception {
         // Given - настройка мока для пустого ответа API
-        SharesResponse emptyResponse = SharesResponse.newBuilder().build();
-        when(instrumentsService.shares(any(InstrumentsRequest.class)))
-            .thenReturn(emptyResponse);
+        ObjectMapper mapper = new ObjectMapper();
+        String json = """
+            {
+                "instruments": []
+            }
+            """;
+        JsonNode emptyResponse = mapper.readTree(json);
+        when(restClient.getShares()).thenReturn(emptyResponse);
 
         // When - вызов метода сервиса
         List<ShareDto> result = instrumentService.getShares(
-            "INSTRUMENT_STATUS_ACTIVE",
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             "MOEX",
             "RUB",
             null,
@@ -1603,7 +1628,7 @@ class InstrumentServiceTest {
         assertThat(result).isEmpty();
 
         // Verify
-        verify(instrumentsService).shares(any(InstrumentsRequest.class));
+        verify(restClient).getShares();
     }
 
     @Test
@@ -1624,7 +1649,7 @@ class InstrumentServiceTest {
 
         // When - вызов метода сервиса
         List<FutureDto> result = instrumentService.getFutures(
-            "INSTRUMENT_STATUS_ACTIVE",
+            "INSTRUMENT_STATUS_BASE",
             "MOEX",
             "USD",
             null,
@@ -1686,14 +1711,19 @@ class InstrumentServiceTest {
     @Tag("empty-api")
     @Tag("unit")
     @Tag("negative")
-    void saveShares_ShouldHandleEmptyApiResponse_WhenApiReturnsEmptyList() {
+    void saveShares_ShouldHandleEmptyApiResponse_WhenApiReturnsEmptyList() throws Exception {
         // Given - настройка мока для пустого ответа API
-        SharesResponse emptyResponse = SharesResponse.newBuilder().build();
-        when(instrumentsService.shares(any(InstrumentsRequest.class)))
-            .thenReturn(emptyResponse);
+        ObjectMapper mapper = new ObjectMapper();
+        String json = """
+            {
+                "instruments": []
+            }
+            """;
+        JsonNode emptyResponse = mapper.readTree(json);
+        when(restClient.getShares()).thenReturn(emptyResponse);
 
         ShareFilterDto filter = TestDataFactory.createShareFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
+        filter.setStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
         filter.setExchange("MOEX");
         filter.setCurrency("RUB");
 
@@ -1708,7 +1738,7 @@ class InstrumentServiceTest {
         assertThat(result.getMessage()).contains("Новых акций не обнаружено");
 
         // Verify
-        verify(instrumentsService).shares(any(InstrumentsRequest.class));
+        verify(restClient).getShares();
         verify(shareRepo, never()).existsById(any());
         verify(shareRepo, never()).save(any(ShareEntity.class));
     }
