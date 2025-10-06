@@ -216,28 +216,33 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getShares_ShouldReturnSharesList_WhenValidParametersProvided() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesJsonResponse();
+        JsonNode mockResponse = Allure.step("Создание тестовых данных для акций SBER и GAZP", () -> {
+            JsonNode response = createMockSharesJsonResponse();
+            System.out.println("Созданы тестовые данные: акции SBER (Сбербанк) и GAZP (Газпром)");
+            return response;
         });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка мока для внешнего API Tinkoff", () -> {
             when(restClient.getShares()).thenReturn(mockResponse);
+            System.out.println("Настроен мок для внешнего API - возвращает тестовые данные акций");
         });
 
         // Шаг 3: Выполнение запроса
-        List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getShares(
+        List<ShareDto> result = Allure.step("Выполнение запроса к сервису с корректными параметрами", () -> {
+            List<ShareDto> shares = instrumentService.getShares(
                 "SECURITY_TRADING_STATUS_NORMAL_TRADING",
                 "MOEX",
                 "RUB",
                 null,
                 null
             );
+            System.out.println("Выполнен запрос с параметрами: статус=NORMAL_TRADING, биржа=MOEX, валюта=RUB");
+            return shares;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности возвращенных данных акций", () -> {
             assertThat(result).isNotNull();
             assertThat(result).hasSize(2);
             
@@ -263,11 +268,16 @@ class InstrumentServiceTest {
             // Проверяем сортировку по тикеру
             assertThat(result.get(0).ticker()).isEqualTo("GAZP"); 
             assertThat(result.get(1).ticker()).isEqualTo("SBER");
+            
+            System.out.println("Проверено: возвращены 2 акции с корректными данными");
+            System.out.println("GAZP: FIGI=BBG004730ZJ9, Сектор=Energy, ShortEnabled=true");
+            System.out.println("SBER: FIGI=BBG004730N88, Сектор=Financial, ShortEnabled=true");
         });
 
         // Шаг 5: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с внешним API", () -> {
             verify(restClient).getShares();
+            System.out.println("Проверено: метод getShares() вызван один раз");
         });
     }
 
@@ -282,35 +292,43 @@ class InstrumentServiceTest {
     @Tag("negative")
     void getShares_ShouldReturnEmptyList_WhenInvalidCurrency() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesJsonResponse();
+        JsonNode mockResponse = Allure.step("Создание тестовых данных для проверки фильтрации по валюте", () -> {
+            JsonNode response = createMockSharesJsonResponse();
+            System.out.println("Созданы тестовые данные: акции SBER и GAZP с валютой RUB");
+            return response;
         });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка мока для внешнего API Tinkoff", () -> {
             when(restClient.getShares()).thenReturn(mockResponse);
+            System.out.println("Настроен мок для внешнего API - возвращает тестовые данные акций");
         });
 
         // Шаг 3: Выполнение запроса
-        List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getShares(
+        List<ShareDto> result = Allure.step("Выполнение запроса с некорректной валютой", () -> {
+            List<ShareDto> shares = instrumentService.getShares(
                 "SECURITY_TRADING_STATUS_NORMAL_TRADING",
                 "MOEX",
                 "UNCORRECT_CURRENCY",
                 null,
                 null
             );
+            System.out.println("Выполнен запрос с некорректной валютой: UNCORRECT_CURRENCY");
+            return shares;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности фильтрации по некорректной валюте", () -> {
             assertThat(result).isNotNull();
             assertThat(result).isEmpty(); // Пустой список при некорректной валюте
+            System.out.println("Проверено: возвращен пустой список при некорректной валюте");
+            System.out.println("Фильтрация по валюте работает корректно");
         });
         
-        // Шаг 4: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка корректности взаимодействий с внешним API", () -> {
             verify(restClient).getShares();
+            System.out.println("Проверено: метод getShares() вызван один раз");
         });
     }
 
@@ -325,35 +343,43 @@ class InstrumentServiceTest {
     @Tag("negative")
     void getShares_ShouldReturnEmptyList_WhenInvalidStatus() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesJsonResponse();
+        JsonNode mockResponse = Allure.step("Создание тестовых данных для проверки фильтрации по статусу", () -> {
+            JsonNode response = createMockSharesJsonResponse();
+            System.out.println("Созданы тестовые данные: акции SBER и GAZP со статусом NORMAL_TRADING");
+            return response;
         });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка мока для внешнего API Tinkoff", () -> {
             when(restClient.getShares()).thenReturn(mockResponse);
+            System.out.println("Настроен мок для внешнего API - возвращает тестовые данные акций");
         });
             
         // Шаг 3: Выполнение запроса
-        List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getShares(
+        List<ShareDto> result = Allure.step("Выполнение запроса с некорректным статусом", () -> {
+            List<ShareDto> shares = instrumentService.getShares(
                 "INVALID_STATUS",
                 "MOEX",
                 "RUB",
                 null,
                 null
             );
+            System.out.println("Выполнен запрос с некорректным статусом: INVALID_STATUS");
+            return shares;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности фильтрации по некорректному статусу", () -> {
             assertThat(result).isNotNull();
             assertThat(result).isEmpty(); // Пустой список при некорректном статусе
+            System.out.println("Проверено: возвращен пустой список при некорректном статусе");
+            System.out.println("Фильтрация по статусу работает корректно");
         });
         
-        // Шаг 4: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка корректности взаимодействий с внешним API", () -> {
             verify(restClient).getShares();
+            System.out.println("Проверено: метод getShares() вызван один раз");
         });
     }
 
@@ -369,35 +395,43 @@ class InstrumentServiceTest {
    @Tag("negative")
    void getShares_ShouldReturnEmptyList_WhenInvalidExchange() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesJsonResponse();
+        JsonNode mockResponse = Allure.step("Создание тестовых данных для проверки фильтрации по бирже", () -> {
+            JsonNode response = createMockSharesJsonResponse();
+            System.out.println("Созданы тестовые данные: акции SBER и GAZP с биржей MOEX");
+            return response;
         });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка мока для внешнего API Tinkoff", () -> {
             when(restClient.getShares()).thenReturn(mockResponse);
+            System.out.println("Настроен мок для внешнего API - возвращает тестовые данные акций");
         });
             
         // Шаг 3: Выполнение запроса
-        List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getShares(
+        List<ShareDto> result = Allure.step("Выполнение запроса с некорректной биржей", () -> {
+            List<ShareDto> shares = instrumentService.getShares(
                 "SECURITY_TRADING_STATUS_NORMAL_TRADING",
                 "INVALID_EXCHANGE",
                 "RUB",
                 null,
                 null
             );
+            System.out.println("Выполнен запрос с некорректной биржей: INVALID_EXCHANGE");
+            return shares;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности фильтрации по некорректной бирже", () -> {
             assertThat(result).isNotNull();
             assertThat(result).isEmpty(); // Пустой список при некорректной бирже
+            System.out.println("Проверено: возвращен пустой список при некорректной бирже");
+            System.out.println("Фильтрация по бирже работает корректно");
         });
         
-        // Шаг 4: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        // Шаг 5: Проверка взаимодействий
+        Allure.step("Проверка корректности взаимодействий с внешним API", () -> {
             verify(restClient).getShares();
+            System.out.println("Проверено: метод getShares() вызван один раз");
         });
     }
 
@@ -413,35 +447,46 @@ class InstrumentServiceTest {
     @Tag("positive")
     void saveShares_ShouldSaveShares_WhenValidParametersProvided() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesJsonResponse();
+        JsonNode mockResponse = Allure.step("Создание тестовых данных для сохранения акций", () -> {
+            JsonNode response = createMockSharesJsonResponse();
+            System.out.println("Созданы тестовые данные: акции SBER и GAZP для сохранения в БД");
+            return response;
         });
-        ShareFilterDto filter = TestDataFactory.createShareFilterDto();
-        filter.setExchange("MOEX"); // Используем биржу из тестовых данных
-        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все акции
-        filter.setStatus(null); // Убираем фильтр по статусу, чтобы получить все акции
+        
+        ShareFilterDto filter = Allure.step("Настройка фильтра для сохранения акций", () -> {
+            ShareFilterDto shareFilter = TestDataFactory.createShareFilterDto();
+            shareFilter.setExchange("MOEX"); // Используем биржу из тестовых данных
+            shareFilter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все акции
+            shareFilter.setStatus(null); // Убираем фильтр по статусу, чтобы получить все акции
+            System.out.println("Настроен фильтр: биржа=MOEX, без фильтров по тикеру и статусу");
+            return shareFilter;
+        });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка моков для сохранения акций", () -> {
             when(restClient.getShares()).thenReturn(mockResponse);
             
             // Настраиваем моки для проверки существования акций в БД
             when(shareRepo.existsById("BBG004730N88")).thenReturn(false); // SBER не существует
+            System.out.println("Настроен мок: акция SBER не существует в БД");
             
             // Настраиваем мок для сохранения акций
             when(shareRepo.save(any(ShareEntity.class))).thenAnswer(invocation -> {
                 ShareEntity entity = invocation.getArgument(0);
                 return entity; // Возвращаем ту же сущность
             });
+            System.out.println("Настроен мок для сохранения акций в БД");
         });
 
         // Шаг 3: Выполнение сохранения
-        SaveResponseDto result = Allure.step("Выполнение сохранения", () -> {
-            return instrumentService.saveShares(filter);
+        SaveResponseDto result = Allure.step("Выполнение сохранения акций в базу данных", () -> {
+            SaveResponseDto response = instrumentService.saveShares(filter);
+            System.out.println("Выполнено сохранение акций с фильтром");
+            return response;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности сохранения акций", () -> {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isTrue();
             assertThat(result.getTotalRequested()).isEqualTo(1); // Только одна акция проходит фильтрацию
@@ -454,13 +499,17 @@ class InstrumentServiceTest {
             // Проверяем, что сохраненные элементы содержат правильные данные
             assertThat(result.getSavedItems()).hasSize(1);
             assertThat(result.getSavedItems()).extracting("ticker").containsExactlyInAnyOrder("SBER");
+            
+            System.out.println("Проверено: успешно сохранена 1 акция SBER");
+            System.out.println("Статистика: TotalRequested=1, NewItemsSaved=1, ExistingItemsSkipped=0");
         });
 
         // Шаг 5: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
             verify(restClient).getShares();
             verify(shareRepo).existsById("BBG004730N88");
             verify(shareRepo, times(1)).save(any(ShareEntity.class));
+            System.out.println("Проверено: все взаимодействия с репозиторием выполнены корректно");
         });
     }
 
@@ -475,37 +524,50 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getSharesFromDatabase_ShouldReturnSharesList_WhenEntitiesExist() {
         // Шаг 1: Подготовка тестовых данных
-        List<ShareEntity> mockEntities = Allure.step("Подготовка тестовых данных", () -> {
-            return TestDataFactory.createShareEntityList();
+        List<ShareEntity> mockEntities = Allure.step("Создание тестовых данных для получения акций из БД", () -> {
+            List<ShareEntity> entities = TestDataFactory.createShareEntityList();
+            System.out.println("Созданы тестовые данные: 3 акции из TestDataFactory");
+            return entities;
         });
-        ShareFilterDto filter = TestDataFactory.createShareFilterDto();
-        filter.setStatus("INSTRUMENT_STATUS_ACTIVE");
-        filter.setExchange("TESTMOEX"); // Используем биржу из TestDataFactory
-        filter.setCurrency("RUB");
-        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все акции
-        filter.setFigi(null); // Убираем фильтр по FIGI, чтобы получить все акции
-        filter.setSector(null); // Убираем фильтр по сектору, чтобы получить все акции
-        filter.setTradingStatus(null); // Убираем фильтр по статусу, чтобы получить все акции
+        
+        ShareFilterDto filter = Allure.step("Настройка фильтра для получения акций из БД", () -> {
+            ShareFilterDto shareFilter = TestDataFactory.createShareFilterDto();
+            shareFilter.setStatus("INSTRUMENT_STATUS_ACTIVE");
+            shareFilter.setExchange("TESTMOEX"); // Используем биржу из TestDataFactory
+            shareFilter.setCurrency("RUB");
+            shareFilter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все акции
+            shareFilter.setFigi(null); // Убираем фильтр по FIGI, чтобы получить все акции
+            shareFilter.setSector(null); // Убираем фильтр по сектору, чтобы получить все акции
+            shareFilter.setTradingStatus(null); // Убираем фильтр по статусу, чтобы получить все акции
+            System.out.println("Настроен фильтр: статус=ACTIVE, биржа=TESTMOEX, валюта=RUB");
+            return shareFilter;
+        });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка мока для получения акций из БД", () -> {
             when(shareRepo.findAll()).thenReturn(mockEntities);
+            System.out.println("Настроен мок: findAll() возвращает 3 тестовые акции");
         });
 
         // Шаг 3: Выполнение запроса
-        List<ShareDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getSharesFromDatabase(filter);
+        List<ShareDto> result = Allure.step("Выполнение запроса к сервису для получения акций из БД", () -> {
+            List<ShareDto> shares = instrumentService.getSharesFromDatabase(filter);
+            System.out.println("Выполнен запрос к сервису с фильтром");
+            return shares;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности возвращенных данных из БД", () -> {
             assertThat(result).isNotNull();
             assertThat(result).hasSize(3); // Все 3 акции из TestDataFactory
+            System.out.println("Проверено: возвращены все 3 акции из БД");
+            System.out.println("Фильтрация работает корректно");
         });
 
         // Шаг 5: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
             verify(shareRepo).findAll();
+            System.out.println("Проверено: метод findAll() вызван один раз");
         });
     }
 
@@ -521,26 +583,41 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getShareByFigi_ShouldReturnShare_WhenShareExists() {
         // Given - настройка мока для получения акции по FIGI
-        ShareEntity mockEntity = TestDataFactory.createShareEntity();
-        when(shareRepo.findById("BBG004730N88"))
-            .thenReturn(Optional.of(mockEntity));
+        Allure.step("Создание тестовой акции для поиска по FIGI", () -> {
+            ShareEntity mockEntity = TestDataFactory.createShareEntity();
+            when(shareRepo.findById("BBG004730N88"))
+                .thenReturn(Optional.of(mockEntity));
+            System.out.println("Создана тестовая акция SBER с FIGI BBG004730N88");
+        });
 
         // When - вызов метода сервиса
-        ShareDto result = instrumentService.getShareByFigi("BBG004730N88");
+        ShareDto result = Allure.step("Выполнение поиска акции по FIGI", () -> {
+            ShareDto share = instrumentService.getShareByFigi("BBG004730N88");
+            System.out.println("Выполнен поиск акции по FIGI: BBG004730N88");
+            return share;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.figi()).isEqualTo("BBG004730N88");
-        assertThat(result.ticker()).isEqualTo("SBER");
-        assertThat(result.name()).isEqualTo("Сбербанк");
-        assertThat(result.currency()).isEqualTo("RUB");
-        assertThat(result.exchange()).isEqualTo("moex_mrng_evng_e_wknd_dlr");
-        assertThat(result.sector()).isEqualTo("Financials");
-        assertThat(result.tradingStatus()).isEqualTo("SECURITY_TRADING_STATUS_NORMAL_TRADING");
-        assertThat(result.shortEnabled()).isTrue();
+        Allure.step("Проверка корректности возвращенных данных акции", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.figi()).isEqualTo("BBG004730N88");
+            assertThat(result.ticker()).isEqualTo("SBER");
+            assertThat(result.name()).isEqualTo("Сбербанк");
+            assertThat(result.currency()).isEqualTo("RUB");
+            assertThat(result.exchange()).isEqualTo("moex_mrng_evng_e_wknd_dlr");
+            assertThat(result.sector()).isEqualTo("Financials");
+            assertThat(result.tradingStatus()).isEqualTo("SECURITY_TRADING_STATUS_NORMAL_TRADING");
+            assertThat(result.shortEnabled()).isTrue();
+            
+            System.out.println("Проверено: возвращена акция SBER с корректными данными");
+            System.out.println("FIGI: BBG004730N88, Ticker: SBER, Name: Сбербанк, Currency: RUB");
+        });
 
         // Verify
-        verify(shareRepo).findById("BBG004730N88");
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(shareRepo).findById("BBG004730N88");
+            System.out.println("Проверено: метод findById() вызван с правильным FIGI");
+        });
     }
 
     @Test
@@ -555,17 +632,31 @@ class InstrumentServiceTest {
     @Tag("not-found")
     void getShareByFigi_ShouldReturnNull_WhenShareNotFound() {
         // Given - настройка мока для несуществующей акции
-        when(shareRepo.findById("INVALID_FIGI"))
-            .thenReturn(Optional.empty());
+        Allure.step("Настройка мока для несуществующей акции", () -> {
+            when(shareRepo.findById("INVALID_FIGI"))
+                .thenReturn(Optional.empty());
+            System.out.println("Настроен мок: акция с FIGI INVALID_FIGI не найдена");
+        });
 
         // When - вызов метода сервиса
-        ShareDto result = instrumentService.getShareByFigi("INVALID_FIGI");
+        ShareDto result = Allure.step("Выполнение поиска несуществующей акции по FIGI", () -> {
+            ShareDto share = instrumentService.getShareByFigi("INVALID_FIGI");
+            System.out.println("Выполнен поиск акции по несуществующему FIGI: INVALID_FIGI");
+            return share;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNull();
+        Allure.step("Проверка корректности обработки несуществующей акции", () -> {
+            assertThat(result).isNull();
+            System.out.println("Проверено: возвращен null для несуществующей акции");
+            System.out.println("Обработка несуществующих FIGI работает корректно");
+        });
 
         // Verify
-        verify(shareRepo).findById("INVALID_FIGI");
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(shareRepo).findById("INVALID_FIGI");
+            System.out.println("Проверено: метод findById() вызван с несуществующим FIGI");
+        });
     }
 
     @Test
@@ -580,22 +671,37 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getShareByTicker_ShouldReturnShare_WhenShareExists() {
         // Given - настройка мока для получения акции по тикеру
-        ShareEntity mockEntity = TestDataFactory.createShareEntity();
-        when(shareRepo.findByTickerIgnoreCase("SBER"))
-            .thenReturn(Optional.of(mockEntity));
+        Allure.step("Создание тестовой акции для поиска по тикеру", () -> {
+            ShareEntity mockEntity = TestDataFactory.createShareEntity();
+            when(shareRepo.findByTickerIgnoreCase("SBER"))
+                .thenReturn(Optional.of(mockEntity));
+            System.out.println("Создана тестовая акция SBER для поиска по тикеру");
+        });
 
         // When - вызов метода сервиса
-        ShareDto result = instrumentService.getShareByTicker("SBER");
+        ShareDto result = Allure.step("Выполнение поиска акции по тикеру", () -> {
+            ShareDto share = instrumentService.getShareByTicker("SBER");
+            System.out.println("Выполнен поиск акции по тикеру: SBER");
+            return share;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.figi()).isEqualTo("BBG004730N88");
-        assertThat(result.ticker()).isEqualTo("SBER");
-        assertThat(result.name()).isEqualTo("Сбербанк");
-        assertThat(result.shortEnabled()).isTrue();
+        Allure.step("Проверка корректности возвращенных данных акции", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.figi()).isEqualTo("BBG004730N88");
+            assertThat(result.ticker()).isEqualTo("SBER");
+            assertThat(result.name()).isEqualTo("Сбербанк");
+            assertThat(result.shortEnabled()).isTrue();
+            
+            System.out.println("Проверено: возвращена акция SBER с корректными данными");
+            System.out.println("FIGI: BBG004730N88, Ticker: SBER, Name: Сбербанк, ShortEnabled: true");
+        });
 
         // Verify
-        verify(shareRepo).findByTickerIgnoreCase("SBER");
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(shareRepo).findByTickerIgnoreCase("SBER");
+            System.out.println("Проверено: метод findByTickerIgnoreCase() вызван с правильным тикером");
+        });
     }
 
     @Test
@@ -610,17 +716,31 @@ class InstrumentServiceTest {
     @Tag("not-found")
     void getShareByTicker_ShouldReturnNull_WhenShareNotFound() {
         // Given - настройка мока для несуществующей акции
-        when(shareRepo.findByTickerIgnoreCase("INVALID_TICKER"))
-            .thenReturn(Optional.empty());
+        Allure.step("Настройка мока для несуществующей акции", () -> {
+            when(shareRepo.findByTickerIgnoreCase("INVALID_TICKER"))
+                .thenReturn(Optional.empty());
+            System.out.println("Настроен мок: акция с тикером INVALID_TICKER не найдена");
+        });
 
         // When - вызов метода сервиса
-        ShareDto result = instrumentService.getShareByTicker("INVALID_TICKER");
+        ShareDto result = Allure.step("Выполнение поиска несуществующей акции по тикеру", () -> {
+            ShareDto share = instrumentService.getShareByTicker("INVALID_TICKER");
+            System.out.println("Выполнен поиск акции по несуществующему тикеру: INVALID_TICKER");
+            return share;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNull();
+        Allure.step("Проверка корректности обработки несуществующей акции", () -> {
+            assertThat(result).isNull();
+            System.out.println("Проверено: возвращен null для несуществующей акции");
+            System.out.println("Обработка несуществующих тикеров работает корректно");
+        });
 
         // Verify
-        verify(shareRepo).findByTickerIgnoreCase("INVALID_TICKER");
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(shareRepo).findByTickerIgnoreCase("INVALID_TICKER");
+            System.out.println("Проверено: метод findByTickerIgnoreCase() вызван с несуществующим тикером");
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ ФЬЮЧЕРСОВ ====================
@@ -636,31 +756,37 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getFutures_ShouldReturnFuturesList_WhenValidParametersProvided() {
         // Шаг 1: Подготовка тестовых данных
-        FuturesResponse mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockFuturesResponse();
+        FuturesResponse mockResponse = Allure.step("Создание тестовых данных для фьючерсов Gold и Silver", () -> {
+            FuturesResponse response = createMockFuturesResponse();
+            System.out.println("Созданы тестовые данные: фьючерсы GZ0624 (Gold) и SI0624 (Silver)");
+            return response;
         });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка моков для gRPC API и конвертации времени", () -> {
             when(instrumentsService.futures(any(InstrumentsRequest.class)))
                 .thenReturn(mockResponse);
             when(tinkoffApiClient.convertTimestampToLocalDateTime(any(com.google.protobuf.Timestamp.class)))
                 .thenReturn(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+            System.out.println("Настроен мок для gRPC API - возвращает тестовые данные фьючерсов");
+            System.out.println("Настроен мок для конвертации времени - возвращает 2024-06-24 18:40");
         });
 
         // Шаг 3: Выполнение запроса
-        List<FutureDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getFutures(
+        List<FutureDto> result = Allure.step("Выполнение запроса к сервису с корректными параметрами", () -> {
+            List<FutureDto> futures = instrumentService.getFutures(
                 "INSTRUMENT_STATUS_BASE",
                 "MOEX",
                 "USD",
                 null,
                 "COMMODITY"
             );
+            System.out.println("Выполнен запрос с параметрами: статус=BASE, биржа=MOEX, валюта=USD, тип=COMMODITY");
+            return futures;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности возвращенных данных фьючерсов", () -> {
             assertThat(result).isNotNull();
             assertThat(result).hasSize(2);
             
@@ -682,11 +808,16 @@ class InstrumentServiceTest {
             assertThat(silver.basicAsset()).isEqualTo("Silver");
             assertThat(silver.shortEnabled()).isTrue();
             assertThat(silver.expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+            
+            System.out.println("Проверено: возвращены 2 фьючерса с корректными данными");
+            System.out.println("GZ0624: FIGI=FUTGZ0624000, BasicAsset=Gold, Currency=USD, ShortEnabled=true");
+            System.out.println("SI0624: FIGI=FUTSI0624000, BasicAsset=Silver, Currency=USD, ShortEnabled=true");
         });
 
         // Шаг 5: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с gRPC API", () -> {
             verify(instrumentsService).futures(any(InstrumentsRequest.class));
+            System.out.println("Проверено: метод futures() вызван один раз");
         });
     }
 
@@ -702,26 +833,41 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getFutureByFigi_ShouldReturnFuture_WhenFutureExists() {
         // Given - настройка мока для получения фьючерса по FIGI
-        FutureEntity mockEntity = TestDataFactory.createFutureEntity();
-        when(futureRepo.findById("FUTSI0624000"))
-            .thenReturn(Optional.of(mockEntity));
+        Allure.step("Создание тестового фьючерса для поиска по FIGI", () -> {
+            FutureEntity mockEntity = TestDataFactory.createFutureEntity();
+            when(futureRepo.findById("FUTSI0624000"))
+                .thenReturn(Optional.of(mockEntity));
+            System.out.println("Создан тестовый фьючерс SBER-3.24 с FIGI FUTSI0624000");
+        });
 
         // When - вызов метода сервиса
-        FutureDto result = instrumentService.getFutureByFigi("FUTSI0624000");
+        FutureDto result = Allure.step("Выполнение поиска фьючерса по FIGI", () -> {
+            FutureDto future = instrumentService.getFutureByFigi("FUTSI0624000");
+            System.out.println("Выполнен поиск фьючерса по FIGI: FUTSI0624000");
+            return future;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.figi()).isEqualTo("FUTSBER0324");
-        assertThat(result.ticker()).isEqualTo("SBER-3.24");
-        assertThat(result.assetType()).isEqualTo("FUTURES");
-        assertThat(result.basicAsset()).isEqualTo("SBER");
-        assertThat(result.currency()).isEqualTo("RUB");
-        assertThat(result.exchange()).isEqualTo("moex_mrng_evng_e_wknd_dlr");
-        assertThat(result.shortEnabled()).isTrue();
-        assertThat(result.expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 3, 15, 18, 45));
+        Allure.step("Проверка корректности возвращенных данных фьючерса", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.figi()).isEqualTo("FUTSBER0324");
+            assertThat(result.ticker()).isEqualTo("SBER-3.24");
+            assertThat(result.assetType()).isEqualTo("FUTURES");
+            assertThat(result.basicAsset()).isEqualTo("SBER");
+            assertThat(result.currency()).isEqualTo("RUB");
+            assertThat(result.exchange()).isEqualTo("moex_mrng_evng_e_wknd_dlr");
+            assertThat(result.shortEnabled()).isTrue();
+            assertThat(result.expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 3, 15, 18, 45));
+            
+            System.out.println("Проверено: возвращен фьючерс SBER-3.24 с корректными данными");
+            System.out.println("FIGI: FUTSBER0324, Ticker: SBER-3.24, AssetType: FUTURES, BasicAsset: SBER");
+        });
 
         // Verify
-        verify(futureRepo).findById("FUTSI0624000");
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(futureRepo).findById("FUTSI0624000");
+            System.out.println("Проверено: метод findById() вызван с правильным FIGI");
+        });
     }
 
     @Test
@@ -736,23 +882,38 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getFutureByTicker_ShouldReturnFuture_WhenFutureExists() {
         // Given - настройка мока для получения фьючерса по тикеру
-        FutureEntity mockEntity = TestDataFactory.createFutureEntity();
-        when(futureRepo.findByTickerIgnoreCase("SI0624"))
-            .thenReturn(Optional.of(mockEntity));
+        Allure.step("Создание тестового фьючерса для поиска по тикеру", () -> {
+            FutureEntity mockEntity = TestDataFactory.createFutureEntity();
+            when(futureRepo.findByTickerIgnoreCase("SI0624"))
+                .thenReturn(Optional.of(mockEntity));
+            System.out.println("Создан тестовый фьючерс SBER-3.24 для поиска по тикеру SI0624");
+        });
 
         // When - вызов метода сервиса
-        FutureDto result = instrumentService.getFutureByTicker("SI0624");
+        FutureDto result = Allure.step("Выполнение поиска фьючерса по тикеру", () -> {
+            FutureDto future = instrumentService.getFutureByTicker("SI0624");
+            System.out.println("Выполнен поиск фьючерса по тикеру: SI0624");
+            return future;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.figi()).isEqualTo("FUTSBER0324");
-        assertThat(result.ticker()).isEqualTo("SBER-3.24");
-        assertThat(result.assetType()).isEqualTo("FUTURES");
-        assertThat(result.shortEnabled()).isTrue();
-        assertThat(result.expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 3, 15, 18, 45));
+        Allure.step("Проверка корректности возвращенных данных фьючерса", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.figi()).isEqualTo("FUTSBER0324");
+            assertThat(result.ticker()).isEqualTo("SBER-3.24");
+            assertThat(result.assetType()).isEqualTo("FUTURES");
+            assertThat(result.shortEnabled()).isTrue();
+            assertThat(result.expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 3, 15, 18, 45));
+            
+            System.out.println("Проверено: возвращен фьючерс SBER-3.24 с корректными данными");
+            System.out.println("FIGI: FUTSBER0324, Ticker: SBER-3.24, AssetType: FUTURES, ShortEnabled: true");
+        });
 
         // Verify
-        verify(futureRepo).findByTickerIgnoreCase("SI0624");
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(futureRepo).findByTickerIgnoreCase("SI0624");
+            System.out.println("Проверено: метод findByTickerIgnoreCase() вызван с правильным тикером");
+        });
     }
 
     @Test
@@ -767,48 +928,73 @@ class InstrumentServiceTest {
     @Tag("positive")
     void saveFutures_ShouldSaveFutures_WhenValidParametersProvided() {
         // Given - настройка моков для сохранения фьючерсов
-        FuturesResponse mockResponse = createMockFuturesResponse();
-        when(instrumentsService.futures(any(InstrumentsRequest.class)))
-            .thenReturn(mockResponse);
-        when(tinkoffApiClient.convertTimestampToLocalDateTime(any(com.google.protobuf.Timestamp.class)))
-            .thenReturn(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+        Allure.step("Создание тестовых данных для сохранения фьючерсов", () -> {
+            FuturesResponse mockResponse = createMockFuturesResponse();
+            when(instrumentsService.futures(any(InstrumentsRequest.class)))
+                .thenReturn(mockResponse);
+            when(tinkoffApiClient.convertTimestampToLocalDateTime(any(com.google.protobuf.Timestamp.class)))
+                .thenReturn(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+            System.out.println("Созданы тестовые данные: фьючерсы SI0624 и GZ0624 для сохранения в БД");
+        });
         
-        // Настраиваем моки для проверки существования фьючерсов в БД
-        when(futureRepo.existsById("FUTSI0624000")).thenReturn(false);
-        when(futureRepo.existsById("FUTGZ0624000")).thenReturn(false);
+        Allure.step("Настройка моков для проверки существования фьючерсов в БД", () -> {
+            // Настраиваем моки для проверки существования фьючерсов в БД
+            when(futureRepo.existsById("FUTSI0624000")).thenReturn(false);
+            when(futureRepo.existsById("FUTGZ0624000")).thenReturn(false);
+            System.out.println("Настроены моки: фьючерсы SI0624 и GZ0624 не существуют в БД");
+        });
         
-        // Настраиваем мок для сохранения фьючерсов
-        when(futureRepo.save(any(FutureEntity.class))).thenAnswer(invocation -> {
-            FutureEntity entity = invocation.getArgument(0);
-            return entity;
+        Allure.step("Настройка мока для сохранения фьючерсов", () -> {
+            // Настраиваем мок для сохранения фьючерсов
+            when(futureRepo.save(any(FutureEntity.class))).thenAnswer(invocation -> {
+                FutureEntity entity = invocation.getArgument(0);
+                return entity;
+            });
+            System.out.println("Настроен мок для сохранения фьючерсов в БД");
         });
 
-        FutureFilterDto filter = TestDataFactory.createFutureFilterDto();
-        filter.setExchange("MOEX"); // Используем биржу из тестовых данных
-        filter.setCurrency("USD"); // Используем валюту из тестовых данных
-        filter.setAssetType("COMMODITY"); // Используем тип актива из тестовых данных
-        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все фьючерсы
+        FutureFilterDto filter = Allure.step("Настройка фильтра для сохранения фьючерсов", () -> {
+            FutureFilterDto futureFilter = TestDataFactory.createFutureFilterDto();
+            futureFilter.setExchange("MOEX"); // Используем биржу из тестовых данных
+            futureFilter.setCurrency("USD"); // Используем валюту из тестовых данных
+            futureFilter.setAssetType("COMMODITY"); // Используем тип актива из тестовых данных
+            futureFilter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все фьючерсы
+            System.out.println("Настроен фильтр: биржа=MOEX, валюта=USD, тип=COMMODITY");
+            return futureFilter;
+        });
 
         // When - вызов метода сервиса
-        SaveResponseDto result = instrumentService.saveFutures(filter);
+        SaveResponseDto result = Allure.step("Выполнение сохранения фьючерсов в базу данных", () -> {
+            SaveResponseDto response = instrumentService.saveFutures(filter);
+            System.out.println("Выполнено сохранение фьючерсов с фильтром");
+            return response;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getTotalRequested()).isEqualTo(2); // SI0624 и GZ0624
-        assertThat(result.getNewItemsSaved()).isEqualTo(2);
-        assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
-        assertThat(result.getMessage()).contains("Успешно загружено 2 новых фьючерсов из 2 найденных");
-        
-        // Проверяем, что сохраненные элементы содержат правильные данные
-        assertThat(result.getSavedItems()).hasSize(2);
-        assertThat(result.getSavedItems()).extracting("ticker").containsExactlyInAnyOrder("SI0624", "GZ0624");
+        Allure.step("Проверка корректности сохранения фьючерсов", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalRequested()).isEqualTo(2); // SI0624 и GZ0624
+            assertThat(result.getNewItemsSaved()).isEqualTo(2);
+            assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
+            assertThat(result.getMessage()).contains("Успешно загружено 2 новых фьючерсов из 2 найденных");
+            
+            // Проверяем, что сохраненные элементы содержат правильные данные
+            assertThat(result.getSavedItems()).hasSize(2);
+            assertThat(result.getSavedItems()).extracting("ticker").containsExactlyInAnyOrder("SI0624", "GZ0624");
+            
+            System.out.println("Проверено: успешно сохранены 2 фьючерса SI0624 и GZ0624");
+            System.out.println("Статистика: TotalRequested=2, NewItemsSaved=2, ExistingItemsSkipped=0");
+        });
 
         // Verify
-        verify(instrumentsService).futures(any(InstrumentsRequest.class));
-        verify(futureRepo).existsById("FUTSI0624000");
-        verify(futureRepo).existsById("FUTGZ0624000");
-        verify(futureRepo, times(2)).save(any(FutureEntity.class));
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(instrumentsService).futures(any(InstrumentsRequest.class));
+            verify(futureRepo).existsById("FUTSI0624000");
+            verify(futureRepo).existsById("FUTGZ0624000");
+            verify(futureRepo, times(2)).save(any(FutureEntity.class));
+            System.out.println("Проверено: все взаимодействия с репозиторием выполнены корректно");
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ ИНДИКАТИВОВ ====================
@@ -825,27 +1011,32 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getIndicatives_ShouldReturnIndicativesList_WhenRestApiAvailable() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockJsonResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockJsonResponse();
+        JsonNode mockJsonResponse = Allure.step("Создание тестовых данных для индикативов USD и EUR", () -> {
+            JsonNode response = createMockJsonResponse();
+            System.out.println("Созданы тестовые данные: индикативы USD000UTSTOM и EUR000UTSTOM");
+            return response;
         });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка мока для внешнего REST API", () -> {
             when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+            System.out.println("Настроен мок для внешнего REST API - возвращает тестовые данные индикативов");
         });
 
         // Шаг 3: Выполнение запроса
-        List<IndicativeDto> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getIndicatives(
+        List<IndicativeDto> result = Allure.step("Выполнение запроса к сервису с корректными параметрами", () -> {
+            List<IndicativeDto> indicatives = instrumentService.getIndicatives(
                 "MOEX",
                 "RUB",
                 null,
                 null
             );
+            System.out.println("Выполнен запрос с параметрами: биржа=MOEX, валюта=RUB");
+            return indicatives;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности возвращенных данных индикативов", () -> {
             assertThat(result).isNotNull();
             assertThat(result).hasSize(2);
             
@@ -868,11 +1059,16 @@ class InstrumentServiceTest {
             assertThat(usdRub.name()).isEqualTo("Доллар США / Российский рубль");
             assertThat(usdRub.sellAvailableFlag()).isTrue();
             assertThat(usdRub.buyAvailableFlag()).isTrue();
+            
+            System.out.println("Проверено: возвращены 2 индикатива с корректными данными");
+            System.out.println("EUR000UTSTOM: FIGI=BBG0013HGFT5, ClassCode=CURRENCY, SellAvailable=true");
+            System.out.println("USD000UTSTOM: FIGI=BBG0013HGFT4, ClassCode=CURRENCY, BuyAvailable=true");
         });
 
         // Шаг 5: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с внешним REST API", () -> {
             verify(restClient).getIndicatives();
+            System.out.println("Проверено: метод getIndicatives() вызван один раз");
         });
     }
 
@@ -889,25 +1085,43 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getIndicatives_ShouldUseDatabaseFallback_WhenRestApiUnavailable() {
         // Given - настройка мока для недоступности REST API и наличия данных в БД
-        when(restClient.getIndicatives()).thenThrow(new RuntimeException("API unavailable"));
-        List<IndicativeEntity> mockEntities = TestDataFactory.createIndicativeEntityList();
-        when(indicativeRepo.findAll()).thenReturn(mockEntities);
+        Allure.step("Настройка мока для недоступности REST API", () -> {
+            when(restClient.getIndicatives()).thenThrow(new RuntimeException("API unavailable"));
+            System.out.println("Настроен мок: REST API недоступен - выбрасывается исключение");
+        });
+        
+        Allure.step("Настройка мока для получения данных из БД", () -> {
+            List<IndicativeEntity> mockEntities = TestDataFactory.createIndicativeEntityList();
+            when(indicativeRepo.findAll()).thenReturn(mockEntities);
+            System.out.println("Настроен мок: БД содержит тестовые данные индикативов");
+        });
 
         // When - вызов метода сервиса
-        List<IndicativeDto> result = instrumentService.getIndicatives(
-            "MOEX",
-            "RUB",
-            null,
-            null
-        );
+        List<IndicativeDto> result = Allure.step("Выполнение запроса при недоступности REST API", () -> {
+            List<IndicativeDto> indicatives = instrumentService.getIndicatives(
+                "MOEX",
+                "RUB",
+                null,
+                null
+            );
+            System.out.println("Выполнен запрос при недоступности REST API");
+            return indicatives;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result).isEmpty(); // Пустой список при недоступности API
+        Allure.step("Проверка корректности fallback на БД", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result).isEmpty(); // Пустой список при недоступности API
+            System.out.println("Проверено: возвращен пустой список при недоступности API");
+            System.out.println("Fallback на БД работает корректно");
+        });
 
         // Verify
-        verify(restClient).getIndicatives();
-        verify(indicativeRepo).findAll();
+        Allure.step("Проверка корректности взаимодействий с API и БД", () -> {
+            verify(restClient).getIndicatives();
+            verify(indicativeRepo).findAll();
+            System.out.println("Проверено: методы getIndicatives() и findAll() вызваны");
+        });
     }
 
     @Test
@@ -922,42 +1136,57 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getIndicativeBy_ShouldReturnIndicative_WhenRestApiAvailable() throws Exception {
         // Given - настройка мока для REST API
-        ObjectMapper mapper = new ObjectMapper();
-        String json = """
-            {
-                "instrument": {
-                    "figi": "BBG0013HGFT4",
-                    "ticker": "USD000UTSTOM",
-                    "name": "Доллар США / Российский рубль",
-                    "currency": "RUB",
-                    "exchange": "MOEX",
-                    "classCode": "CURRENCY",
-                    "uid": "USD000UTSTOM",
-                    "sellAvailableFlag": true,
-                    "buyAvailableFlag": true
+        Allure.step("Создание тестовых данных для индикатива USD/RUB", () -> {
+            ObjectMapper mapper = new ObjectMapper();
+            String json = """
+                {
+                    "instrument": {
+                        "figi": "BBG0013HGFT4",
+                        "ticker": "USD000UTSTOM",
+                        "name": "Доллар США / Российский рубль",
+                        "currency": "RUB",
+                        "exchange": "MOEX",
+                        "classCode": "CURRENCY",
+                        "uid": "USD000UTSTOM",
+                        "sellAvailableFlag": true,
+                        "buyAvailableFlag": true
+                    }
                 }
-            }
-            """;
-        JsonNode mockResponse = mapper.readTree(json);
-        when(restClient.getIndicativeBy("BBG0013HGFT4")).thenReturn(mockResponse);
+                """;
+            JsonNode mockResponse = mapper.readTree(json);
+            when(restClient.getIndicativeBy("BBG0013HGFT4")).thenReturn(mockResponse);
+            System.out.println("Создан тестовый индикатив USD000UTSTOM с FIGI BBG0013HGFT4");
+        });
 
         // When - вызов метода сервиса
-        IndicativeDto result = instrumentService.getIndicativeBy("BBG0013HGFT4");
+        IndicativeDto result = Allure.step("Выполнение поиска индикатива по FIGI", () -> {
+            IndicativeDto indicative = instrumentService.getIndicativeBy("BBG0013HGFT4");
+            System.out.println("Выполнен поиск индикатива по FIGI: BBG0013HGFT4");
+            return indicative;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.figi()).isEqualTo("BBG0013HGFT4");
-        assertThat(result.ticker()).isEqualTo("USD000UTSTOM");
-        assertThat(result.name()).isEqualTo("Доллар США / Российский рубль");
-        assertThat(result.currency()).isEqualTo("RUB");
-        assertThat(result.exchange()).isEqualTo("MOEX");
-        assertThat(result.classCode()).isEqualTo("CURRENCY");
-        assertThat(result.uid()).isEqualTo("USD000UTSTOM");
-        assertThat(result.sellAvailableFlag()).isTrue();
-        assertThat(result.buyAvailableFlag()).isTrue();
+        Allure.step("Проверка корректности возвращенных данных индикатива", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.figi()).isEqualTo("BBG0013HGFT4");
+            assertThat(result.ticker()).isEqualTo("USD000UTSTOM");
+            assertThat(result.name()).isEqualTo("Доллар США / Российский рубль");
+            assertThat(result.currency()).isEqualTo("RUB");
+            assertThat(result.exchange()).isEqualTo("MOEX");
+            assertThat(result.classCode()).isEqualTo("CURRENCY");
+            assertThat(result.uid()).isEqualTo("USD000UTSTOM");
+            assertThat(result.sellAvailableFlag()).isTrue();
+            assertThat(result.buyAvailableFlag()).isTrue();
+            
+            System.out.println("Проверено: возвращен индикатив USD000UTSTOM с корректными данными");
+            System.out.println("FIGI: BBG0013HGFT4, Ticker: USD000UTSTOM, ClassCode: CURRENCY");
+        });
 
         // Verify
-        verify(restClient).getIndicativeBy("BBG0013HGFT4");
+        Allure.step("Проверка корректности взаимодействий с внешним REST API", () -> {
+            verify(restClient).getIndicativeBy("BBG0013HGFT4");
+            System.out.println("Проверено: метод getIndicativeBy() вызван с правильным FIGI");
+        });
     }
 
     @Test
@@ -972,22 +1201,37 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getIndicativeByTicker_ShouldReturnIndicative_WhenRestApiAvailable() throws Exception {
         // Given - настройка мока для REST API
-        JsonNode mockJsonResponse = createMockJsonResponse();
-        when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+        Allure.step("Создание тестовых данных для поиска индикатива по тикеру", () -> {
+            JsonNode mockJsonResponse = createMockJsonResponse();
+            when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+            System.out.println("Созданы тестовые данные: индикативы USD000UTSTOM и EUR000UTSTOM");
+        });
 
         // When - вызов метода сервиса
-        IndicativeDto result = instrumentService.getIndicativeByTicker("USD000UTSTOM");
+        IndicativeDto result = Allure.step("Выполнение поиска индикатива по тикеру", () -> {
+            IndicativeDto indicative = instrumentService.getIndicativeByTicker("USD000UTSTOM");
+            System.out.println("Выполнен поиск индикатива по тикеру: USD000UTSTOM");
+            return indicative;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.figi()).isEqualTo("BBG0013HGFT4");
-        assertThat(result.ticker()).isEqualTo("USD000UTSTOM");
-        assertThat(result.name()).isEqualTo("Доллар США / Российский рубль");
-        assertThat(result.sellAvailableFlag()).isTrue();
-        assertThat(result.buyAvailableFlag()).isTrue();
+        Allure.step("Проверка корректности возвращенных данных индикатива", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.figi()).isEqualTo("BBG0013HGFT4");
+            assertThat(result.ticker()).isEqualTo("USD000UTSTOM");
+            assertThat(result.name()).isEqualTo("Доллар США / Российский рубль");
+            assertThat(result.sellAvailableFlag()).isTrue();
+            assertThat(result.buyAvailableFlag()).isTrue();
+            
+            System.out.println("Проверено: возвращен индикатив USD000UTSTOM с корректными данными");
+            System.out.println("FIGI: BBG0013HGFT4, Ticker: USD000UTSTOM, SellAvailable: true, BuyAvailable: true");
+        });
 
         // Verify
-        verify(restClient).getIndicatives();
+        Allure.step("Проверка корректности взаимодействий с внешним REST API", () -> {
+            verify(restClient).getIndicatives();
+            System.out.println("Проверено: метод getIndicatives() вызван один раз");
+        });
     }
 
     @Test
@@ -1002,45 +1246,70 @@ class InstrumentServiceTest {
     @Tag("positive")
     void saveIndicatives_ShouldSaveIndicatives_WhenValidParametersProvided() throws Exception {
         // Given - настройка моков для сохранения индикативов
-        JsonNode mockJsonResponse = createMockJsonResponse();
-        when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+        Allure.step("Создание тестовых данных для сохранения индикативов", () -> {
+            JsonNode mockJsonResponse = createMockJsonResponse();
+            when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+            System.out.println("Созданы тестовые данные: индикативы USD000UTSTOM и EUR000UTSTOM для сохранения в БД");
+        });
         
-        // Настраиваем моки для проверки существования индикативов в БД
-        when(indicativeRepo.existsById("BBG0013HGFT4")).thenReturn(false);
-        when(indicativeRepo.existsById("BBG0013HGFT5")).thenReturn(false);
+        Allure.step("Настройка моков для проверки существования индикативов в БД", () -> {
+            // Настраиваем моки для проверки существования индикативов в БД
+            when(indicativeRepo.existsById("BBG0013HGFT4")).thenReturn(false);
+            when(indicativeRepo.existsById("BBG0013HGFT5")).thenReturn(false);
+            System.out.println("Настроены моки: индикативы USD000UTSTOM и EUR000UTSTOM не существуют в БД");
+        });
         
-        // Настраиваем мок для сохранения индикативов
-        when(indicativeRepo.save(any(IndicativeEntity.class))).thenAnswer(invocation -> {
-            IndicativeEntity entity = invocation.getArgument(0);
-            return entity;
+        Allure.step("Настройка мока для сохранения индикативов", () -> {
+            // Настраиваем мок для сохранения индикативов
+            when(indicativeRepo.save(any(IndicativeEntity.class))).thenAnswer(invocation -> {
+                IndicativeEntity entity = invocation.getArgument(0);
+                return entity;
+            });
+            System.out.println("Настроен мок для сохранения индикативов в БД");
         });
 
-        IndicativeFilterDto filter = TestDataFactory.createIndicativeFilterDto();
-        filter.setExchange("MOEX");
-        filter.setCurrency("RUB");
-        filter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все индикативы
-        filter.setFigi(null); // Убираем фильтр по FIGI, чтобы получить все индикативы
+        IndicativeFilterDto filter = Allure.step("Настройка фильтра для сохранения индикативов", () -> {
+            IndicativeFilterDto indicativeFilter = TestDataFactory.createIndicativeFilterDto();
+            indicativeFilter.setExchange("MOEX");
+            indicativeFilter.setCurrency("RUB");
+            indicativeFilter.setTicker(null); // Убираем фильтр по тикеру, чтобы получить все индикативы
+            indicativeFilter.setFigi(null); // Убираем фильтр по FIGI, чтобы получить все индикативы
+            System.out.println("Настроен фильтр: биржа=MOEX, валюта=RUB");
+            return indicativeFilter;
+        });
 
         // When - вызов метода сервиса
-        SaveResponseDto result = instrumentService.saveIndicatives(filter);
+        SaveResponseDto result = Allure.step("Выполнение сохранения индикативов в базу данных", () -> {
+            SaveResponseDto response = instrumentService.saveIndicatives(filter);
+            System.out.println("Выполнено сохранение индикативов с фильтром");
+            return response;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getTotalRequested()).isEqualTo(2);
-        assertThat(result.getNewItemsSaved()).isEqualTo(2);
-        assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
-        assertThat(result.getMessage()).contains("Успешно загружено 2 новых индикативных инструментов из 2 найденных");
-        
-        // Проверяем, что сохраненные элементы содержат правильные данные
-        assertThat(result.getSavedItems()).hasSize(2);
-        assertThat(result.getSavedItems()).extracting("ticker").containsExactlyInAnyOrder("USD000UTSTOM", "EUR000UTSTOM");
+        Allure.step("Проверка корректности сохранения индикативов", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalRequested()).isEqualTo(2);
+            assertThat(result.getNewItemsSaved()).isEqualTo(2);
+            assertThat(result.getExistingItemsSkipped()).isEqualTo(0);
+            assertThat(result.getMessage()).contains("Успешно загружено 2 новых индикативных инструментов из 2 найденных");
+            
+            // Проверяем, что сохраненные элементы содержат правильные данные
+            assertThat(result.getSavedItems()).hasSize(2);
+            assertThat(result.getSavedItems()).extracting("ticker").containsExactlyInAnyOrder("USD000UTSTOM", "EUR000UTSTOM");
+            
+            System.out.println("Проверено: успешно сохранены 2 индикатива USD000UTSTOM и EUR000UTSTOM");
+            System.out.println("Статистика: TotalRequested=2, NewItemsSaved=2, ExistingItemsSkipped=0");
+        });
 
         // Verify
-        verify(restClient).getIndicatives();
-        verify(indicativeRepo).existsById("BBG0013HGFT4");
-        verify(indicativeRepo).existsById("BBG0013HGFT5");
-        verify(indicativeRepo, times(2)).save(any(IndicativeEntity.class));
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
+            verify(restClient).getIndicatives();
+            verify(indicativeRepo).existsById("BBG0013HGFT4");
+            verify(indicativeRepo).existsById("BBG0013HGFT5");
+            verify(indicativeRepo, times(2)).save(any(IndicativeEntity.class));
+            System.out.println("Проверено: все взаимодействия с репозиторием выполнены корректно");
+        });
     }
 
     // ==================== ТЕСТЫ ДЛЯ СТАТИСТИКИ ====================
@@ -1056,32 +1325,39 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getInstrumentCounts_ShouldReturnCorrectCounts_WhenInstrumentsExist() {
         // Шаг 1: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка моков для подсчета инструментов в БД", () -> {
             when(shareRepo.count()).thenReturn(150L);
             when(futureRepo.count()).thenReturn(45L);
             when(indicativeRepo.count()).thenReturn(12L);
+            System.out.println("Настроены моки: акции=150, фьючерсы=45, индикативы=12");
         });
 
         // Шаг 2: Выполнение запроса
-        Map<String, Long> result = Allure.step("Выполнение запроса", () -> {
-            return instrumentService.getInstrumentCounts();
+        Map<String, Long> result = Allure.step("Выполнение запроса к сервису для получения статистики", () -> {
+            Map<String, Long> counts = instrumentService.getInstrumentCounts();
+            System.out.println("Выполнен запрос к сервису для получения статистики инструментов");
+            return counts;
         });
 
         // Шаг 3: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности возвращенной статистики", () -> {
             assertThat(result).isNotNull();
             assertThat(result).hasSize(4);
             assertThat(result.get("shares")).isEqualTo(150L);
             assertThat(result.get("futures")).isEqualTo(45L);
             assertThat(result.get("indicatives")).isEqualTo(12L);
             assertThat(result.get("total")).isEqualTo(207L); // 150 + 45 + 12
+            
+            System.out.println("Проверено: возвращена корректная статистика инструментов");
+            System.out.println("Акции: 150, Фьючерсы: 45, Индикативы: 12, Всего: 207");
         });
 
         // Шаг 4: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с репозиториями", () -> {
             verify(shareRepo).count();
             verify(futureRepo).count();
             verify(indicativeRepo).count();
+            System.out.println("Проверено: методы count() вызваны для всех репозиториев");
         });
     }
 
@@ -1099,40 +1375,54 @@ class InstrumentServiceTest {
     @Tag("duplicate")
     void saveShares_ShouldSkipExistingShares_WhenSharesAlreadyExist() throws Exception {
         // Шаг 1: Подготовка тестовых данных
-        JsonNode mockResponse = Allure.step("Подготовка тестовых данных", () -> {
-            return createMockSharesJsonResponse();
+        JsonNode mockResponse = Allure.step("Создание тестовых данных для проверки дубликатов", () -> {
+            JsonNode response = createMockSharesJsonResponse();
+            System.out.println("Созданы тестовые данные: акции SBER и GAZP для проверки дубликатов");
+            return response;
         });
-        ShareFilterDto filter = TestDataFactory.createShareFilterDto();
-        filter.setStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
-        filter.setExchange("MOEX");
-        filter.setCurrency("RUB");
+        
+        ShareFilterDto filter = Allure.step("Настройка фильтра для проверки дубликатов", () -> {
+            ShareFilterDto shareFilter = TestDataFactory.createShareFilterDto();
+            shareFilter.setStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
+            shareFilter.setExchange("MOEX");
+            shareFilter.setCurrency("RUB");
+            System.out.println("Настроен фильтр: статус=NORMAL_TRADING, биржа=MOEX, валюта=RUB");
+            return shareFilter;
+        });
 
         // Шаг 2: Настройка моков
-        Allure.step("Настройка моков", () -> {
+        Allure.step("Настройка моков для имитации существующих акций", () -> {
             when(restClient.getShares()).thenReturn(mockResponse);
             when(shareRepo.existsById(anyString())).thenReturn(true);
+            System.out.println("Настроены моки: все акции уже существуют в БД");
         });
 
         // Шаг 3: Выполнение сохранения
-        SaveResponseDto result = Allure.step("Выполнение сохранения", () -> {
-            return instrumentService.saveShares(filter);
+        SaveResponseDto result = Allure.step("Выполнение сохранения при существующих акциях", () -> {
+            SaveResponseDto response = instrumentService.saveShares(filter);
+            System.out.println("Выполнено сохранение акций с фильтром");
+            return response;
         });
 
         // Шаг 4: Проверка результата
-        Allure.step("Проверка результата", () -> {
+        Allure.step("Проверка корректности обработки дубликатов", () -> {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isTrue();
             assertThat(result.getTotalRequested()).isEqualTo(1); // только одна акция обрабатывается
             assertThat(result.getNewItemsSaved()).isEqualTo(0);
             assertThat(result.getExistingItemsSkipped()).isEqualTo(1); // одна акция пропускается
             assertThat(result.getMessage()).contains("Все найденные акции уже существуют в базе данных");
+            
+            System.out.println("Проверено: все акции пропущены как дубликаты");
+            System.out.println("Статистика: TotalRequested=1, NewItemsSaved=0, ExistingItemsSkipped=1");
         });
 
         // Шаг 5: Проверка взаимодействий
-        Allure.step("Проверка взаимодействий", () -> {
+        Allure.step("Проверка корректности взаимодействий с репозиторием", () -> {
             verify(restClient).getShares();
             verify(shareRepo, times(1)).existsById(any()); // проверяем одну акцию
             verify(shareRepo, never()).save(any(ShareEntity.class));
+            System.out.println("Проверено: методы existsById() вызваны, save() не вызывался");
         });
     }
 
@@ -1148,29 +1438,44 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getShares_ShouldReturnFilteredShares_WhenTickerFilterApplied() throws Exception {
         // Given - настройка мока для получения акций из API
-        JsonNode mockResponse = createMockSharesJsonResponse();
-        when(restClient.getShares()).thenReturn(mockResponse);
+        Allure.step("Создание тестовых данных для фильтрации по тикеру", () -> {
+            JsonNode mockResponse = createMockSharesJsonResponse();
+            when(restClient.getShares()).thenReturn(mockResponse);
+            System.out.println("Созданы тестовые данные: акции SBER и GAZP для фильтрации по тикеру");
+        });
 
         // When - вызов метода сервиса с фильтром по тикеру
-        List<ShareDto> result = instrumentService.getShares(
-            "SECURITY_TRADING_STATUS_NORMAL_TRADING",
-            null,
-            null,
-            "SBER",
-            null
-        );
+        List<ShareDto> result = Allure.step("Выполнение запроса с фильтром по тикеру SBER", () -> {
+            List<ShareDto> shares = instrumentService.getShares(
+                "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+                null,
+                null,
+                "SBER",
+                null
+            );
+            System.out.println("Выполнен запрос с фильтром по тикеру: SBER");
+            return shares;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result).hasSize(1);
-        
-        ShareDto share = result.get(0);
-        assertThat(share.ticker()).isEqualTo("SBER");
-        assertThat(share.name()).isEqualTo("ПАО Сбербанк");
-        assertThat(share.shortEnabled()).isTrue();
+        Allure.step("Проверка корректности фильтрации по тикеру", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result).hasSize(1);
+            
+            ShareDto share = result.get(0);
+            assertThat(share.ticker()).isEqualTo("SBER");
+            assertThat(share.name()).isEqualTo("ПАО Сбербанк");
+            assertThat(share.shortEnabled()).isTrue();
+            
+            System.out.println("Проверено: возвращена одна акция SBER с корректными данными");
+            System.out.println("Ticker: SBER, Name: ПАО Сбербанк, ShortEnabled: true");
+        });
 
         // Verify
-        verify(restClient).getShares();
+        Allure.step("Проверка корректности взаимодействий с внешним API", () -> {
+            verify(restClient).getShares();
+            System.out.println("Проверено: метод getShares() вызван один раз");
+        });
     }
 
     @Test
@@ -1185,33 +1490,49 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getFutures_ShouldReturnFuturesList_WhenNoParametersProvided() {
         // Given - настройка мока для фьючерсов без параметров
-        FuturesResponse mockResponse = createMockFuturesResponse();
-        when(instrumentsService.futures(any(InstrumentsRequest.class)))
-            .thenReturn(mockResponse);
-        when(tinkoffApiClient.convertTimestampToLocalDateTime(any(com.google.protobuf.Timestamp.class)))
-            .thenReturn(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+        Allure.step("Создание тестовых данных для фьючерсов без параметров", () -> {
+            FuturesResponse mockResponse = createMockFuturesResponse();
+            when(instrumentsService.futures(any(InstrumentsRequest.class)))
+                .thenReturn(mockResponse);
+            when(tinkoffApiClient.convertTimestampToLocalDateTime(any(com.google.protobuf.Timestamp.class)))
+                .thenReturn(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+            System.out.println("Созданы тестовые данные: фьючерсы GZ0624 и SI0624 без параметров");
+        });
 
         // When - вызов метода сервиса
-        List<FutureDto> result = instrumentService.getFutures(
-            null,
-            null,
-            null,
-            null,
-            null
-        );
+        List<FutureDto> result = Allure.step("Выполнение запроса без параметров", () -> {
+            List<FutureDto> futures = instrumentService.getFutures(
+                null,
+                null,
+                null,
+                null,
+                null
+            );
+            System.out.println("Выполнен запрос без параметров");
+            return futures;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).ticker()).isEqualTo("GZ0624");
-        assertThat(result.get(0).shortEnabled()).isTrue();
-        assertThat(result.get(0).expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
-        assertThat(result.get(1).ticker()).isEqualTo("SI0624");
-        assertThat(result.get(1).shortEnabled()).isTrue();
-        assertThat(result.get(1).expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+        Allure.step("Проверка корректности возвращенных данных фьючерсов", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).ticker()).isEqualTo("GZ0624");
+            assertThat(result.get(0).shortEnabled()).isTrue();
+            assertThat(result.get(0).expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+            assertThat(result.get(1).ticker()).isEqualTo("SI0624");
+            assertThat(result.get(1).shortEnabled()).isTrue();
+            assertThat(result.get(1).expirationDate()).isEqualTo(java.time.LocalDateTime.of(2024, 6, 24, 18, 40));
+            
+            System.out.println("Проверено: возвращены 2 фьючерса с корректными данными");
+            System.out.println("GZ0624: ShortEnabled=true, ExpirationDate=2024-06-24 18:40");
+            System.out.println("SI0624: ShortEnabled=true, ExpirationDate=2024-06-24 18:40");
+        });
 
         // Verify
-        verify(instrumentsService).futures(any(InstrumentsRequest.class));
+        Allure.step("Проверка корректности взаимодействий с gRPC API", () -> {
+            verify(instrumentsService).futures(any(InstrumentsRequest.class));
+            System.out.println("Проверено: метод futures() вызван один раз");
+        });
     }
 
     @Test
@@ -1226,29 +1547,45 @@ class InstrumentServiceTest {
     @Tag("positive")
     void getIndicatives_ShouldReturnIndicativesList_WhenNoParametersProvided() throws Exception {
         // Given - настройка мока для индикативов без параметров
-        JsonNode mockJsonResponse = createMockJsonResponse();
-        when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+        Allure.step("Создание тестовых данных для индикативов без параметров", () -> {
+            JsonNode mockJsonResponse = createMockJsonResponse();
+            when(restClient.getIndicatives()).thenReturn(mockJsonResponse);
+            System.out.println("Созданы тестовые данные: индикативы USD000UTSTOM и EUR000UTSTOM без параметров");
+        });
 
         // When - вызов метода сервиса
-        List<IndicativeDto> result = instrumentService.getIndicatives(
-            null,
-            null,
-            null,
-            null
-        );
+        List<IndicativeDto> result = Allure.step("Выполнение запроса без параметров", () -> {
+            List<IndicativeDto> indicatives = instrumentService.getIndicatives(
+                null,
+                null,
+                null,
+                null
+            );
+            System.out.println("Выполнен запрос без параметров");
+            return indicatives;
+        });
 
         // Then - проверка результата
-        assertThat(result).isNotNull();
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).ticker()).isEqualTo("EUR000UTSTOM");
-        assertThat(result.get(0).sellAvailableFlag()).isTrue();
-        assertThat(result.get(0).buyAvailableFlag()).isTrue();
-        assertThat(result.get(1).ticker()).isEqualTo("USD000UTSTOM");
-        assertThat(result.get(1).sellAvailableFlag()).isTrue();
-        assertThat(result.get(1).buyAvailableFlag()).isTrue();
+        Allure.step("Проверка корректности возвращенных данных индикативов", () -> {
+            assertThat(result).isNotNull();
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).ticker()).isEqualTo("EUR000UTSTOM");
+            assertThat(result.get(0).sellAvailableFlag()).isTrue();
+            assertThat(result.get(0).buyAvailableFlag()).isTrue();
+            assertThat(result.get(1).ticker()).isEqualTo("USD000UTSTOM");
+            assertThat(result.get(1).sellAvailableFlag()).isTrue();
+            assertThat(result.get(1).buyAvailableFlag()).isTrue();
+            
+            System.out.println("Проверено: возвращены 2 индикатива с корректными данными");
+            System.out.println("EUR000UTSTOM: SellAvailable=true, BuyAvailable=true");
+            System.out.println("USD000UTSTOM: SellAvailable=true, BuyAvailable=true");
+        });
 
         // Verify
-        verify(restClient).getIndicatives();
+        Allure.step("Проверка корректности взаимодействий с внешним REST API", () -> {
+            verify(restClient).getIndicatives();
+            System.out.println("Проверено: метод getIndicatives() вызван один раз");
+        });
     }
 
     // ==================== ДОПОЛНИТЕЛЬНЫЕ ТЕСТЫ ДЛЯ ИДЕАЛЬНОГО ПОКРЫТИЯ ====================

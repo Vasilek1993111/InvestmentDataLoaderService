@@ -6,8 +6,13 @@ import com.example.InvestmentDataLoaderService.service.MorningSessionService;
 import com.example.InvestmentDataLoaderService.fixtures.TestDataFactory;
 
 import io.qameta.allure.Allure;
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Owner;
+import io.qameta.allure.Severity;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -25,6 +30,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit-тесты для MorningSessionController
  */
+@Epic("Unit Tests")
+@Feature("Morning Session Controller")
+@DisplayName("Morning Session Controller Tests")
+@Owner("Investment Data Loader Service Team")
+
 @WebMvcTest(MorningSessionController.class)
 public class MorningSessionControllerTest {
 

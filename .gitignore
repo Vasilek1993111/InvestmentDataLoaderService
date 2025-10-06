@@ -41,6 +41,12 @@ build/
 .env.prod
 .env.staging
 
+### Application Properties (with secrets) ###
+# Игнорируем все application*.properties файлы, кроме тех что в resources
+application*.properties
+!src/main/resources/application*.properties
+src/test/resources/application*.properties
+
 ### IDE Configuration (with secrets) ###
 .vscode/launch.json
 .vscode/settings.json
