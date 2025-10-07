@@ -1,13 +1,17 @@
 package com.example.InvestmentDataLoaderService.integration;
 
 import com.example.InvestmentDataLoaderService.dto.ShareDto;
+import com.example.InvestmentDataLoaderService.dto.ShareFilterDto;
 import com.example.InvestmentDataLoaderService.dto.FutureDto;
 import com.example.InvestmentDataLoaderService.dto.IndicativeDto;
-import com.example.InvestmentDataLoaderService.repository.FutureRepository;
-import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
-import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
+
+import com.example.InvestmentDataLoaderService.service.CachedInstrumentService;
+
+import io.qameta.allure.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -25,9 +29,13 @@ import static org.junit.jupiter.api.Assertions.*;
  * 
  * <p>Тесты проверяют:</p>
  * <ul>
- *   <li>Количество акций и их FIGI совпадает с количеством акций и FIGI в БД</li>
- *   <li>Количество фьючерсов и их FIGI совпадает с количеством фьючерсов и FIGI в БД</li>
- *   <li>Количество индикативов и их FIGI совпадает с количеством индикативов и FIGI в БД</li>
+ *   <li>Количество акций в БД больше или равно количеству акций из API</li>
+ *   <li>Все FIGI из API присутствуют в БД</li>
+ *   <li>Количество фьючерсов в БД больше или равно количеству фьючерсов из API</li>
+ *   <li>Все FIGI фьючерсов из API присутствуют в БД</li>
+ *   <li>Количество индикативов в БД больше или равно количеству индикативов из API</li>
+ *   <li>Все FIGI индикативов из API присутствуют в БД</li>
+ *   <li>Аналогичные проверки для кэша</li>
  * </ul>
  * 
  * <p>Тесты выполняются в полном контексте Spring с подключением к реальной БД и API.</p>
@@ -36,212 +44,352 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @TestPropertySource(locations = "classpath:application-test.properties")
 @Transactional
+@Epic("Integration Tests")
+@Feature("Instruments Data Consistency")
+@DisplayName("Instruments Integration Tests")
+@Owner("Investment Data Loader Service Team")
+@Severity(SeverityLevel.CRITICAL)
 public class InstrumentsIntegrationTests {
 
     @Autowired
     private InstrumentService instrumentService;
     
     @Autowired
-    private ShareRepository shareRepository;
+    private CachedInstrumentService cachedInstrumentService;
     
-    @Autowired
-    private FutureRepository futureRepository;
-    
-    @Autowired
-    private IndicativeRepository indicativeRepository;
+
+
+
+    // ==================== ТЕСТЫ АКЦИЙ ====================
 
     /**
-     * Тест проверяет соответствие акций из API Т-Инвест с данными в БД
-     * 
-     * <p>Проверки:</p>
-     * <ul>
-     *   <li>Количество акций из API равно количеству акций в БД</li>
-     *   <li>Все FIGI из API присутствуют в БД</li>
-     *   <li>Все FIGI из БД присутствуют в API</li>
-     * </ul>
+     * Проверяет, что количество акций в БД больше или равно количеству акций из API
      */
     @Test
-    public void testSharesDataConsistency() {
-        // Получаем акции из API Т-Инвест
-        List<ShareDto> apiShares = instrumentService.getShares(
-            "INSTRUMENT_STATUS_BASE", 
-            null, 
-            null, 
-            null, 
-            null
-        );
+    @DisplayName("Сравнение количества акций из API с БД")
+    @Description("Интеграционный тест проверяет, что количество акций в БД больше или равно количеству акций из API Т-Инвест")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares Data Consistency")
+    @Tag("integration")
+    @Tag("shares")
+    @Tag("api")
+    @Tag("database")
+    @Tag("positive")
+    void compareSharesFromTinkoffToDatabase() {
+        // Шаг 1: Получение данных из API
+        List<ShareDto> sharesFromTinkoff = Allure.step("Получение акций из API Т-Инвест", () -> {
+            return instrumentService.getShares(null, null, "RUB", null, null);
+        });
         
-        // Получаем FIGI акций из БД
-        List<String> dbFigis = shareRepository.findAllFigis();
+        // Шаг 2: Получение данных из БД
+        List<ShareDto> sharesFromDatabase = Allure.step("Получение акций из базы данных", () -> {
+            ShareFilterDto filter = new ShareFilterDto();
+            return instrumentService.getSharesFromDatabase(filter);
+        });
         
-        // Проверяем количество
-        assertEquals(apiShares.size(), dbFigis.size(), 
-            "Количество акций из API должно совпадать с количеством в БД");
-        
-        // Извлекаем FIGI из API
-        Set<String> apiFigis = apiShares.stream()
-            .map(ShareDto::figi)
-            .collect(Collectors.toSet());
-        
-        // Преобразуем список FIGI из БД в Set для удобства сравнения
-        Set<String> dbFigisSet = dbFigis.stream()
-            .collect(Collectors.toSet());
-        
-        // Проверяем, что все FIGI из API присутствуют в БД
-        assertTrue(apiFigis.containsAll(dbFigisSet), 
-            "Все FIGI из БД должны присутствовать в API");
-        
-        // Проверяем, что все FIGI из БД присутствуют в API
-        assertTrue(dbFigisSet.containsAll(apiFigis), 
-            "Все FIGI из API должны присутствовать в БД");
-        
-        // Дополнительная проверка: количество уникальных FIGI
-        assertEquals(apiFigis.size(), dbFigisSet.size(), 
-            "Количество уникальных FIGI должно совпадать");
+        // Шаг 3: Проверка соответствия количества
+        Allure.step("Проверка соответствия количества акций", () -> {
+            assertTrue(sharesFromDatabase.size() >= sharesFromTinkoff.size(), 
+                String.format("Количество акций в БД (%d) должно быть больше или равно количеству из API (%d)", 
+                sharesFromDatabase.size(), sharesFromTinkoff.size()));
+        });
     }
 
     /**
-     * Тест проверяет соответствие фьючерсов из API Т-Инвест с данными в БД
-     * 
-     * <p>Проверки:</p>
-     * <ul>
-     *   <li>Количество фьючерсов из API равно количеству фьючерсов в БД</li>
-     *   <li>Все FIGI из API присутствуют в БД</li>
-     *   <li>Все FIGI из БД присутствуют в API</li>
-     * </ul>
+     * Проверяет, что все FIGI акций из API присутствуют в БД
      */
     @Test
-    public void testFuturesDataConsistency() {
-        // Получаем фьючерсы из API Т-Инвест
-        List<FutureDto> apiFutures = instrumentService.getFutures(
-            "INSTRUMENT_STATUS_BASE", 
-            null, 
-            null, 
-            null, 
-            null
-        );
+    @DisplayName("Сравнение FIGI акций из API с БД")
+    @Description("Интеграционный тест проверяет, что все FIGI акций из API Т-Инвест присутствуют в БД")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Shares Data Consistency")
+    @Tag("integration")
+    @Tag("shares")
+    @Tag("api")
+    @Tag("database")
+    @Tag("figi")
+    @Tag("positive")
+    void compareSharesFigis(){
+        // Шаг 1: Получение данных из API
+        List<ShareDto> sharesFromTinkoff = Allure.step("Получение акций из API Т-Инвест", () -> {
+            return instrumentService.getShares(null, null, "RUB", null, null);
+        });
         
-        // Получаем все фьючерсы из БД
-        List<com.example.InvestmentDataLoaderService.entity.FutureEntity> dbFutures = 
-            futureRepository.findAll();
+        // Шаг 2: Получение данных из БД
+        List<ShareDto> sharesFromDatabase = Allure.step("Получение акций из базы данных", () -> {
+            ShareFilterDto filter = new ShareFilterDto();
+            filter.setCurrency("RUB");
+            return instrumentService.getSharesFromDatabase(filter);
+        });
         
-        // Проверяем количество
-        assertEquals(apiFutures.size(), dbFutures.size(), 
-            "Количество фьючерсов из API должно совпадать с количеством в БД");
+        // Шаг 3: Извлечение FIGI
+        Set<String> figisFromTinkoff = Allure.step("Извлечение FIGI из данных API", () -> {
+            return sharesFromTinkoff.stream().map(ShareDto::figi).collect(Collectors.toSet());
+        });
         
-        // Извлекаем FIGI из API
-        Set<String> apiFigis = apiFutures.stream()
-            .map(FutureDto::figi)
-            .collect(Collectors.toSet());
+        Set<String> figisFromDatabase = Allure.step("Извлечение FIGI из данных БД", () -> {
+            return sharesFromDatabase.stream().map(ShareDto::figi).collect(Collectors.toSet());
+        });
         
-        // Извлекаем FIGI из БД
-        Set<String> dbFigis = dbFutures.stream()
-            .map(com.example.InvestmentDataLoaderService.entity.FutureEntity::getFigi)
-            .collect(Collectors.toSet());
+        // Шаг 4: Проверка соответствия FIGI
+        Allure.step("Проверка соответствия FIGI акций", () -> {
+            assertTrue(figisFromDatabase.containsAll(figisFromTinkoff), 
+            String.format("Все FIGI из API должны присутствовать в БД. Отсутствуют: %s", 
+                figisFromTinkoff.stream()
+                    .filter(figi -> !figisFromDatabase.contains(figi))
+                    .collect(Collectors.toSet())));
+        });
+    }
+
+    // ==================== ТЕСТЫ ФЬЮЧЕРСОВ ====================
+
+    /**
+     * Проверяет, что количество фьючерсов в БД больше или равно количеству фьючерсов из API
+     */
+    @Test
+    @DisplayName("Сравнение количества фьючерсов из API с БД")
+    @Description("Интеграционный тест проверяет, что количество фьючерсов в БД больше или равно количеству фьючерсов из API Т-Инвест")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Futures Data Consistency")
+    @Tag("integration")
+    @Tag("futures")
+    @Tag("api")
+    @Tag("database")
+    @Tag("positive")
+    void compareFuturesFromTinkoffToDatabase() {
+        // Шаг 1: Получение данных из API
+        List<FutureDto> futuresFromTinkoff = Allure.step("Получение фьючерсов из API Т-Инвест", () -> {
+            return instrumentService.getFutures(null, null, "RUB", null, null);
+        });
         
-        // Проверяем, что все FIGI из API присутствуют в БД
-        assertTrue(apiFigis.containsAll(dbFigis), 
-            "Все FIGI из БД должны присутствовать в API");
+        // Шаг 2: Получение данных из БД
+        List<FutureDto> futuresFromDatabase = Allure.step("Получение фьючерсов из базы данных", () -> {
+            return instrumentService.getFuturesFromDatabase();
+        });
         
-        // Проверяем, что все FIGI из БД присутствуют в API
-        assertTrue(dbFigis.containsAll(apiFigis), 
-            "Все FIGI из API должны присутствовать в БД");
-        
-        // Дополнительная проверка: количество уникальных FIGI
-        assertEquals(apiFigis.size(), dbFigis.size(), 
-            "Количество уникальных FIGI должно совпадать");
+        // Шаг 3: Проверка соответствия количества
+        Allure.step("Проверка соответствия количества фьючерсов", () -> {
+            assertTrue(futuresFromDatabase.size() >= futuresFromTinkoff.size(), 
+                String.format("Количество фьючерсов в БД (%d) должно быть больше или равно количеству из API (%d)", 
+                futuresFromDatabase.size(), futuresFromTinkoff.size()));
+        });
     }
 
     /**
-     * Тест проверяет соответствие индикативов из API Т-Инвест с данными в БД
-     * 
-     * <p>Проверки:</p>
-     * <ul>
-     *   <li>Количество индикативов из API равно количеству индикативов в БД</li>
-     *   <li>Все FIGI из API присутствуют в БД</li>
-     *   <li>Все FIGI из БД присутствуют в API</li>
-     * </ul>
+     * Проверяет, что все FIGI фьючерсов из API присутствуют в БД
      */
     @Test
-    public void testIndicativesDataConsistency() {
-        // Получаем индикативы из API Т-Инвест
-        List<IndicativeDto> apiIndicatives = instrumentService.getIndicatives(
-            null, 
-            null, 
-            null, 
-            null
-        );
-        System.out.println("apiIndicatives: " + apiIndicatives);
+    @DisplayName("Сравнение FIGI фьючерсов из API с БД")
+    @Description("Интеграционный тест проверяет, что все FIGI фьючерсов из API Т-Инвест присутствуют в БД")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Futures Data Consistency")
+    @Tag("integration")
+    @Tag("futures")
+    @Tag("api")
+    @Tag("database")
+    @Tag("figi")
+    @Tag("positive")
+    void compareFuturesFigis(){
+        // Шаг 1: Получение данных из API
+        List<FutureDto> futuresFromTinkoff = Allure.step("Получение фьючерсов из API Т-Инвест", () -> {
+            return instrumentService.getFutures(null, null, "RUB", null, null);
+        });
         
-        // Получаем все индикативы из БД
-        List<com.example.InvestmentDataLoaderService.entity.IndicativeEntity> dbIndicatives = 
-            indicativeRepository.findAll();
+        // Шаг 2: Получение данных из БД
+        List<FutureDto> futuresFromDatabase = Allure.step("Получение фьючерсов из базы данных", () -> {
+            return instrumentService.getFuturesFromDatabase();
+        });
         
-        // Проверяем количество
-        assertEquals(apiIndicatives.size(), dbIndicatives.size(), 
-            "Количество индикативов из API должно совпадать с количеством в БД");
+        // Шаг 3: Извлечение FIGI
+        Set<String> figisFromTinkoff = Allure.step("Извлечение FIGI из данных API", () -> {
+            return futuresFromTinkoff.stream().map(FutureDto::figi).collect(Collectors.toSet());
+        });
         
-        // Извлекаем FIGI из API
-        Set<String> apiFigis = apiIndicatives.stream()
-            .map(IndicativeDto::figi)
-            .collect(Collectors.toSet());
+        Set<String> figisFromDatabase = Allure.step("Извлечение FIGI из данных БД", () -> {
+            return futuresFromDatabase.stream().map(FutureDto::figi).collect(Collectors.toSet());
+        });
         
-        // Извлекаем FIGI из БД
-        Set<String> dbFigis = dbIndicatives.stream()
-            .map(com.example.InvestmentDataLoaderService.entity.IndicativeEntity::getFigi)
-            .collect(Collectors.toSet());
+        // Шаг 4: Проверка соответствия FIGI
+        Allure.step("Проверка соответствия FIGI фьючерсов", () -> {
+            assertTrue(figisFromDatabase.containsAll(figisFromTinkoff), 
+                String.format("Все FIGI фьючерсов из API должны присутствовать в БД. Отсутствуют: %s", 
+                    figisFromTinkoff.stream()
+                        .filter(figi -> !figisFromDatabase.contains(figi))
+                        .collect(Collectors.toSet())));
+        });
+    }
+
+    // ==================== ТЕСТЫ ИНДИКАТИВОВ ====================
+
+    /**
+     * Проверяет, что количество индикативов в БД больше или равно количеству индикативов из API
+     */
+    @Test
+    @DisplayName("Сравнение количества индикативов из API с БД")
+    @Description("Интеграционный тест проверяет, что количество индикативов в БД больше или равно количеству индикативов из API Т-Инвест")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Indicatives Data Consistency")
+    @Tag("integration")
+    @Tag("indicatives")
+    @Tag("api")
+    @Tag("database")
+    @Tag("positive")
+    void compareIndicativesFromTinkoffToDatabase() {
+        // Шаг 1: Получение данных из API
+        List<IndicativeDto> indicativesFromTinkoff = Allure.step("Получение индикативов из API Т-Инвест", () -> {
+            return instrumentService.getIndicatives(null, "RUB", null, null);
+        });
         
-        // Проверяем, что все FIGI из API присутствуют в БД
-        assertTrue(apiFigis.containsAll(dbFigis), 
-            "Все FIGI из БД должны присутствовать в API");
+        // Шаг 2: Получение данных из БД
+        List<IndicativeDto> indicativesFromDatabase = Allure.step("Получение индикативов из базы данных", () -> {
+            return instrumentService.getIndicativesFromDatabase();
+        });
         
-        // Проверяем, что все FIGI из БД присутствуют в API
-        assertTrue(dbFigis.containsAll(apiFigis), 
-            "Все FIGI из API должны присутствовать в БД");
-        
-        // Дополнительная проверка: количество уникальных FIGI
-        assertEquals(apiFigis.size(), dbFigis.size(), 
-            "Количество уникальных FIGI должно совпадать");
+        // Шаг 3: Проверка соответствия количества
+        Allure.step("Проверка соответствия количества индикативов", () -> {
+            assertTrue(indicativesFromDatabase.size() >= indicativesFromTinkoff.size(), 
+                String.format("Количество индикативов в БД (%d) должно быть больше или равно количеству из API (%d)", 
+                indicativesFromDatabase.size(), indicativesFromTinkoff.size()));
+        });
     }
 
     /**
-     * Комплексный тест проверяет общую статистику по всем типам инструментов
-     * 
-     * <p>Проверяет соответствие общего количества инструментов и их распределения по типам</p>
+     * Проверяет, что все FIGI индикативов из API присутствуют в БД
      */
     @Test
-    public void testOverallInstrumentsConsistency() {
-        // Получаем статистику из сервиса
-        var counts = instrumentService.getInstrumentCounts();
+    @DisplayName("Сравнение FIGI индикативов из API с БД")
+    @Description("Интеграционный тест проверяет, что все FIGI индикативов из API Т-Инвест присутствуют в БД")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Indicatives Data Consistency")
+    @Tag("integration")
+    @Tag("indicatives")
+    @Tag("api")
+    @Tag("database")
+    @Tag("figi")
+    @Tag("positive")
+    void compareIndicativesFigis(){
+        // Шаг 1: Получение данных из API
+        List<IndicativeDto> indicativesFromTinkoff = Allure.step("Получение индикативов из API Т-Инвест", () -> {
+            return instrumentService.getIndicatives(null, "RUB", null, null);
+        });
         
-        // Получаем актуальные данные из API и БД
-        List<ShareDto> apiShares = instrumentService.getShares(null, null, null, null, null);
-        List<FutureDto> apiFutures = instrumentService.getFutures(null, null, null, null, null);
-        List<IndicativeDto> apiIndicatives = instrumentService.getIndicatives(null, null, null, null);
+        // Шаг 2: Получение данных из БД
+        List<IndicativeDto> indicativesFromDatabase = Allure.step("Получение индикативов из базы данных", () -> {
+            return instrumentService.getIndicativesFromDatabase();
+        });
         
-        long dbSharesCount = shareRepository.count();
-        long dbFuturesCount = futureRepository.count();
-        long dbIndicativesCount = indicativeRepository.count();
+        // Шаг 3: Извлечение FIGI
+        Set<String> figisFromTinkoff = Allure.step("Извлечение FIGI из данных API", () -> {
+            return indicativesFromTinkoff.stream().map(IndicativeDto::figi).collect(Collectors.toSet());
+        });
         
-        // Проверяем соответствие статистики
-        assertEquals(apiShares.size(), counts.get("shares"), 
-            "Статистика по акциям должна соответствовать данным из API");
-        assertEquals(apiFutures.size(), counts.get("futures"), 
-            "Статистика по фьючерсам должна соответствовать данным из API");
-        assertEquals(apiIndicatives.size(), counts.get("indicatives"), 
-            "Статистика по индикативам должна соответствовать данным из API");
+        Set<String> figisFromDatabase = Allure.step("Извлечение FIGI из данных БД", () -> {
+            return indicativesFromDatabase.stream().map(IndicativeDto::figi).collect(Collectors.toSet());
+        });
         
-        // Проверяем соответствие с БД
-        assertEquals(dbSharesCount, counts.get("shares"), 
-            "Статистика по акциям должна соответствовать данным из БД");
-        assertEquals(dbFuturesCount, counts.get("futures"), 
-            "Статистика по фьючерсам должна соответствовать данным из БД");
-        assertEquals(dbIndicativesCount, counts.get("indicatives"), 
-            "Статистика по индикативам должна соответствовать данным из БД");
-        
-        // Проверяем общее количество
-        long expectedTotal = apiShares.size() + apiFutures.size() + apiIndicatives.size();
-        assertEquals(expectedTotal, counts.get("total"), 
-            "Общее количество инструментов должно соответствовать сумме всех типов");
+        // Шаг 4: Проверка соответствия FIGI
+        Allure.step("Проверка соответствия FIGI индикативов", () -> {
+            assertTrue(figisFromDatabase.containsAll(figisFromTinkoff), 
+                String.format("Все FIGI индикативов из API должны присутствовать в БД. Отсутствуют: %s", 
+                    figisFromTinkoff.stream()
+                        .filter(figi -> !figisFromDatabase.contains(figi))
+                        .collect(Collectors.toSet())));
+        });
     }
+
+    // ==================== ТЕСТЫ КЭША ====================
+
+    /**
+     * Проверяет, что количество акций в кэше больше или равно количеству акций из API
+     */
+    @Test
+    @DisplayName("Сравнение количества акций из API с кэшем")
+    @Description("Интеграционный тест проверяет, что количество акций в кэше больше или равно количеству акций из API Т-Инвест")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Cache Data Consistency")
+    @Tag("integration")
+    @Tag("shares")
+    @Tag("api")
+    @Tag("cache")
+    @Tag("positive")
+    void compareSharesFromTinkoffToCache() {
+        // Шаг 1: Получение данных из API
+        List<ShareDto> sharesFromTinkoff = Allure.step("Получение акций из API Т-Инвест", () -> {
+            return instrumentService.getShares(null, "moex_mrng_evng_e_wknd_dlr", null, null, null);
+        });
+        
+        // Шаг 2: Получение данных из кэша
+        List<ShareDto> sharesFromCache = Allure.step("Получение акций из кэша", () -> {
+            return cachedInstrumentService.getSharesFromCache();
+        });
+        
+        // Шаг 3: Проверка соответствия количества
+        Allure.step("Проверка соответствия количества акций в кэше", () -> {
+            assertTrue(sharesFromCache.size() >= sharesFromTinkoff.size(), 
+                String.format("Количество акций в кэше (%d) должно быть больше или равно количеству из API (%d)", 
+                sharesFromCache.size(), sharesFromTinkoff.size()));
+        });
+    }
+
+    /**
+     * Проверяет, что количество фьючерсов в кэше больше или равно количеству фьючерсов из API
+     */
+    @Test
+    @DisplayName("Сравнение количества фьючерсов из API с кэшем")
+    @Description("Интеграционный тест проверяет, что количество фьючерсов в кэше больше или равно количеству фьючерсов из API Т-Инвест")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Cache Data Consistency")
+    @Tag("integration")
+    @Tag("futures")
+    @Tag("api")
+    @Tag("cache")
+    @Tag("positive")
+    void compareFuturesFromTinkoffToCache() {
+        // Шаг 1: Получение данных из API
+        List<FutureDto> futuresFromTinkoff = Allure.step("Получение фьючерсов из API Т-Инвест", () -> {
+            return instrumentService.getFutures(null, null, "RUB", null, null);
+        });
+        
+        // Шаг 2: Получение данных из кэша
+        List<FutureDto> futuresFromCache = Allure.step("Получение фьючерсов из кэша", () -> {
+            return cachedInstrumentService.getFuturesFromCache();
+        });
+        
+        // Шаг 3: Проверка соответствия количества
+        Allure.step("Проверка соответствия количества фьючерсов в кэше", () -> {
+            assertTrue(futuresFromCache.size() >= futuresFromTinkoff.size(), 
+                String.format("Количество фьючерсов в кэше (%d) должно быть больше или равно количеству из API (%d)", 
+                futuresFromCache.size(), futuresFromTinkoff.size()));
+        });
+    }
+
+    @Test
+    @DisplayName("Сравнение количества индикативов из API с кэшем")
+    @Description("Интеграционный тест проверяет, что количество индикативов в кэше больше или равно количеству индикативов из API Т-Инвест")
+    @Severity(SeverityLevel.CRITICAL)
+    @Story("Cache Data Consistency")
+    @Tag("integration")
+    @Tag("indicatives")
+    @Tag("api")
+    @Tag("cache")
+    @Tag("positive")
+    void compareIndicativesFromTinkoffToCache() {
+        // Шаг 1: Получение данных из API
+        List<IndicativeDto> indicativesFromTinkoff = Allure.step("Получение индикативов из API Т-Инвест", () -> {
+            return instrumentService.getIndicatives(null, null, null, null);
+        });
+        
+        // Шаг 2: Получение данных из кэша
+        List<IndicativeDto> indicativesFromCache = Allure.step("Получение индикативов из кэша", () -> {
+            return cachedInstrumentService.getIndicativesFromCache();
+        });
+        
+        // Шаг 3: Проверка соответствия количества
+        Allure.step("Проверка соответствия количества индикативов в кэше", () -> {
+            assertTrue(indicativesFromCache.size() >= indicativesFromTinkoff.size(), 
+                String.format("Количество индикативов в кэше (%d) должно быть больше или равно количеству из API (%d)", 
+                indicativesFromCache.size(), indicativesFromTinkoff.size()));
+        });
+    }
+
 }

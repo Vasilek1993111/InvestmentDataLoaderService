@@ -36,11 +36,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * подробных отчетов в Allure с последовательностью выполнения шагов.</p>
  */
 @WebMvcTest(EveningSessionController.class)
-@Epic("API Вечерней Сессии")
-@Feature("Управление Ценами Вечерней Сессии")
-@DisplayName("Тесты Контроллера Вечерней Сессии")
-@Owner("Команда Investment Data Loader Service")
+@Epic("API Evening Session")
+@Feature("Evening Session Management")
+@DisplayName("Evening Session Controller Tests")
+@Owner("Investment Data Loader Service Team")
 @Severity(SeverityLevel.CRITICAL)
+
 class EveningSessionControllerTest {
     
     @Autowired

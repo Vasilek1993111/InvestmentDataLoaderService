@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Сервис для работы с финансовыми инструментами
@@ -90,59 +91,53 @@ public class InstrumentService {
     // === МЕТОДЫ ДЛЯ РАБОТЫ С АКЦИЯМИ ===
 
     /**
-     * Получение списка акций из Tinkoff API с фильтрацией
+     * Получение списка акций из Tinkoff API с фильтрацией через REST
      * 
-     * <p>Метод получает акции из внешнего API Tinkoff с применением фильтров.
+     * <p>Метод получает акции из внешнего API Tinkoff через REST с применением фильтров.
      * Результат кэшируется для повышения производительности.</p>
+     * 
+     * <p>Преимущества REST API: включает поле assetUid в ответе, что позволяет
+     * получить полную информацию об акциях за один запрос.</p>
      * 
      * @param status статус инструмента (INSTRUMENT_STATUS_ACTIVE, INSTRUMENT_STATUS_BASE)
      * @param exchange биржа (например: MOEX, SPB)
      * @param currency валюта (например: RUB, USD, EUR)
      * @param ticker тикер акции (например: SBER, GAZP)
      * @param figi уникальный идентификатор инструмента
-     * @return список акций, отсортированный по тикеру
+     * @return список акций, отсортированный по тикеру (включая assetUid)
      */
     @Cacheable(cacheNames = com.example.InvestmentDataLoaderService.config.CacheConfig.SHARES_CACHE,
             key = "T(java.util.Objects).toString(#status,'') + '|' + T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#figi,'')")
     public List<ShareDto> getShares(String status, String exchange, String currency, String ticker, String figi) {
-        // Определяем статус инструмента для запроса к API
-        InstrumentStatus instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
-        if (status != null && !status.isEmpty()) {
-            try {
-                instrumentStatus = InstrumentStatus.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                // Если статус не найден, используем базовый статус
-                instrumentStatus = InstrumentStatus.INSTRUMENT_STATUS_BASE;
-            }
-        }
-        
-        // Получаем данные из T-Bank API
-        SharesResponse response = instrumentsService.shares(InstrumentsRequest.newBuilder()
-                .setInstrumentStatus(instrumentStatus)
-                .build());
+        // Получаем данные из T-Bank API через REST
+        var response = restClient.getShares();
+             
         
         List<ShareDto> shares = new ArrayList<>();
-        for (var instrument : response.getInstrumentsList()) {
+        for (var instrument : response.get("instruments")) {
             // Применяем фильтры
             boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
-                                     instrument.getExchange().equalsIgnoreCase(exchange));
+                                     instrument.get("exchange").asText().equalsIgnoreCase(exchange));
             boolean matchesCurrency = (currency == null || currency.isEmpty() || 
-                                     instrument.getCurrency().equalsIgnoreCase(currency));
+                                     instrument.get("currency").asText().equalsIgnoreCase(currency));
             boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
-                                   instrument.getTicker().equalsIgnoreCase(ticker));
+                                   instrument.get("ticker").asText().equalsIgnoreCase(ticker));
             boolean matchesFigi = (figi == null || figi.isEmpty() || 
-                                 instrument.getFigi().equalsIgnoreCase(figi));
-            
-            if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
+                                 instrument.get("figi").asText().equalsIgnoreCase(figi));
+            boolean matchesStatus = (status == null || status.isEmpty() || 
+                                   instrument.get("tradingStatus").asText().equalsIgnoreCase(status));
+
+            if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi && matchesStatus) {
                 shares.add(new ShareDto(
-                    instrument.getFigi(),
-                    instrument.getTicker(),
-                    instrument.getName(),
-                    instrument.getCurrency(),
-                    instrument.getExchange(),
-                    instrument.getSector(),
-                    instrument.getTradingStatus().name(),
-                    instrument.getShortEnabledFlag()
+                    instrument.get("figi").asText(),
+                    instrument.get("ticker").asText(),
+                    instrument.get("name").asText(),
+                    instrument.get("currency").asText(),
+                    instrument.get("exchange").asText(),
+                    instrument.get("sector").asText(),
+                    instrument.get("tradingStatus").asText(),
+                    instrument.get("shortEnabledFlag").asBoolean(),
+                    instrument.get("assetUid").asText()
                 ));
             }
         }
@@ -150,15 +145,9 @@ public class InstrumentService {
         // Сортируем по тикеру
         shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
         
-        // Если инструменты не найдены, выбрасываем исключение
-        // if (shares.isEmpty()) {
-        //     throw new com.example.InvestmentDataLoaderService.exception.InstrumentsNotFoundException(
-        //         "Акции не найдены по заданным критериям"
-        //     );
-        // }
-        
         return shares;
     }
+
 
     /**
      * Сохранение акций в базу данных с защитой от дубликатов
@@ -197,6 +186,7 @@ public class InstrumentService {
                     shareDto.sector(),
                     shareDto.tradingStatus(),
                     shareDto.shortEnabled(),
+                    shareDto.assetUid(),
                     null, // createdAt будет установлен автоматически
                     null  // updatedAt будет установлен автоматически
                 );
@@ -289,7 +279,8 @@ public class InstrumentService {
                     entity.getExchange(),
                     entity.getSector(),
                     entity.getTradingStatus(),
-                    entity.getShortEnabled()
+                    entity.getShortEnabled(),
+                    entity.getAssetUid()
                 ));
             }
         }
@@ -315,7 +306,8 @@ public class InstrumentService {
                     entity.getExchange(),
                     entity.getSector(),
                     entity.getTradingStatus(),
-                    entity.getShortEnabled()
+                    entity.getShortEnabled(),
+                    entity.getAssetUid()
                 ))
                 .orElse(null);
     }
@@ -336,7 +328,8 @@ public class InstrumentService {
                     entity.getExchange(),
                     entity.getSector(),
                     entity.getTradingStatus(),
-                    entity.getShortEnabled()
+                    entity.getShortEnabled(),
+                    entity.getAssetUid()
                 ))
                 .orElse(null);
     }
@@ -826,5 +819,42 @@ public class InstrumentService {
         counts.put("total", sharesCount + futuresCount + indicativesCount);
         
         return counts;
+    }
+
+
+    public List<FutureDto> getFuturesFromDatabase() {
+        List<FutureEntity> entities = futureRepo.findAll();
+        return entities.stream()
+                .map(entity -> new FutureDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getAssetType(),
+                    entity.getBasicAsset(),
+                    entity.getCurrency(),
+                    entity.getExchange(),
+                    entity.getShortEnabled(),
+                    entity.getExpirationDate()
+                ))
+                .collect(Collectors.toList());
+    }
+
+/**
+ * Получение всех индикативов из базы данных
+ */
+    public List<IndicativeDto> getIndicativesFromDatabase() {
+        List<IndicativeEntity> entities = indicativeRepo.findAll();
+        return entities.stream()
+                .map(entity -> new IndicativeDto(
+                    entity.getFigi(),
+                    entity.getTicker(),
+                    entity.getName(),
+                    entity.getCurrency(),
+                    entity.getExchange(),
+                    entity.getClassCode(),
+                    entity.getUid(),
+                    entity.getSellAvailableFlag(),
+                    entity.getBuyAvailableFlag()
+                ))
+                .collect(Collectors.toList());
     }
 }

@@ -1,10 +1,13 @@
 package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.FutureDto;
+import com.example.InvestmentDataLoaderService.dto.IndicativeDto;
 import com.example.InvestmentDataLoaderService.dto.ShareDto;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
+import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -19,7 +22,7 @@ import java.util.stream.Collectors;
 /**
  * Сервис для получения инструментов из кэша с fallback на БД
  * 
- * <p>Предоставляет методы для получения акций и фьючерсов из кэша.
+ * <p>Предоставляет методы для получения акций, фьючерсов и индикативов из кэша.
  * В случае отсутствия данных в кэше, обращается к базе данных.</p>
  * 
  * @author InvestmentDataLoaderService
@@ -31,13 +34,16 @@ public class CachedInstrumentService {
 
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
+    private final IndicativeRepository indicativeRepository;
     private final CacheManager cacheManager;
 
     public CachedInstrumentService(ShareRepository shareRepository,
                                  FutureRepository futureRepository,
+                                 IndicativeRepository indicativeRepository,
                                  CacheManager cacheManager) {
         this.shareRepository = shareRepository;
         this.futureRepository = futureRepository;
+        this.indicativeRepository = indicativeRepository;
         this.cacheManager = cacheManager;
     }
 
@@ -94,9 +100,35 @@ public class CachedInstrumentService {
     }
 
     /**
+     * Получает все индикативы из кэша или БД
+     * 
+     * @return список всех индикативов
+     */
+    @Transactional(readOnly = true)
+    public List<IndicativeEntity> getAllIndicatives() {
+        try {
+            // Пытаемся получить из кэша
+            List<IndicativeDto> cachedIndicatives = getIndicativesFromCache();
+            
+            if (cachedIndicatives != null && !cachedIndicatives.isEmpty()) {
+                System.out.println("Получено " + cachedIndicatives.size() + " индикативов из кэша");
+                return convertIndicativesDtoToEntity(cachedIndicatives);
+            }
+            
+            // Fallback на БД
+            System.out.println("Кэш индикативов пуст, загружаем из БД");
+            return indicativeRepository.findAll();
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при получении индикативов из кэша, используем БД: " + e.getMessage());
+            return indicativeRepository.findAll();
+        }
+    }
+
+    /**
      * Получает акции из кэша
      */
-    private List<ShareDto> getSharesFromCache() {
+    public List<ShareDto> getSharesFromCache() {
         Cache cache = cacheManager.getCache("sharesCache");
         if (cache == null) {
             return new ArrayList<>();
@@ -154,7 +186,7 @@ public class CachedInstrumentService {
     /**
      * Получает фьючерсы из кэша
      */
-    private List<FutureDto> getFuturesFromCache() {
+    public List<FutureDto> getFuturesFromCache() {
         Cache cache = cacheManager.getCache("futuresCache");
         if (cache == null) {
             return new ArrayList<>();
@@ -209,6 +241,63 @@ public class CachedInstrumentService {
     }
 
     /**
+     * Получает индикативы из кэша
+     */
+    public List<IndicativeDto> getIndicativesFromCache() {
+        Cache cache = cacheManager.getCache("indicativesCache");
+        if (cache == null) {
+            return new ArrayList<>();
+        }
+
+        List<IndicativeDto> allIndicatives = new ArrayList<>();
+        
+        // Получаем все записи из кэша через ключи
+        try {
+            // Пробуем разные ключи для получения индикативов
+            String[] possibleKeys = {
+                "||||", // Пустые параметры
+                "||||", // Другой возможный ключ
+            };
+            
+            for (String cacheKey : possibleKeys) {
+                Cache.ValueWrapper wrapper = cache.get(cacheKey);
+                if (wrapper != null && wrapper.get() instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<IndicativeDto> indicatives = (List<IndicativeDto>) wrapper.get();
+                    if (indicatives != null && !indicatives.isEmpty()) {
+                        allIndicatives.addAll(indicatives);
+                        System.out.println("Найдено " + indicatives.size() + " индикативов в кэше с ключом: " + cacheKey);
+                        break; // Используем первый найденный ключ
+                    }
+                }
+            }
+            
+            // Если не нашли по стандартным ключам, пробуем получить все записи из кэша
+            if (allIndicatives.isEmpty() && cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache) {
+                com.github.benmanes.caffeine.cache.Cache<?, ?> caffeineCache = 
+                    (com.github.benmanes.caffeine.cache.Cache<?, ?>) cache.getNativeCache();
+                
+                for (Map.Entry<?, ?> entry : caffeineCache.asMap().entrySet()) {
+                    if (entry.getValue() instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<IndicativeDto> indicatives = (List<IndicativeDto>) entry.getValue();
+                        if (indicatives != null && !indicatives.isEmpty()) {
+                            allIndicatives.addAll(indicatives);
+                            System.out.println("Найдено " + indicatives.size() + " индикативов в кэше с ключом: " + entry.getKey());
+                            break; // Используем первый найденный список
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка получения индикативов из кэша: " + e.getMessage());
+        }
+        
+        return allIndicatives;
+    }
+
+    /**
      * Конвертирует ShareDto в ShareEntity
      */
     private List<ShareEntity> convertSharesDtoToEntity(List<ShareDto> sharesDto) {
@@ -246,6 +335,25 @@ public class CachedInstrumentService {
     }
 
     /**
+     * Конвертирует IndicativeDto в IndicativeEntity
+     */
+    private List<IndicativeEntity> convertIndicativesDtoToEntity(List<IndicativeDto> indicativesDto) {
+        return indicativesDto.stream()
+                .map(dto -> new IndicativeEntity(
+                    dto.figi(),
+                    dto.ticker(),
+                    dto.name(),
+                    dto.currency(),
+                    dto.exchange(),
+                    dto.classCode(),
+                    dto.uid(),
+                    dto.sellAvailableFlag(),
+                    dto.buyAvailableFlag()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Проверяет, есть ли инструмент в кэше
      * 
      * @param figi идентификатор инструмента
@@ -264,8 +372,17 @@ public class CachedInstrumentService {
             
             // Проверяем в кэше фьючерсов
             List<FutureDto> futures = getFuturesFromCache();
-            return futures.stream()
+            boolean foundInFutures = futures.stream()
                     .anyMatch(future -> future.figi().equals(figi));
+            
+            if (foundInFutures) {
+                return true;
+            }
+            
+            // Проверяем в кэше индикативов
+            List<IndicativeDto> indicatives = getIndicativesFromCache();
+            return indicatives.stream()
+                    .anyMatch(indicative -> indicative.figi().equals(figi));
             
         } catch (Exception e) {
             System.err.println("Ошибка при проверке инструмента в кэше: " + e.getMessage());
@@ -282,11 +399,14 @@ public class CachedInstrumentService {
         try {
             List<ShareDto> shares = getSharesFromCache();
             List<FutureDto> futures = getFuturesFromCache();
+            List<IndicativeDto> indicatives = getIndicativesFromCache();
             
             int sharesCount = shares.size();
             int futuresCount = futures.size();
+            int indicativesCount = indicatives.size();
             
-            String info = String.format("Кэш: %d акций, %d фьючерсов", sharesCount, futuresCount);
+            String info = String.format("Кэш: %d акций, %d фьючерсов, %d индикативов", 
+                sharesCount, futuresCount, indicativesCount);
             
             // Добавляем отладочную информацию
             if (sharesCount > 0) {
@@ -301,6 +421,12 @@ public class CachedInstrumentService {
                 System.out.println("DEBUG: Фьючерсы в кэше не найдены");
             }
             
+            if (indicativesCount > 0) {
+                System.out.println("DEBUG: Найдено " + indicativesCount + " индикативов в кэше");
+            } else {
+                System.out.println("DEBUG: Индикативы в кэше не найдены");
+            }
+            
             return info;
         } catch (Exception e) {
             System.err.println("Ошибка получения информации о кэше: " + e.getMessage());
@@ -308,4 +434,9 @@ public class CachedInstrumentService {
             return "Ошибка получения информации о кэше: " + e.getMessage();
         }
     }
+
+	public void warmUpCache() {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException("Unimplemented method 'warmUpCache'");
+	}
 }

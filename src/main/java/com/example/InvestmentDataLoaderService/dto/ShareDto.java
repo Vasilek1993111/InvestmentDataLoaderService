@@ -8,7 +8,9 @@ public record ShareDto(
     String exchange,
     String sector,
     String tradingStatus,
-    Boolean shortEnabled
+    Boolean shortEnabled,
+    String assetUid
+    
 ) {
    
 }

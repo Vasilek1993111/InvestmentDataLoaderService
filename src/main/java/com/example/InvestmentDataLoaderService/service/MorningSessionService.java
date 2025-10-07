@@ -15,9 +15,8 @@ import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -296,13 +295,6 @@ public class MorningSessionService {
         }
     }
 
-    /**
-     * Проверяет, является ли дата выходным днем
-     */
-    private boolean isWeekend(LocalDate date) {
-        DayOfWeek dayOfWeek = date.getDayOfWeek();
-        return dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
-    }
 
     /**
      * Ручная загрузка цен открытия утренней сессии за конкретную дату
