@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -636,17 +637,17 @@ public class InstrumentPreloadSchedulerServiceTest {
 
     private List<ShareDto> createTestShares() {
         return Arrays.asList(
-            new ShareDto("BBG004730N88", "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-sber"),
-            new ShareDto("BBG004730ZJ9", "GAZP", "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-gazp"),
-            new ShareDto("BBG004730N88", "LKOH", "Лукойл", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-lkoh")
+            new ShareDto("BBG004730N88", "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-sber", new BigDecimal("0.01"), 1),      
+            new ShareDto("BBG004730ZJ9", "GAZP", "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-gazp", new BigDecimal("0.01"), 1), 
+            new ShareDto("BBG004730N88", "LKOH", "Лукойл", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "SECURITY_TRADING_STATUS_NORMAL_TRADING", true, "test-asset-uid-lkoh", new BigDecimal("0.01"), 1)
         );
     }
 
     private List<FutureDto> createTestFutures() {
         return Arrays.asList(
-            new FutureDto("FUTSBER0324", "SBER-3.24", "COMMODITY", "SBER", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45)),
-            new FutureDto("FUTGAZP0324", "GAZP-3.24", "COMMODITY", "GAZP", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45)),
-            new FutureDto("FUTLKOH0324", "LKOH-3.24", "COMMODITY", "LKOH", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45))
+            new FutureDto("FUTSBER0324", "SBER-3.24", "COMMODITY", "SBER", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1),
+            new FutureDto("FUTGAZP0324", "GAZP-3.24", "COMMODITY", "GAZP", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1),
+            new FutureDto("FUTLKOH0324", "LKOH-3.24", "COMMODITY", "LKOH", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1)
         );
     }
 
@@ -659,13 +660,13 @@ public class InstrumentPreloadSchedulerServiceTest {
 
     private List<ShareDto> createLargeSharesList(int count) {
         return Arrays.asList(new ShareDto[count]).stream()
-            .map(i -> new ShareDto("BBG" + i, "TICKER" + i, "Name" + i, "RUB", "moex_mrng_evng_e_wknd_dlr", "Sector", "STATUS", true, "test-asset-uid-" + i))
+            .map(i -> new ShareDto("BBG" + i, "TICKER" + i, "Name" + i, "RUB", "moex_mrng_evng_e_wknd_dlr", "Sector", "STATUS", true, "test-asset-uid-" + i, new BigDecimal("0.01"), 1))
             .toList();
     }
 
     private List<FutureDto> createLargeFuturesList(int count) {
         return Arrays.asList(new FutureDto[count]).stream()
-            .map(i -> new FutureDto("FUT" + i, "TICKER" + i, "COMMODITY", "ASSET" + i, "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45)))
+            .map(i -> new FutureDto("FUT" + i, "TICKER" + i, "COMMODITY", "ASSET" + i, "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1))
             .toList();
     }
 
@@ -677,17 +678,17 @@ public class InstrumentPreloadSchedulerServiceTest {
 
     private List<ShareDto> createSharesWithNullFields() {
         return Arrays.asList(
-            new ShareDto(null, "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "STATUS", true, "test-asset-uid-sber"),
-            new ShareDto("BBG004730N88", null, "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true, "test-asset-uid-gazp"),
-            new ShareDto("BBG004730N88", "LKOH", null, "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true, "test-asset-uid-lkoh")
+            new ShareDto(null, "SBER", "Сбербанк", "RUB", "moex_mrng_evng_e_wknd_dlr", "Financials", "STATUS", true, "test-asset-uid-sber", new BigDecimal("0.01"), 1),
+            new ShareDto("BBG004730N88", null, "Газпром", "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true, "test-asset-uid-gazp", new BigDecimal("0.01"), 1),
+            new ShareDto("BBG004730N88", "LKOH", null, "RUB", "moex_mrng_evng_e_wknd_dlr", "Energy", "STATUS", true, "test-asset-uid-lkoh", new BigDecimal("0.01"), 1)
         );
     }
 
     private List<FutureDto> createFuturesWithNullFields() {
         return Arrays.asList(
-            new FutureDto(null, "SBER-3.24", "COMMODITY", "SBER", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45)),
-            new FutureDto("FUTGAZP0324", null, "COMMODITY", "GAZP", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45)),
-            new FutureDto("FUTLKOH0324", "LKOH-3.24", null, "LKOH", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45))
+            new FutureDto(null, "SBER-3.24", "COMMODITY", "SBER", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1),
+            new FutureDto("FUTGAZP0324", null, "COMMODITY", "GAZP", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1),
+            new FutureDto("FUTLKOH0324", "LKOH-3.24", null, "LKOH", "RUB", "moex", true, LocalDateTime.of(2024, 3, 15, 18, 45), new BigDecimal("0.01"), 1)
         );
     }
 

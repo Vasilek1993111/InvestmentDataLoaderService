@@ -21,6 +21,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class MorningSessionService {
@@ -941,5 +942,125 @@ public class MorningSessionService {
             default:
                 return "MOEX";
         }
+    }
+
+    // ==================== АСИНХРОННЫЕ МЕТОДЫ ====================
+
+    /**
+     * Асинхронное сохранение цен утренней сессии за сегодня
+     * 
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> fetchAndStoreMorningSessionPricesTodayAsync(String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ЦЕН УТРЕННЕЙ СЕССИИ ЗА СЕГОДНЯ ===");
+                System.out.println("Дата: " + today);
+                System.out.println("Task ID: " + taskId);
+                
+                // Вызываем синхронный метод
+                SaveResponseDto result = fetchAndStoreMorningSessionPricesForDate(today);
+                
+                System.out.println("Асинхронное сохранение цен утренней сессии за сегодня завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения цен утренней сессии за сегодня для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цен утренней сессии за сегодня: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цен утренней сессии за дату
+     * 
+     * @param date дата для загрузки
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> fetchAndStoreMorningSessionPricesForDateAsync(LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ЦЕН УТРЕННЕЙ СЕССИИ ЗА ДАТУ ===");
+                System.out.println("Дата: " + date);
+                System.out.println("Task ID: " + taskId);
+                
+                // Вызываем синхронный метод
+                SaveResponseDto result = fetchAndStoreMorningSessionPricesForDate(date);
+                
+                System.out.println("Асинхронное сохранение цен утренней сессии за дату завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения цен утренней сессии за дату для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цен утренней сессии за дату: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цен акций за дату
+     * 
+     * @param date дата для загрузки
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> fetchAndStoreSharesPricesForDateAsync(LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ЦЕН АКЦИЙ ЗА ДАТУ ===");
+                System.out.println("Дата: " + date);
+                System.out.println("Task ID: " + taskId);
+                
+                // Вызываем синхронный метод
+                SaveResponseDto result = fetchAndStoreSharesPricesForDate(date);
+                
+                System.out.println("Асинхронное сохранение цен акций за дату завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения цен акций за дату для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цен акций за дату: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цены открытия по FIGI за дату
+     * 
+     * @param figi FIGI инструмента
+     * @param date дата для загрузки
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> fetchAndStorePriceByFigiForDateAsync(String figi, LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ЦЕНЫ ОТКРЫТИЯ ПО FIGI ЗА ДАТУ ===");
+                System.out.println("FIGI: " + figi);
+                System.out.println("Дата: " + date);
+                System.out.println("Task ID: " + taskId);
+                
+                // Вызываем синхронный метод
+                SaveResponseDto result = fetchAndStorePriceByFigiForDate(figi, date);
+                
+                System.out.println("Асинхронное сохранение цены открытия по FIGI за дату завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения цены открытия по FIGI за дату для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цены открытия по FIGI за дату: " + e.getMessage(), e);
+            }
+        });
     }
 }

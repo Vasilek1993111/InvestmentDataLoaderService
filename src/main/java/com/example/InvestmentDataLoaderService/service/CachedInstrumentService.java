@@ -312,6 +312,9 @@ public class CachedInstrumentService {
                     entity.setSector(dto.sector());
                     entity.setTradingStatus(dto.tradingStatus());
                     entity.setShortEnabled(dto.shortEnabled());
+                    entity.setAssetUid(dto.assetUid());
+                    entity.setMinPriceIncrement(dto.minPriceIncrement());
+                    entity.setLot(dto.lot());
                     return entity;
                 })
                 .collect(Collectors.toList());
@@ -329,7 +332,10 @@ public class CachedInstrumentService {
                     dto.basicAsset(),
                     dto.currency(),
                     dto.exchange(),
-                    dto.shortEnabled()
+                    dto.shortEnabled(),
+                    dto.expirationDate(),
+                    dto.minPriceIncrement(),
+                    dto.lot()
                 ))
                 .collect(Collectors.toList());
     }

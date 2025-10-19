@@ -1,0 +1,1680 @@
+{
+	"info": {
+		"_postman_id": "investment-data-loader-service",
+		"name": "Investment Data Loader Service API",
+		"description": "Полная коллекция API эндпоинтов для сервиса загрузки инвестиционных данных",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "testDate",
+			"value": "2024-01-15",
+			"type": "string"
+		},
+		{
+			"key": "testFigi",
+			"value": "BBG004730N88",
+			"type": "string"
+		},
+		{
+			"key": "testTicker",
+			"value": "SBER",
+			"type": "string"
+		},
+		{
+			"key": "testAssetUid",
+			"value": "test-asset-uid",
+			"type": "string"
+		},
+		{
+			"key": "testAccountId",
+			"value": "test-account-id",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "System",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "health"]
+						},
+						"description": "Проверка здоровья системы"
+					},
+					"response": []
+				},
+				{
+					"name": "System Diagnostics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/diagnostics",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "diagnostics"]
+						},
+						"description": "Диагностика системы"
+					},
+					"response": []
+				},
+				{
+					"name": "System Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "stats"]
+						},
+						"description": "Статистика системы (память, процессор, время работы)"
+					},
+					"response": []
+				},
+				{
+					"name": "System Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/info",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "info"]
+						},
+						"description": "Информация о версии и конфигурации"
+					},
+					"response": []
+				},
+				{
+					"name": "External Services Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/external-services",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "external-services"]
+						},
+						"description": "Проверка доступности внешних сервисов"
+					},
+					"response": []
+				},
+				{
+					"name": "Volume Aggregation Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/volume-aggregation/check",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "volume-aggregation", "check"]
+						},
+						"description": "Проверка существования материализованных представлений"
+					},
+					"response": []
+				},
+				{
+					"name": "Schedule Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/system/volume-aggregation/schedule-info",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "system", "volume-aggregation", "schedule-info"]
+						},
+						"description": "Информация о расписании обновлений"
+					},
+					"response": []
+				}
+			],
+			"description": "Системные эндпоинты для мониторинга и диагностики"
+		},
+		{
+			"name": "Trading",
+			"item": [
+				{
+					"name": "Get Accounts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trading/accounts",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "trading", "accounts"]
+						},
+						"description": "Получение списка торговых счетов"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Trading Schedules",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trading/schedules?from={{testDate}}&to={{testDate}}&exchange=MOEX",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "trading", "schedules"],
+							"query": [
+								{
+									"key": "from",
+									"value": "{{testDate}}"
+								},
+								{
+									"key": "to",
+									"value": "{{testDate}}"
+								},
+								{
+									"key": "exchange",
+									"value": "MOEX"
+								}
+							]
+						},
+						"description": "Получение расписаний торгов"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Trading Statuses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trading/statuses?figi={{testFigi}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "trading", "statuses"],
+							"query": [
+								{
+									"key": "figi",
+									"value": "{{testFigi}}"
+								}
+							]
+						},
+						"description": "Получение статусов торгов по инструментам"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Trading Days",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trading/trading-days?from={{testDate}}&to={{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "trading", "trading-days"],
+							"query": [
+								{
+									"key": "from",
+									"value": "{{testDate}}"
+								},
+								{
+									"key": "to",
+									"value": "{{testDate}}"
+								}
+							]
+						},
+						"description": "Анализ торговых и неторговых дней"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Trading Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trading/stats?from={{testDate}}&to={{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "trading", "stats"],
+							"query": [
+								{
+									"key": "from",
+									"value": "{{testDate}}"
+								},
+								{
+									"key": "to",
+									"value": "{{testDate}}"
+								}
+							]
+						},
+						"description": "Статистика торговой активности"
+					},
+					"response": []
+				}
+			],
+			"description": "Торговые эндпоинты для работы с Tinkoff Invest API"
+		},
+		{
+			"name": "Instruments",
+			"item": [
+				{
+					"name": "Get Shares",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/shares?source=DB&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "shares"],
+							"query": [
+								{
+									"key": "source",
+									"value": "DB"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Получение акций с фильтрацией"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Share by Identifier",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/shares/{{testTicker}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "shares", "{{testTicker}}"]
+						},
+						"description": "Получение акции по FIGI или тикеру"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Shares",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"exchange\": \"MOEX\",\n  \"currency\": \"RUB\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/shares",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "shares"]
+						},
+						"description": "Сохранение акций из API в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Futures",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/futures?source=API&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "futures"],
+							"query": [
+								{
+									"key": "source",
+									"value": "API"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Получение фьючерсов с фильтрацией"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Future by Identifier",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/futures/{{testFigi}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "futures", "{{testFigi}}"]
+						},
+						"description": "Получение фьючерса по FIGI или тикеру"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Futures",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"exchange\": \"MOEX\",\n  \"currency\": \"RUB\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/futures",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "futures"]
+						},
+						"description": "Сохранение фьючерсов из API в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Indicatives",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/indicatives?source=API&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "indicatives"],
+							"query": [
+								{
+									"key": "source",
+									"value": "API"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Получение индикативов с фильтрацией"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Indicatives",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"exchange\": \"MOEX\",\n  \"currency\": \"RUB\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/indicatives",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "indicatives"]
+						},
+						"description": "Сохранение индикативов из API в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Indicative by Identifier",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/indicatives/{{testFigi}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "indicatives", "{{testFigi}}"]
+						},
+						"description": "Получение индикатива по FIGI или тикеру"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Instrument Counts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/instruments/count",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "instruments", "count"]
+						},
+						"description": "Подсчет инструментов по типам"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление финансовыми инструментами"
+		},
+		{
+			"name": "Dividends",
+			"item": [
+				{
+					"name": "Get Dividends for All Shares",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/dividends/load?from={{testDate}}&to={{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dividends", "load"],
+							"query": [
+								{
+									"key": "from",
+									"value": "{{testDate}}"
+								},
+								{
+									"key": "to",
+									"value": "{{testDate}}"
+								}
+							]
+						},
+						"description": "Получение дивидендов для всех акций из T-API"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Dividends",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"instruments\": [\"{{testFigi}}\"],\n  \"from\": \"{{testDate}}\",\n  \"to\": \"{{testDate}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/dividends/load",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dividends", "load"]
+						},
+						"description": "Загрузка дивидендов для указанных инструментов в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Dividends by FIGI",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/dividends/by-figi/{{testFigi}}?from={{testDate}}&to={{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dividends", "by-figi", "{{testFigi}}"],
+							"query": [
+								{
+									"key": "from",
+									"value": "{{testDate}}"
+								},
+								{
+									"key": "to",
+									"value": "{{testDate}}"
+								}
+							]
+						},
+						"description": "Получение дивидендов для конкретного FIGI из T-API"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Dividends by FIGI",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from\": \"{{testDate}}\",\n  \"to\": \"{{testDate}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/dividends/by-figi/{{testFigi}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dividends", "by-figi", "{{testFigi}}"]
+						},
+						"description": "Загрузка дивидендов для конкретного FIGI в БД"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с дивидендами"
+		},
+		{
+			"name": "Last Trades",
+			"item": [
+				{
+					"name": "Load Last Trades (GET)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/last-trades?instruments={{testFigi}}&assetTypes=SHARES",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "last-trades"],
+							"query": [
+								{
+									"key": "instruments",
+									"value": "{{testFigi}}"
+								},
+								{
+									"key": "assetTypes",
+									"value": "SHARES"
+								}
+							]
+						},
+						"description": "Загрузка последних сделок (GET с параметрами)"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Last Trades (POST)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"instruments\": [\"{{testFigi}}\"],\n  \"assetTypes\": [\"SHARES\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/last-trades",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "last-trades"]
+						},
+						"description": "Загрузка последних сделок (POST с телом запроса)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cache Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/last-trades/cache",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "last-trades", "cache"]
+						},
+						"description": "Получение информации о кэше инструментов"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Shares Only",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/last-trades/shares",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "last-trades", "shares"]
+						},
+						"description": "Загрузка только акций (оптимизированно)"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Futures Only",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/last-trades/futures",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "last-trades", "futures"]
+						},
+						"description": "Загрузка только фьючерсов (оптимизированно)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Performance",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/last-trades/performance",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "last-trades", "performance"]
+						},
+						"description": "Метрики производительности исполнителей"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с последними сделками"
+		},
+		{
+			"name": "Cache",
+			"item": [
+				{
+					"name": "Warmup Cache",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cache/warmup",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cache", "warmup"]
+						},
+						"description": "Ручной прогрев кэша загрузкой инструментов"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cache Content",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cache/content",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cache", "content"]
+						},
+						"description": "Просмотр содержимого всех кэшей"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cache Content by Type",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cache/content?type=shares",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cache", "content"],
+							"query": [
+								{
+									"key": "type",
+									"value": "shares"
+								}
+							]
+						},
+						"description": "Просмотр содержимого конкретного кэша"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cache Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cache/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cache", "stats"]
+						},
+						"description": "Статистика всех кэшей"
+					},
+					"response": []
+				},
+				{
+					"name": "Clear All Cache",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cache/clear",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cache", "clear"]
+						},
+						"description": "Очистка всех кэшей"
+					},
+					"response": []
+				},
+				{
+					"name": "Clear Cache by Type",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cache/clear?type=shares",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cache", "clear"],
+							"query": [
+								{
+									"key": "type",
+									"value": "shares"
+								}
+							]
+						},
+						"description": "Очистка конкретного кэша"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление кэшем приложения"
+		},
+		{
+			"name": "Morning Session Prices",
+			"item": [
+				{
+					"name": "Load Morning Session Prices Today",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices"]
+						},
+						"description": "Загрузка цен утренней сессии на сегодня"
+					},
+					"response": []
+				},
+				{
+					"name": "Preview Morning Session Prices Today",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices"]
+						},
+						"description": "Превью цен утренней сессии на сегодня без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Morning Session Prices by Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/by-date/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "by-date", "{{testDate}}"]
+						},
+						"description": "Загрузка цен открытия для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Morning Session Prices by Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/by-date/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "by-date", "{{testDate}}"]
+						},
+						"description": "Поиск свечей для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Shares Prices for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "shares", "{{testDate}}"]
+						},
+						"description": "Загрузка цен акций для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shares Candles by Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "shares", "{{testDate}}"]
+						},
+						"description": "Поиск свечей акций для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Futures Prices for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "futures", "{{testDate}}"]
+						},
+						"description": "Загрузка цен фьючерсов для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Futures Candles by Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "futures", "{{testDate}}"]
+						},
+						"description": "Поиск свечей фьючерсов для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Price by FIGI for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/by-figi-date/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "by-figi-date", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Загрузка цены открытия для конкретного FIGI и даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Price by FIGI for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/morning-session-prices/by-figi-date/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "morning-session-prices", "by-figi-date", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Поиск цены открытия для конкретного FIGI и даты"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с ценами утренней сессии"
+		},
+		{
+			"name": "Main Session Prices",
+			"item": [
+				{
+					"name": "Load Close Prices Today",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", ""]
+						},
+						"description": "Загрузка цен закрытия для всех акций и фьючерсов в RUB на сегодня"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Close Prices for Shares",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/shares",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "shares"]
+						},
+						"description": "Получение цен закрытия для всех акций из T-INVEST API"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Close Prices for Shares",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/shares",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "shares"]
+						},
+						"description": "Загрузка цен закрытия для всех акций в RUB из T-INVEST API в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Close Prices for Futures",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/futures",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "futures"]
+						},
+						"description": "Получение цен закрытия для всех фьючерсов из T-INVEST API"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Close Prices for Futures",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/futures",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "futures"]
+						},
+						"description": "Загрузка цен закрытия для всех фьючерсов в RUB из T-INVEST API в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Close Price by FIGI",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/by-figi/{{testFigi}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "by-figi", "{{testFigi}}"]
+						},
+						"description": "Получение цены закрытия для конкретного инструмента по FIGI из T-INVEST API"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Close Price by FIGI",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/instrument/{{testFigi}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "instrument", "{{testFigi}}"]
+						},
+						"description": "Загрузка цены закрытия для конкретного инструмента по FIGI из T-INVEST API в БД"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Main Session Prices for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/main-session-prices/by-date/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "main-session-prices", "by-date", "{{testDate}}"]
+						},
+						"description": "Загрузка цен основной сессии для конкретной даты для акций и фьючерсов из minute_candles"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с ценами основной сессии"
+		},
+		{
+			"name": "Evening Session Prices",
+			"item": [
+				{
+					"name": "Get Evening Session Close Prices Yesterday",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices"]
+						},
+						"description": "Получение цен закрытия вечерней сессии за вчерашний день"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Evening Session Prices",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices"]
+						},
+						"description": "Загрузка цен закрытия вечерней сессии за вчерашний день"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Evening Session Prices by Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/by-date/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "by-date", "{{testDate}}"]
+						},
+						"description": "Получение цен вечерней сессии для всех инструментов за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Evening Session Prices by Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/by-date/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "by-date", "{{testDate}}"]
+						},
+						"description": "Загрузка цен вечерней сессии за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Evening Session Prices for Shares",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "shares", "{{testDate}}"]
+						},
+						"description": "Получение цен вечерней сессии для всех акций за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Evening Session Prices for Shares",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "shares", "{{testDate}}"]
+						},
+						"description": "Сохранение цен вечерней сессии для акций за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Evening Session Prices for Futures",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "futures", "{{testDate}}"]
+						},
+						"description": "Получение цен вечерней сессии для всех фьючерсов за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Evening Session Prices for Futures",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "futures", "{{testDate}}"]
+						},
+						"description": "Сохранение цен вечерней сессии для фьючерсов за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Evening Session Price by FIGI and Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/by-figi-date/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "by-figi-date", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Получение цены вечерней сессии по инструменту за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Evening Session Price by FIGI and Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evening-session-prices/by-figi-date/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "evening-session-prices", "by-figi-date", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Сохранение цены вечерней сессии по инструменту за конкретную дату"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с ценами вечерней сессии"
+		},
+		{
+			"name": "Daily Candles",
+			"item": [
+				{
+					"name": "Load Daily Candles Today",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"instruments\": [\"{{testFigi}}\"],\n  \"assetType\": [\"SHARES\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily"]
+						},
+						"description": "Асинхронная загрузка дневных свечей на сегодня"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Daily Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"instruments\": [\"{{testFigi}}\"],\n  \"assetType\": [\"SHARES\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "{{testDate}}"]
+						},
+						"description": "Асинхронная загрузка дневных свечей для конкретной даты"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shares Daily Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "shares", "{{testDate}}"]
+						},
+						"description": "Получение дневных свечей для акций за конкретную дату без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Shares Daily Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "shares", "{{testDate}}"]
+						},
+						"description": "Асинхронная загрузка дневных свечей для акций за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Futures Daily Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "futures", "{{testDate}}"]
+						},
+						"description": "Асинхронная загрузка дневных свечей для фьючерсов за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Futures Daily Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "futures", "{{testDate}}"]
+						},
+						"description": "Получение дневных свечей для фьючерсов за конкретную дату без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Indicatives Daily Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/indicatives/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "indicatives", "{{testDate}}"]
+						},
+						"description": "Асинхронная загрузка дневных свечей для индикативов за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Indicatives Daily Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/daily/indicatives/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "daily", "indicatives", "{{testDate}}"]
+						},
+						"description": "Получение дневных свечей для индикативов за конкретную дату без сохранения"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с дневными свечами"
+		},
+		{
+			"name": "Minute Candles",
+			"item": [
+				{
+					"name": "Load Minute Candles Today",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"instruments\": [\"{{testFigi}}\"],\n  \"assetType\": [\"SHARES\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute"]
+						},
+						"description": "Загрузка минутных свечей за сегодня"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Minute Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"instruments\": [\"{{testFigi}}\"],\n  \"assetType\": [\"SHARES\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "{{testDate}}"]
+						},
+						"description": "Загрузка минутных свечей за конкретную дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shares Minute Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "shares", "{{testDate}}"]
+						},
+						"description": "Получение минутных свечей акций за дату без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Shares Minute Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/shares/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "shares", "{{testDate}}"]
+						},
+						"description": "Загрузка минутных свечей акций за дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Futures Minute Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "futures", "{{testDate}}"]
+						},
+						"description": "Загрузка минутных свечей фьючерсов за дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Futures Minute Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/futures/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "futures", "{{testDate}}"]
+						},
+						"description": "Получение минутных свечей фьючерсов за дату без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Indicatives Minute Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/indicatives/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "indicatives", "{{testDate}}"]
+						},
+						"description": "Загрузка минутных свечей индикативов за дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Indicatives Minute Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/minute/indicatives/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "minute", "indicatives", "{{testDate}}"]
+						},
+						"description": "Получение минутных свечей индикативов за дату без сохранения"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с минутными свечами"
+		},
+		{
+			"name": "Instrument Candles",
+			"item": [
+				{
+					"name": "Get Instrument Minute Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/instrument/minute/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "instrument", "minute", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Получение минутных свечей конкретного инструмента за дату без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Instrument Minute Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/instrument/minute/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "instrument", "minute", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Асинхронное сохранение минутных свечей конкретного инструмента за дату"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Instrument Daily Candles for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/instrument/daily/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "instrument", "daily", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Получение дневных свечей конкретного инструмента за дату без сохранения"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Instrument Daily Candles for Date",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/candles/instrument/daily/{{testFigi}}/{{testDate}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "candles", "instrument", "daily", "{{testFigi}}", "{{testDate}}"]
+						},
+						"description": "Асинхронное сохранение дневных свечей конкретного инструмента за дату"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа со свечами конкретных инструментов"
+		},
+		{
+			"name": "Asset Fundamentals",
+			"item": [
+				{
+					"name": "Get Asset Fundamentals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/asset-fundamentals/{{testAssetUid}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "asset-fundamentals", "{{testAssetUid}}"]
+						},
+						"description": "Получение фундаментальных показателей для одного актива"
+					},
+					"response": []
+				},
+				{
+					"name": "Save Asset Fundamentals",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/asset-fundamentals/{{testAssetUid}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "asset-fundamentals", "{{testAssetUid}}"]
+						},
+						"description": "Сохранение фундаментальных показателей для одного актива"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Fundamentals for Multiple Assets",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"assetUids\": [\"{{testAssetUid}}\", \"another-asset-uid\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/asset-fundamentals",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "asset-fundamentals"]
+						},
+						"description": "Получение фундаментальных показателей для нескольких активов"
+					},
+					"response": []
+				},
+				{
+					"name": "Load Fundamentals for Multiple Assets",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"assetUids\": [\"{{testAssetUid}}\", \"another-asset-uid\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/asset-fundamentals/load",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "asset-fundamentals", "load"]
+						},
+						"description": "Загрузка и сохранение фундаментальных показателей для нескольких активов"
+					},
+					"response": []
+				}
+			],
+			"description": "Работа с фундаментальными данными активов"
+		},
+		{
+			"name": "Volume Aggregation",
+			"item": [
+				{
+					"name": "Refresh Aggregation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/volume-aggregation/refresh",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "volume-aggregation", "refresh"]
+						},
+						"description": "Ручное обновление материализованного представления"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление агрегацией объемов"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Автоматическая генерация тестовых данных",
+					"if (!pm.environment.get('testDate')) {",
+					"    const today = new Date();",
+					"    const testDate = today.toISOString().split('T')[0];",
+					"    pm.environment.set('testDate', testDate);",
+					"}",
+					"",
+					"// Генерация случайного FIGI для тестирования",
+					"if (!pm.environment.get('testFigi')) {",
+					"    const figis = ['BBG004730N88', 'BBG004730ZJ9', 'BBG004S681W1'];",
+					"    const randomFigi = figis[Math.floor(Math.random() * figis.length)];",
+					"    pm.environment.set('testFigi', randomFigi);",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Базовые тесты для всех запросов",
+					"pm.test('Response time is less than 30000ms', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(30000);",
+					"});",
+					"",
+					"pm.test('Response has content-type header', function () {",
+					"    pm.expect(pm.response.headers.get('Content-Type')).to.exist;",
+					"});",
+					"",
+					"// Тесты для успешных ответов",
+					"if (pm.response.code >= 200 && pm.response.code < 300) {",
+					"    pm.test('Response is successful', function () {",
+					"        pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 204]);",
+					"    });",
+					"    ",
+					"    // Проверяем, что ответ содержит JSON",
+					"    try {",
+					"        const jsonData = pm.response.json();",
+					"        pm.test('Response contains JSON data', function () {",
+					"            pm.expect(jsonData).to.be.an('object');",
+					"        });",
+					"    } catch (e) {",
+					"        // Если не JSON, пропускаем тест",
+					"    }",
+					"}",
+					"",
+					"// Логирование ответа для отладки",
+					"console.log('Response Status:', pm.response.status);",
+					"console.log('Response Time:', pm.response.responseTime + 'ms');"
+				]
+			}
+		}
+	]
+}

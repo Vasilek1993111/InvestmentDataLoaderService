@@ -57,7 +57,7 @@ public class DividendService {
         for (String figi : figisToProcess) {
             try {
                 // Задержка для соблюдения лимитов API
-                Thread.sleep(300);
+                Thread.sleep(200);
                 
                 // Получаем дивиденды из T-Bank API
                 List<DividendEntity> dividends = tinkoffApiClient.getDividends(figi, from, to);

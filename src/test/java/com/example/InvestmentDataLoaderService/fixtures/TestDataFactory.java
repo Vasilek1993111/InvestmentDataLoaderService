@@ -38,7 +38,9 @@ public class TestDataFactory {
             "Financials",
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             true,
-            "test-asset-uid-sber"
+            "test-asset-uid-sber",
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -52,7 +54,9 @@ public class TestDataFactory {
             "Financials",
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             true,
-            "test-asset-uid-" + ticker.toLowerCase()
+            "test-asset-uid-" + ticker.toLowerCase(),
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -62,10 +66,12 @@ public class TestDataFactory {
             "SBER-3.24",
             "FUTURES",
             "SBER",
-            "RUB",
+            "RUB",          
             "moex_mrng_evng_e_wknd_dlr",
             true,
-            LocalDateTime.of(2024, 3, 15, 18, 45)
+            LocalDateTime.of(2024, 3, 15, 18, 45),
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -78,7 +84,9 @@ public class TestDataFactory {
             "RUB",
             "moex_mrng_evng_e_wknd_dlr",
             true,
-            LocalDateTime.of(2024, 3, 15, 18, 45)
+            LocalDateTime.of(2024, 3, 15, 18, 45),
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -218,7 +226,9 @@ public class TestDataFactory {
             "Financial", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             true,
-            "test-asset-uid-sber"
+            "test-asset-uid-sber",
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -232,9 +242,11 @@ public class TestDataFactory {
             "Energy", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             true,
-            "test-asset-uid-gazp"
+            "test-asset-uid-gazp",
+            new BigDecimal("0.01"),
+            1
         );
-    }
+    }   
 
     public static ShareDto createLukoilShare() {
         return new ShareDto(
@@ -246,7 +258,9 @@ public class TestDataFactory {
             "Energy", 
             "SECURITY_TRADING_STATUS_NORMAL_TRADING",
             true,
-            "test-asset-uid-lkoh"
+            "test-asset-uid-lkoh",
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -267,7 +281,9 @@ public class TestDataFactory {
             "USD", 
             "moex_mrng_evng_e_wknd_dlr",
             true,
-            LocalDateTime.of(2024, 6, 24, 18, 45)
+            LocalDateTime.of(2024, 6, 24, 18, 45),
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -280,7 +296,9 @@ public class TestDataFactory {
             "USD", 
             "moex_mrng_evng_e_wknd_dlr",
             true,
-            LocalDateTime.of(2024, 6, 24, 18, 45)
+            LocalDateTime.of(2024, 6, 24, 18, 45),
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -362,6 +380,8 @@ public class TestDataFactory {
         entity.setSector("Financials");
         entity.setTradingStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
         entity.setShortEnabled(true);
+        entity.setMinPriceIncrement(new BigDecimal("0.01"));
+        entity.setLot(1);
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
         return entity;
@@ -377,6 +397,8 @@ public class TestDataFactory {
         entity.setSector("Financials");
         entity.setTradingStatus("SECURITY_TRADING_STATUS_NORMAL_TRADING");
         entity.setShortEnabled(true);
+        entity.setMinPriceIncrement(new BigDecimal("0.01"));
+        entity.setLot(1);
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
         return entity;
@@ -391,7 +413,9 @@ public class TestDataFactory {
             "RUB",
             "moex_mrng_evng_e_wknd_dlr",
             true,
-            LocalDateTime.of(2024, 3, 15, 18, 45)
+            LocalDateTime.of(2024, 3, 15, 18, 45),
+            new BigDecimal("0.01"),
+            1
         );
     }
 
@@ -404,7 +428,9 @@ public class TestDataFactory {
             "RUB",
             "moex_mrng_evng_e_wknd_dlr",
             true,
-            LocalDateTime.of(2024, 3, 15, 18, 45)
+            LocalDateTime.of(2024, 3, 15, 18, 45),
+            new BigDecimal("0.01"),
+            1
         );
     }
 

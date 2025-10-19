@@ -1,8 +1,10 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.enums.DataSourceType;
 import com.example.InvestmentDataLoaderService.exception.ValidationException;
+import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
 import com.example.InvestmentDataLoaderService.util.QueryParamValidator;
 import org.springframework.http.HttpStatus;
@@ -10,10 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Контроллер для управления финансовыми инструментами
@@ -51,9 +55,11 @@ import java.util.Map;
 public class InstrumentsController {
 
     private final InstrumentService instrumentService;
+    private final SystemLogRepository systemLogRepository;
 
-    public InstrumentsController(InstrumentService instrumentService) {
+    public InstrumentsController(InstrumentService instrumentService, SystemLogRepository systemLogRepository) {
         this.instrumentService = instrumentService;
+        this.systemLogRepository = systemLogRepository;
     }
 
     // ==================== АКЦИИ ====================
@@ -225,12 +231,12 @@ public class InstrumentsController {
     }
 
     /**
-     * Сохранение акций по фильтру
+     * Асинхронное сохранение акций по фильтру
      * 
-     * <p>Получает акции из Tinkoff API по заданным фильтрам и сохраняет их в БД.
+     * <p>Получает акции из Tinkoff API по заданным фильтрам и сохраняет их в БД асинхронно.
      * Если акция уже существует в БД, она не будет сохранена повторно.</p>
      * 
-     * <p>Возвращает детальную информацию о результате операции:</p>
+     * <p>Возвращает taskId для отслеживания статуса операции:</p>
      * <ul>
      *   <li>Количество найденных акций в API</li>
      *   <li>Количество сохраненных новых акций</li>
@@ -255,35 +261,100 @@ public class InstrumentsController {
      * </ul>
      * 
      * @param filter фильтр для получения акций из API
-     * @return результат операции сохранения с детальной статистикой
+     * @return taskId для отслеживания статуса операции
      * @throws ValidationException при передаче невалидных параметров фильтра
      */
     @PostMapping("/shares")
     @Transactional
     public ResponseEntity<?> saveShares(@RequestBody ShareFilterDto filter) throws ValidationException {
-        // Валидация параметров фильтра
-        ShareFilterRequestParams params = ShareFilterRequestParams.create(
-            filter.getStatus(),
-            filter.getExchange(),
-            filter.getCurrency(),
-            filter.getTicker(),
-            filter.getFigi(),
-            filter.getSector(),
-            filter.getTradingStatus()
-        );
-        
-        // Создаем новый фильтр с валидированными значениями
-        ShareFilterDto validatedFilter = new ShareFilterDto();
-        validatedFilter.setStatus(params.status() != null ? params.status().name() : null);
-        validatedFilter.setExchange(params.exchange() != null ? params.exchange().getValue() : null);
-        validatedFilter.setCurrency(params.currency() != null ? params.currency().getValue() : null);
-        validatedFilter.setTicker(params.ticker());
-        validatedFilter.setFigi(params.figi());
-        validatedFilter.setSector(params.sector());
-        validatedFilter.setTradingStatus(params.tradingStatus());
-        
-        SaveResponseDto response = instrumentService.saveShares(validatedFilter);
-        return ResponseEntity.ok(response);
+        String taskId = UUID.randomUUID().toString();
+        String endpoint = "/api/instruments/shares";
+        Instant startTime = Instant.now();
+
+        // Логируем начало работы
+        SystemLogEntity startLog = new SystemLogEntity();
+        startLog.setTaskId(taskId);
+        startLog.setEndpoint(endpoint);
+        startLog.setMethod("POST");
+        startLog.setStatus("STARTED");
+        startLog.setMessage("Начало асинхронного сохранения акций");
+        startLog.setStartTime(startTime);
+
+        try {
+            systemLogRepository.save(startLog);
+            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+        } catch (Exception logException) {
+            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+        }
+
+        try {
+            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ АКЦИЙ ===");
+            System.out.println("Фильтр: " + filter);
+            System.out.println("Task ID: " + taskId);
+
+            // Валидация параметров фильтра
+            ShareFilterRequestParams params = ShareFilterRequestParams.create(
+                filter.getStatus(),
+                filter.getExchange(),
+                filter.getCurrency(),
+                filter.getTicker(),
+                filter.getFigi(),
+                filter.getSector(),
+                filter.getTradingStatus()
+            );
+            
+            // Создаем новый фильтр с валидированными значениями
+            ShareFilterDto validatedFilter = new ShareFilterDto();
+            validatedFilter.setStatus(params.status() != null ? params.status().name() : null);
+            validatedFilter.setExchange(params.exchange() != null ? params.exchange().getValue() : null);
+            validatedFilter.setCurrency(params.currency() != null ? params.currency().getValue() : null);
+            validatedFilter.setTicker(params.ticker());
+            validatedFilter.setFigi(params.figi());
+            validatedFilter.setSector(params.sector());
+            validatedFilter.setTradingStatus(params.tradingStatus());
+
+            // Запускаем асинхронное сохранение
+            instrumentService.saveSharesAsync(validatedFilter, taskId);
+
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронное сохранение акций запущено");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("filter", validatedFilter);
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
+
+            return ResponseEntity.accepted().body(response);
+
+        } catch (Exception e) {
+            System.err.println("Ошибка запуска асинхронного сохранения акций: " + e.getMessage());
+            e.printStackTrace();
+
+            // Логируем ошибку
+            SystemLogEntity errorLog = new SystemLogEntity();
+            errorLog.setTaskId(taskId);
+            errorLog.setEndpoint(endpoint);
+            errorLog.setMethod("POST");
+            errorLog.setStatus("FAILED");
+            errorLog.setMessage("Ошибка запуска асинхронного сохранения акций: " + e.getMessage());
+            errorLog.setStartTime(startTime);
+            errorLog.setEndTime(Instant.now());
+
+            try {
+                systemLogRepository.save(errorLog);
+            } catch (Exception logException) {
+                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Ошибка запуска асинхронного сохранения акций: " + e.getMessage(),
+                "taskId", taskId,
+                "error", "InternalServerError"
+            ));
+        }
     }
 
 
@@ -401,10 +472,17 @@ public class InstrumentsController {
     }
 
     /**
-     * Сохранение фьючерсов по фильтру
+     * Асинхронное сохранение фьючерсов по фильтру
      * 
-     * <p>Аналогично методу сохранения акций, но для фьючерсов.
-     * Получает фьючерсы из API и сохраняет в БД с защитой от дубликатов.</p>
+     * <p>Получает фьючерсы из Tinkoff API по заданным фильтрам и сохраняет их в БД асинхронно.
+     * Если фьючерс уже существует в БД, он не будет сохранен повторно.</p>
+     * 
+     * <p>Возвращает taskId для отслеживания статуса операции:</p>
+     * <ul>
+     *   <li>Количество найденных фьючерсов в API</li>
+     *   <li>Количество сохраненных новых фьючерсов</li>
+     *   <li>Количество уже существующих фьючерсов</li>
+     * </ul>
      * 
      * <p>Пример использования:</p>
      * <pre>
@@ -425,31 +503,96 @@ public class InstrumentsController {
      * </ul>
      * 
      * @param filter фильтр для получения фьючерсов из API
-     * @return результат операции сохранения с детальной статистикой
+     * @return taskId для отслеживания статуса операции
      * @throws ValidationException при передаче невалидных параметров фильтра
      */
     @PostMapping("/futures")
     @Transactional
     public ResponseEntity<?> saveFutures(@RequestBody FutureFilterDto filter) throws ValidationException {
-        // Валидация параметров фильтра
-        FutureFilterRequestParams params = FutureFilterRequestParams.create(
-            filter.getStatus(),
-            filter.getExchange(),
-            filter.getCurrency(),
-            filter.getTicker(),
-            filter.getAssetType()
-        );
-        
-        // Создаем новый фильтр с валидированными значениями
-        FutureFilterDto validatedFilter = new FutureFilterDto();
-        validatedFilter.setStatus(params.status() != null ? params.status().name() : null);
-        validatedFilter.setExchange(params.exchange() != null ? params.exchange().getValue() : null);
-        validatedFilter.setCurrency(params.currency() != null ? params.currency().getValue() : null);
-        validatedFilter.setTicker(params.ticker());
-        validatedFilter.setAssetType(params.assetType());
-        
-        SaveResponseDto response = instrumentService.saveFutures(validatedFilter);
-        return ResponseEntity.ok(response);
+        String taskId = UUID.randomUUID().toString();
+        String endpoint = "/api/instruments/futures";
+        Instant startTime = Instant.now();
+
+        // Логируем начало работы
+        SystemLogEntity startLog = new SystemLogEntity();
+        startLog.setTaskId(taskId);
+        startLog.setEndpoint(endpoint);
+        startLog.setMethod("POST");
+        startLog.setStatus("STARTED");
+        startLog.setMessage("Начало асинхронного сохранения фьючерсов");
+        startLog.setStartTime(startTime);
+
+        try {
+            systemLogRepository.save(startLog);
+            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+        } catch (Exception logException) {
+            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+        }
+
+        try {
+            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ФЬЮЧЕРСОВ ===");
+            System.out.println("Фильтр: " + filter);
+            System.out.println("Task ID: " + taskId);
+
+            // Валидация параметров фильтра
+            FutureFilterRequestParams params = FutureFilterRequestParams.create(
+                filter.getStatus(),
+                filter.getExchange(),
+                filter.getCurrency(),
+                filter.getTicker(),
+                filter.getAssetType()
+            );
+            
+            // Создаем новый фильтр с валидированными значениями
+            FutureFilterDto validatedFilter = new FutureFilterDto();
+            validatedFilter.setStatus(params.status() != null ? params.status().name() : null);
+            validatedFilter.setExchange(params.exchange() != null ? params.exchange().getValue() : null);
+            validatedFilter.setCurrency(params.currency() != null ? params.currency().getValue() : null);
+            validatedFilter.setTicker(params.ticker());
+            validatedFilter.setAssetType(params.assetType());
+
+            // Запускаем асинхронное сохранение
+            instrumentService.saveFuturesAsync(validatedFilter, taskId);
+
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронное сохранение фьючерсов запущено");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("filter", validatedFilter);
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
+
+            return ResponseEntity.accepted().body(response);
+
+        } catch (Exception e) {
+            System.err.println("Ошибка запуска асинхронного сохранения фьючерсов: " + e.getMessage());
+            e.printStackTrace();
+
+            // Логируем ошибку
+            SystemLogEntity errorLog = new SystemLogEntity();
+            errorLog.setTaskId(taskId);
+            errorLog.setEndpoint(endpoint);
+            errorLog.setMethod("POST");
+            errorLog.setStatus("FAILED");
+            errorLog.setMessage("Ошибка запуска асинхронного сохранения фьючерсов: " + e.getMessage());
+            errorLog.setStartTime(startTime);
+            errorLog.setEndTime(Instant.now());
+
+            try {
+                systemLogRepository.save(errorLog);
+            } catch (Exception logException) {
+                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Ошибка запуска асинхронного сохранения фьючерсов: " + e.getMessage(),
+                "taskId", taskId,
+                "error", "InternalServerError"
+            ));
+        }
     }
 
     // ==================== ИНДИКАТИВЫ ====================
@@ -501,10 +644,17 @@ public class InstrumentsController {
     }
 
     /**
-     * Сохранение индикативов по фильтру
+     * Асинхронное сохранение индикативов по фильтру
      * 
-     * <p>Аналогично методам сохранения акций и фьючерсов, но для индикативных инструментов.
-     * Получает индикативы из API и сохраняет в БД с защитой от дубликатов.</p>
+     * <p>Получает индикативные инструменты из Tinkoff API по заданным фильтрам и сохраняет их в БД асинхронно.
+     * Если индикатив уже существует в БД, он не будет сохранен повторно.</p>
+     * 
+     * <p>Возвращает taskId для отслеживания статуса операции:</p>
+     * <ul>
+     *   <li>Количество найденных индикативов в API</li>
+     *   <li>Количество сохраненных новых индикативов</li>
+     *   <li>Количество уже существующих индикативов</li>
+     * </ul>
      * 
      * <p>Пример использования:</p>
      * <pre>
@@ -523,29 +673,94 @@ public class InstrumentsController {
      * </ul>
      * 
      * @param filter фильтр для получения индикативов из API
-     * @return результат операции сохранения с детальной статистикой
+     * @return taskId для отслеживания статуса операции
      * @throws ValidationException при передаче невалидных параметров фильтра
      */
     @PostMapping("/indicatives")
     @Transactional
     public ResponseEntity<?> saveIndicatives(@RequestBody IndicativeFilterDto filter) throws ValidationException {
-        // Валидация параметров фильтра
-        IndicativeFilterRequestParams params = IndicativeFilterRequestParams.create(
-            filter.getExchange(),
-            filter.getCurrency(),
-            filter.getTicker(),
-            filter.getFigi()
-        );
-        
-        // Создаем новый фильтр с валидированными значениями
-        IndicativeFilterDto validatedFilter = new IndicativeFilterDto();
-        validatedFilter.setExchange(params.exchange() != null ? params.exchange().getValue() : null);
-        validatedFilter.setCurrency(params.currency() != null ? params.currency().getValue() : null);
-        validatedFilter.setTicker(params.ticker());
-        validatedFilter.setFigi(params.figi());
-        
-        SaveResponseDto response = instrumentService.saveIndicatives(validatedFilter);
-        return ResponseEntity.ok(response);
+        String taskId = UUID.randomUUID().toString();
+        String endpoint = "/api/instruments/indicatives";
+        Instant startTime = Instant.now();
+
+        // Логируем начало работы
+        SystemLogEntity startLog = new SystemLogEntity();
+        startLog.setTaskId(taskId);
+        startLog.setEndpoint(endpoint);
+        startLog.setMethod("POST");
+        startLog.setStatus("STARTED");
+        startLog.setMessage("Начало асинхронного сохранения индикативов");
+        startLog.setStartTime(startTime);
+
+        try {
+            systemLogRepository.save(startLog);
+            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+        } catch (Exception logException) {
+            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+        }
+
+        try {
+            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ИНДИКАТИВОВ ===");
+            System.out.println("Фильтр: " + filter);
+            System.out.println("Task ID: " + taskId);
+
+            // Валидация параметров фильтра
+            IndicativeFilterRequestParams params = IndicativeFilterRequestParams.create(
+                filter.getExchange(),
+                filter.getCurrency(),
+                filter.getTicker(),
+                filter.getFigi()
+            );
+            
+            // Создаем новый фильтр с валидированными значениями
+            IndicativeFilterDto validatedFilter = new IndicativeFilterDto();
+            validatedFilter.setExchange(params.exchange() != null ? params.exchange().getValue() : null);
+            validatedFilter.setCurrency(params.currency() != null ? params.currency().getValue() : null);
+            validatedFilter.setTicker(params.ticker());
+            validatedFilter.setFigi(params.figi());
+
+            // Запускаем асинхронное сохранение
+            instrumentService.saveIndicativesAsync(validatedFilter, taskId);
+
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронное сохранение индикативов запущено");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("filter", validatedFilter);
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
+
+            return ResponseEntity.accepted().body(response);
+
+        } catch (Exception e) {
+            System.err.println("Ошибка запуска асинхронного сохранения индикативов: " + e.getMessage());
+            e.printStackTrace();
+
+            // Логируем ошибку
+            SystemLogEntity errorLog = new SystemLogEntity();
+            errorLog.setTaskId(taskId);
+            errorLog.setEndpoint(endpoint);
+            errorLog.setMethod("POST");
+            errorLog.setStatus("FAILED");
+            errorLog.setMessage("Ошибка запуска асинхронного сохранения индикативов: " + e.getMessage());
+            errorLog.setStartTime(startTime);
+            errorLog.setEndTime(Instant.now());
+
+            try {
+                systemLogRepository.save(errorLog);
+            } catch (Exception logException) {
+                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Ошибка запуска асинхронного сохранения индикативов: " + e.getMessage(),
+                "taskId", taskId,
+                "error", "InternalServerError"
+            ));
+        }
     }
 
     /**

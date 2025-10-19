@@ -1,5 +1,7 @@
 package com.example.InvestmentDataLoaderService.dto;
 
+import java.math.BigDecimal;
+
 public record ShareDto(
     String figi,
     String ticker,
@@ -9,8 +11,9 @@ public record ShareDto(
     String sector,
     String tradingStatus,
     Boolean shortEnabled,
-    String assetUid
-    
+    String assetUid,
+    BigDecimal minPriceIncrement,
+    Integer lot
 ) {
    
 }

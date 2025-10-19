@@ -1,5 +1,6 @@
 package com.example.InvestmentDataLoaderService.dto;
 
+
 import java.math.BigDecimal;
 
 public record ClosePriceDto(

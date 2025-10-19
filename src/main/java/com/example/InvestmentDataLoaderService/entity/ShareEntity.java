@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -27,6 +28,8 @@ public class ShareEntity {
     private String tradingStatus;
     private Boolean shortEnabled;
     private String assetUid;
+    private BigDecimal minPriceIncrement;
+    private Integer lot;
     
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -34,28 +37,6 @@ public class ShareEntity {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    //Совместимость со старой сигнатурой (без shortEnabled и assetUid)
-    public ShareEntity(String figi,
-                       String ticker,
-                       String name,
-                       String currency,
-                       String exchange,
-                       String sector,
-                       String tradingStatus,
-                       LocalDateTime createdAt,
-                       LocalDateTime updatedAt) {
-        this.figi = figi;
-        this.ticker = ticker;
-        this.name = name;
-        this.currency = currency;
-        this.exchange = exchange;
-        this.sector = sector;
-        this.tradingStatus = tradingStatus;
-        this.shortEnabled = null;
-        this.assetUid = null;
     
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     
-    }
 }
