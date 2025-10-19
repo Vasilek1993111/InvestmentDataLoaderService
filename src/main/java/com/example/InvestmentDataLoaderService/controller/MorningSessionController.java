@@ -1,8 +1,11 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
+import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
+import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.service.MorningSessionService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -10,8 +13,10 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Контроллер для работы с ценами утренней сессии
@@ -22,49 +27,83 @@ import java.util.Map;
 public class MorningSessionController {
 
     private final MorningSessionService morningSessionService;
+    private final SystemLogRepository systemLogRepository;
 
-    public MorningSessionController(MorningSessionService morningSessionService) {
+    public MorningSessionController(MorningSessionService morningSessionService, SystemLogRepository systemLogRepository) {
         this.morningSessionService = morningSessionService;
+        this.systemLogRepository = systemLogRepository;
     }
 
     /**
-     * Загрузка цен утренней сессии за сегодня
+     * Асинхронная загрузка цен утренней сессии за сегодня
      */
     @PostMapping
     @Transactional
     public ResponseEntity<Map<String, Object>> loadMorningSessionPricesToday() {
-        Map<String, Object> response = new HashMap<>();
+        String taskId = UUID.randomUUID().toString();
+        String endpoint = "/api/morning-session";
+        Instant startTime = Instant.now();
+
+        // Логируем начало работы
+        SystemLogEntity startLog = new SystemLogEntity();
+        startLog.setTaskId(taskId);
+        startLog.setEndpoint(endpoint);
+        startLog.setMethod("POST");
+        startLog.setStatus("STARTED");
+        startLog.setMessage("Начало асинхронной загрузки цен утренней сессии за сегодня");
+        startLog.setStartTime(startTime);
 
         try {
-            LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
+            systemLogRepository.save(startLog);
+            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+        } catch (Exception logException) {
+            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+        }
 
-            SaveResponseDto result = morningSessionService.fetchAndStoreMorningSessionPricesForDate(today);
+        try {
+            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН УТРЕННЕЙ СЕССИИ ЗА СЕГОДНЯ ===");
+            System.out.println("Task ID: " + taskId);
 
-            // Статистика
-            int totalRequested = result.getTotalRequested();
-            int found = result.getNewItemsSaved() + result.getExistingItemsSkipped();
-            int notFound = totalRequested - found;
+            // Запускаем асинхронное сохранение
+            morningSessionService.fetchAndStoreMorningSessionPricesTodayAsync(taskId);
 
-            response.put("success", result.isSuccess());
-            response.put("message", result.getMessage());
-            response.put("dateUsed", today);
-            response.put("statistics", Map.of(
-                "totalRequested", totalRequested,
-                "found", found,
-                "notFound", notFound,
-                "saved", result.getNewItemsSaved(),
-                "skippedExisting", result.getExistingItemsSkipped()
-            ));
-            response.put("timestamp", LocalDateTime.now().toString());
+            // НЕ ждем завершения - возвращаем taskId сразу
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Асинхронная загрузка цен утренней сессии за сегодня запущена");
+            response.put("taskId", taskId);
+            response.put("endpoint", endpoint);
+            response.put("status", "STARTED");
+            response.put("startTime", startTime.toString());
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Ошибка загрузки цен утренней сессии: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now().toString());
+            System.err.println("Ошибка запуска асинхронной загрузки цен утренней сессии за сегодня: " + e.getMessage());
+            e.printStackTrace();
 
-            return ResponseEntity.status(500).body(response);
+            // Логируем ошибку
+            SystemLogEntity errorLog = new SystemLogEntity();
+            errorLog.setTaskId(taskId);
+            errorLog.setEndpoint(endpoint);
+            errorLog.setMethod("POST");
+            errorLog.setStatus("FAILED");
+            errorLog.setMessage("Ошибка запуска асинхронной загрузки цен утренней сессии за сегодня: " + e.getMessage());
+            errorLog.setStartTime(startTime);
+            errorLog.setEndTime(Instant.now());
+
+            try {
+                systemLogRepository.save(errorLog);
+            } catch (Exception logException) {
+                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Ошибка запуска асинхронной загрузки цен утренней сессии за сегодня: " + e.getMessage(),
+                "taskId", taskId,
+                "error", "InternalServerError"
+            ));
         }
     }
 
@@ -87,7 +126,7 @@ public class MorningSessionController {
 
             response.put("success", result.isSuccess());
             response.put("message", result.getMessage());
-            response.put("dateUsed", today);
+            response.put("dateUsed", today.toString());
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
                 "found", found,

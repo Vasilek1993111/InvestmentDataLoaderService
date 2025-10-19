@@ -6,10 +6,14 @@ import com.example.InvestmentDataLoaderService.entity.ClosePriceKey;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
+import com.example.InvestmentDataLoaderService.entity.MinuteCandleEntity;
 import com.example.InvestmentDataLoaderService.repository.ClosePriceRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
+import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
+import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -20,7 +24,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import com.example.InvestmentDataLoaderService.config.RateLimitConfig.BatchProcessingProperties;
+import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class MainSessionPriceService {
@@ -30,17 +41,34 @@ public class MainSessionPriceService {
     private final FutureRepository futureRepo;
     private final ClosePriceRepository closePriceRepo;
     private final IndicativeRepository indicativeRepo;
+    private final MinuteCandleRepository minuteCandleRepo;
+    private final SystemLogRepository systemLogRepository;
+    private final RateLimitService rateLimitService;
+    private final RetryService retryService;
+    private final ExecutorService executorService;
+    private final BatchProcessingProperties batchProcessingProperties;
 
     public MainSessionPriceService(MarketDataServiceBlockingStub marketDataService,
                             ShareRepository shareRepo,
                             FutureRepository futureRepo,
                             ClosePriceRepository closePriceRepo,
-                            IndicativeRepository indicativeRepo) {
+                            IndicativeRepository indicativeRepo,
+                            MinuteCandleRepository minuteCandleRepo,
+                            SystemLogRepository systemLogRepository,
+                            RateLimitService rateLimitService,
+                            RetryService retryService,
+                            BatchProcessingProperties batchProcessingProperties) {
         this.marketDataService = marketDataService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
         this.closePriceRepo = closePriceRepo;
         this.indicativeRepo = indicativeRepo;
+        this.minuteCandleRepo = minuteCandleRepo;
+        this.systemLogRepository = systemLogRepository;
+        this.rateLimitService = rateLimitService;
+        this.retryService = retryService;
+        this.batchProcessingProperties = batchProcessingProperties;
+        this.executorService = Executors.newFixedThreadPool(10); // Ограничиваем количество потоков
     }
 
     /**
@@ -113,7 +141,7 @@ public class MainSessionPriceService {
     /**
      * Фильтрация валидных цен закрытия с детальной статистикой
      */
-    private ClosePriceProcessingResult filterValidPricesWithStats(List<ClosePriceDto> prices) {
+    private List<ClosePriceDto> filterValidPricesWithStats(List<ClosePriceDto> prices) {
         List<ClosePriceDto> validPrices = new ArrayList<>();
         int invalidPricesCount = 0;
         
@@ -130,12 +158,10 @@ public class MainSessionPriceService {
             System.out.println("Отфильтровано " + invalidPricesCount + " неверных цен с датой 1970-01-01");
         }
         
-        return new ClosePriceProcessingResult(validPrices, invalidPricesCount, prices.size());
+        return validPrices;
     }
 
     public List<ClosePriceDto> getClosePrices(List<String> instrumentIds, String status) {
-        GetClosePricesRequest.Builder builder = GetClosePricesRequest.newBuilder();
-        
         System.out.println("=== ЗАПРОС ЦЕН ЗАКРЫТИЯ ===");
         System.out.println("Количество инструментов: " + (instrumentIds != null ? instrumentIds.size() : 0));
         
@@ -149,6 +175,33 @@ public class MainSessionPriceService {
         if (instrumentIds.isEmpty()) {
             return new ArrayList<>();
         }
+        
+        try {
+            // Используем rate limiting и retry для запроса к API
+            List<ClosePriceDto> closePricesFromApi = retryService.executeWithRetryAndRateLimit(
+                () -> getClosePricesDirectly(instrumentIds, status),
+                "getClosePrices",
+                "close_prices",
+                rateLimitService
+            );
+            
+            // Фильтруем неверные цены с датой 1970-01-01
+            return filterValidPrices(closePricesFromApi);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при получении цен закрытия: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Возвращаем пустой список вместо исключения
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Прямой вызов API без дополнительного rate limiting (используется внутри getClosePrices)
+     */
+    private List<ClosePriceDto> getClosePricesDirectly(List<String> instrumentIds, String status) {
+        GetClosePricesRequest.Builder builder = GetClosePricesRequest.newBuilder();
 
         // Добавляем каждый инструмент в запрос
         instrumentIds.forEach(id -> {
@@ -161,6 +214,7 @@ public class MainSessionPriceService {
 
         GetClosePricesResponse res = marketDataService.getClosePrices(builder.build());
         List<ClosePriceDto> list = new ArrayList<>();
+        
         for (var p : res.getClosePricesList()) {
             String date = Instant.ofEpochSecond(p.getTime().getSeconds())
                     .atZone(ZoneId.of("Europe/Moscow"))
@@ -181,8 +235,8 @@ public class MainSessionPriceService {
             list.add(new ClosePriceDto(p.getFigi(), date, price, eveningSessionPrice));
         }
         
-        // Фильтруем неверные цены с датой 1970-01-01
-        return filterValidPrices(list);
+        System.out.println("Получено " + list.size() + " цен закрытия из API");
+        return list;
     }
 
     public SaveResponseDto saveClosePrices(ClosePriceRequestDto request) {
@@ -280,9 +334,8 @@ public class MainSessionPriceService {
         }
         
         // Фильтруем неверные цены и получаем статистику
-        ClosePriceProcessingResult processingResult = filterValidPricesWithStats(closePricesFromApi);
-        List<ClosePriceDto> closePrices = processingResult.getValidPrices();
-        int invalidPricesFiltered = processingResult.getInvalidPricesFiltered();
+        List<ClosePriceDto> closePrices = filterValidPricesWithStats(closePricesFromApi);
+        int invalidPricesFiltered = closePricesFromApi.size() - closePrices.size();
         
         List<ClosePriceDto> savedPrices = new ArrayList<>();
         int existingCount = 0;
@@ -422,4 +475,971 @@ public class MainSessionPriceService {
             savedPrices
         );
     }
+
+    // ==================== АСИНХРОННЫЕ МЕТОДЫ ====================
+
+    /**
+     * Асинхронное сохранение цен закрытия для акций и фьючерсов
+     * 
+     * <p>Выполняет параллельную обработку акций и фьючерсов с логированием результатов.</p>
+     * 
+     * @param taskId уникальный идентификатор задачи
+     * @return CompletableFuture с результатом операции
+     */
+    public CompletableFuture<SaveResponseDto> saveClosePricesAsync(String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен закрытия с пакетной обработкой");
+                
+                // Получаем все акции и фьючерсы (блокирующий запрос остается)
+                List<ShareEntity> shares = shareRepo.findAll();
+                List<FutureEntity> futures = futureRepo.findAll();
+                
+                System.out.println("[" + taskId + "] Найдено акций: " + shares.size() + ", фьючерсов: " + futures.size());
+                
+                // Фильтруем только RUB инструменты
+                List<ShareEntity> rubShares = shares.stream()
+                    .filter(share -> "RUB".equalsIgnoreCase(share.getCurrency()))
+                    .collect(Collectors.toList());
+                
+                List<FutureEntity> rubFutures = futures.stream()
+                    .filter(future -> "RUB".equalsIgnoreCase(future.getCurrency()))
+                    .collect(Collectors.toList());
+                
+                System.out.println("[" + taskId + "] RUB акций: " + rubShares.size() + ", RUB фьючерсов: " + rubFutures.size());
+                
+                // Разбиваем на пакеты
+                int batchSize = batchProcessingProperties.getBatchSize();
+                List<List<ShareEntity>> shareBatches = createBatches(rubShares, batchSize);
+                List<List<FutureEntity>> futureBatches = createBatches(rubFutures, batchSize);
+                
+                System.out.println("[" + taskId + "] Создано пакетов акций: " + shareBatches.size() + ", пакетов фьючерсов: " + futureBatches.size());
+                
+                // Обрабатываем пакеты акций
+                List<CompletableFuture<List<ClosePriceProcessingResult>>> shareBatchFutures = new ArrayList<>();
+                for (int i = 0; i < shareBatches.size(); i++) {
+                    final int batchIndex = i;
+                    CompletableFuture<List<ClosePriceProcessingResult>> batchFuture = processShareBatchAsync(shareBatches.get(i), taskId + "_shares_batch_" + batchIndex);
+                    shareBatchFutures.add(batchFuture);
+                    
+                    // Добавляем задержку между пакетами
+                    if (i < shareBatches.size() - 1) {
+                        try {
+                            Thread.sleep(batchProcessingProperties.getBatchDelayMs());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                
+                // Обрабатываем пакеты фьючерсов
+                List<CompletableFuture<List<ClosePriceProcessingResult>>> futureBatchFutures = new ArrayList<>();
+                for (int i = 0; i < futureBatches.size(); i++) {
+                    final int batchIndex = i;
+                    CompletableFuture<List<ClosePriceProcessingResult>> batchFuture = processFutureBatchAsync(futureBatches.get(i), taskId + "_futures_batch_" + batchIndex);
+                    futureBatchFutures.add(batchFuture);
+                    
+                    // Добавляем задержку между пакетами
+                    if (i < futureBatches.size() - 1) {
+                        try {
+                            Thread.sleep(batchProcessingProperties.getBatchDelayMs());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                
+                // Объединяем все futures
+                List<CompletableFuture<List<ClosePriceProcessingResult>>> allBatchFutures = new ArrayList<>();
+                allBatchFutures.addAll(shareBatchFutures);
+                allBatchFutures.addAll(futureBatchFutures);
+                
+                // Ждем завершения всех пакетов
+                CompletableFuture<Void> allCompleted = CompletableFuture.allOf(
+                    allBatchFutures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                allCompleted.get();
+                
+                // Собираем все результаты
+                List<ClosePriceProcessingResult> results = new ArrayList<>();
+                for (CompletableFuture<List<ClosePriceProcessingResult>> batchFuture : allBatchFutures) {
+                    results.addAll(batchFuture.join());
+                }
+                
+                // Агрегируем статистику
+                int totalRequested = results.size();
+                int newItemsSaved = (int) results.stream().filter(ClosePriceProcessingResult::isSaved).count();
+                int existingItemsSkipped = (int) results.stream().filter(ClosePriceProcessingResult::isExisting).count();
+                int errorCount = (int) results.stream().filter(ClosePriceProcessingResult::hasError).count();
+                
+                List<Map<String, Object>> savedItems = results.stream()
+                    .filter(ClosePriceProcessingResult::isSaved)
+                    .map(ClosePriceProcessingResult::getSavedItem)
+                    .collect(Collectors.toList());
+                
+                String message = String.format("Пакетная обработка завершена. Загружено %d новых цен закрытия из %d найденных. Ошибок: %d", 
+                    newItemsSaved, totalRequested, errorCount);
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    true,
+                    message,
+                    totalRequested,
+                    newItemsSaved,
+                    existingItemsSkipped,
+                    errorCount,
+                    0, // missingFromApi
+                    savedItems
+                );
+                
+                System.out.println("[" + taskId + "] Пакетная обработка завершена");
+                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                
+                // Логируем успешное завершение в БД
+                try {
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/main-session-prices/");
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                }
+                
+                return result;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен закрытия: " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/main-session-prices/");
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронного сохранения цен закрытия: " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                throw new RuntimeException("Ошибка асинхронного сохранения цен закрытия: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цен закрытия для акций
+     */
+    public CompletableFuture<SaveResponseDto> saveSharesClosePricesAsync(String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен закрытия для акций с пакетной обработкой");
+                
+                // Получаем все акции (блокирующий запрос остается)
+                List<ShareEntity> shares = shareRepo.findAll();
+                
+                System.out.println("[" + taskId + "] Найдено акций: " + shares.size());
+                
+                // Фильтруем только RUB инструменты
+                List<ShareEntity> rubShares = shares.stream()
+                    .filter(share -> "RUB".equalsIgnoreCase(share.getCurrency()))
+                    .collect(Collectors.toList());
+                
+                System.out.println("[" + taskId + "] RUB акций: " + rubShares.size());
+                
+                // Разбиваем на пакеты
+                int batchSize = batchProcessingProperties.getBatchSize();
+                List<List<ShareEntity>> shareBatches = createBatches(rubShares, batchSize);
+                
+                System.out.println("[" + taskId + "] Создано пакетов акций: " + shareBatches.size());
+                
+                // Обрабатываем пакеты акций
+                List<CompletableFuture<List<ClosePriceProcessingResult>>> shareBatchFutures = new ArrayList<>();
+                for (int i = 0; i < shareBatches.size(); i++) {
+                    final int batchIndex = i;
+                    CompletableFuture<List<ClosePriceProcessingResult>> batchFuture = processShareBatchAsync(shareBatches.get(i), taskId + "_shares_batch_" + batchIndex);
+                    shareBatchFutures.add(batchFuture);
+                    
+                    // Добавляем задержку между пакетами
+                    if (i < shareBatches.size() - 1) {
+                        try {
+                            Thread.sleep(batchProcessingProperties.getBatchDelayMs());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                
+                // Ждем завершения всех пакетов
+                CompletableFuture<Void> allCompleted = CompletableFuture.allOf(
+                    shareBatchFutures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                allCompleted.get();
+                
+                // Собираем все результаты
+                List<ClosePriceProcessingResult> results = new ArrayList<>();
+                for (CompletableFuture<List<ClosePriceProcessingResult>> batchFuture : shareBatchFutures) {
+                    results.addAll(batchFuture.join());
+                }
+                
+                // Агрегируем статистику
+                int totalRequested = results.size();
+                int newItemsSaved = (int) results.stream().filter(ClosePriceProcessingResult::isSaved).count();
+                int existingItemsSkipped = (int) results.stream().filter(ClosePriceProcessingResult::isExisting).count();
+                int errorCount = (int) results.stream().filter(ClosePriceProcessingResult::hasError).count();
+                
+                List<Map<String, Object>> savedItems = results.stream()
+                    .filter(ClosePriceProcessingResult::isSaved)
+                    .map(ClosePriceProcessingResult::getSavedItem)
+                    .collect(Collectors.toList());
+                
+                String message = String.format("Пакетная обработка акций завершена. Загружено %d новых цен закрытия из %d найденных. Ошибок: %d", 
+                    newItemsSaved, totalRequested, errorCount);
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    true,
+                    message,
+                    totalRequested,
+                    newItemsSaved,
+                    existingItemsSkipped,
+                    errorCount,
+                    0, // missingFromApi
+                    savedItems
+                );
+                
+                System.out.println("[" + taskId + "] Асинхронное сохранение цен закрытия для акций завершено");
+                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                
+                return result;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен закрытия для акций: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цен закрытия для акций: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цен закрытия для фьючерсов
+     */
+    public CompletableFuture<SaveResponseDto> saveFuturesClosePricesAsync(String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен закрытия для фьючерсов с пакетной обработкой");
+                
+                // Получаем все фьючерсы (блокирующий запрос остается)
+                List<FutureEntity> futures = futureRepo.findAll();
+                
+                System.out.println("[" + taskId + "] Найдено фьючерсов: " + futures.size());
+                
+                // Фильтруем только RUB инструменты
+                List<FutureEntity> rubFutures = futures.stream()
+                    .filter(future -> "RUB".equalsIgnoreCase(future.getCurrency()))
+                    .collect(Collectors.toList());
+                
+                System.out.println("[" + taskId + "] RUB фьючерсов: " + rubFutures.size());
+                
+                // Разбиваем на пакеты
+                int batchSize = batchProcessingProperties.getBatchSize();
+                List<List<FutureEntity>> futureBatches = createBatches(rubFutures, batchSize);
+                
+                System.out.println("[" + taskId + "] Создано пакетов фьючерсов: " + futureBatches.size());
+                
+                // Обрабатываем пакеты фьючерсов
+                List<CompletableFuture<List<ClosePriceProcessingResult>>> futureBatchFutures = new ArrayList<>();
+                for (int i = 0; i < futureBatches.size(); i++) {
+                    final int batchIndex = i;
+                    CompletableFuture<List<ClosePriceProcessingResult>> batchFuture = processFutureBatchAsync(futureBatches.get(i), taskId + "_futures_batch_" + batchIndex);
+                    futureBatchFutures.add(batchFuture);
+                    
+                    // Добавляем задержку между пакетами
+                    if (i < futureBatches.size() - 1) {
+                        try {
+                            Thread.sleep(batchProcessingProperties.getBatchDelayMs());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                
+                // Ждем завершения всех пакетов
+                CompletableFuture<Void> allCompleted = CompletableFuture.allOf(
+                    futureBatchFutures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                allCompleted.get();
+                
+                // Собираем все результаты
+                List<ClosePriceProcessingResult> results = new ArrayList<>();
+                for (CompletableFuture<List<ClosePriceProcessingResult>> batchFuture : futureBatchFutures) {
+                    results.addAll(batchFuture.join());
+                }
+                
+                // Агрегируем статистику
+                int totalRequested = results.size();
+                int newItemsSaved = (int) results.stream().filter(ClosePriceProcessingResult::isSaved).count();
+                int existingItemsSkipped = (int) results.stream().filter(ClosePriceProcessingResult::isExisting).count();
+                int errorCount = (int) results.stream().filter(ClosePriceProcessingResult::hasError).count();
+                
+                List<Map<String, Object>> savedItems = results.stream()
+                    .filter(ClosePriceProcessingResult::isSaved)
+                    .map(ClosePriceProcessingResult::getSavedItem)
+                    .collect(Collectors.toList());
+                
+                String message = String.format("Пакетная обработка фьючерсов завершена. Загружено %d новых цен закрытия из %d найденных. Ошибок: %d", 
+                    newItemsSaved, totalRequested, errorCount);
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    true,
+                    message,
+                    totalRequested,
+                    newItemsSaved,
+                    existingItemsSkipped,
+                    errorCount,
+                    0, // missingFromApi
+                    savedItems
+                );
+                
+                System.out.println("[" + taskId + "] Асинхронное сохранение цен закрытия для фьючерсов завершено");
+                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                
+                return result;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен закрытия для фьючерсов: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цен закрытия для фьючерсов: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цены закрытия для конкретного инструмента
+     */
+    public CompletableFuture<SaveResponseDto> saveInstrumentClosePriceAsync(String figi, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("[" + taskId + "] Начало асинхронного сохранения цены закрытия для инструмента: " + figi);
+                
+                // Получаем цену закрытия из API (блокирующий запрос остается)
+                List<ClosePriceDto> allClosePrices = getClosePrices(List.of(figi), null);
+                
+                // Фильтруем неверные цены
+                List<ClosePriceDto> validClosePrices = allClosePrices.stream()
+                    .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                    .collect(Collectors.toList());
+                
+                if (validClosePrices.isEmpty()) {
+                    String message = "Цена закрытия не найдена для инструмента: " + figi;
+                    return new SaveResponseDto(
+                        false,
+                        message,
+                        1,
+                        0,
+                        0,
+                        allClosePrices.size(),
+                        1 - allClosePrices.size(),
+                        new ArrayList<>()
+                    );
+                }
+                
+                ClosePriceDto closePriceDto = validClosePrices.get(0);
+                ClosePriceProcessingResult result = processInstrumentClosePriceAsync(figi, closePriceDto);
+                
+                List<Map<String, Object>> savedItems = new ArrayList<>();
+                if (result.isSaved()) {
+                    savedItems.add(result.getSavedItem());
+                }
+                
+                String message = result.isSaved() 
+                    ? "Цена закрытия успешно загружена для инструмента: " + figi
+                    : result.isExisting() 
+                        ? "Цена закрытия уже существует для инструмента: " + figi
+                        : "Ошибка загрузки цены закрытия для инструмента: " + figi;
+                
+                SaveResponseDto response = new SaveResponseDto(
+                    result.isSaved() || result.isExisting(),
+                    message,
+                    1,
+                    result.isSaved() ? 1 : 0,
+                    result.isExisting() ? 1 : 0,
+                    result.hasError() ? 1 : 0,
+                    0,
+                    savedItems
+                );
+                
+                System.out.println("[" + taskId + "] Асинхронное сохранение цены закрытия для инструмента завершено");
+                System.out.println("[" + taskId + "] Результат: " + response.getMessage());
+                
+                return response;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цены закрытия для инструмента " + figi + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цены закрытия для инструмента: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение цен основной сессии за дату
+     */
+    public CompletableFuture<SaveResponseDto> saveMainSessionPricesForDateAsync(LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен основной сессии за дату: " + date);
+                
+                // Проверяем выходной день
+                if (isWeekend(date)) {
+                    String message = "В выходные дни основная сессия не проводится. Дата: " + date;
+                    return new SaveResponseDto(
+                        false,
+                        message,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        new ArrayList<>()
+                    );
+                }
+                
+                // Получаем все акции и фьючерсы (блокирующий запрос остается)
+        List<ShareEntity> shares = shareRepo.findAll();
+                List<FutureEntity> futures = futureRepo.findAll();
+                
+                System.out.println("[" + taskId + "] Найдено акций: " + shares.size() + ", фьючерсов: " + futures.size());
+                
+                // Параллельная обработка акций
+                List<CompletableFuture<ClosePriceProcessingResult>> shareFutures = shares.stream()
+                    .map(share -> CompletableFuture.supplyAsync(() -> processShareMainSessionPriceAsync(share, date), executorService))
+                    .collect(Collectors.toList());
+                
+                // Параллельная обработка фьючерсов
+                List<CompletableFuture<ClosePriceProcessingResult>> futureFutures = futures.stream()
+                    .map(future -> CompletableFuture.supplyAsync(() -> processFutureMainSessionPriceAsync(future, date), executorService))
+                    .collect(Collectors.toList());
+                
+                // Объединяем все futures
+                List<CompletableFuture<ClosePriceProcessingResult>> allFutures = new ArrayList<>();
+                allFutures.addAll(shareFutures);
+                allFutures.addAll(futureFutures);
+                
+                // Ждем завершения всех операций
+                CompletableFuture<Void> allCompleted = CompletableFuture.allOf(
+                    allFutures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                List<ClosePriceProcessingResult> results = allCompleted.thenApply(v ->
+                    allFutures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(Collectors.toList())
+                ).join();
+                
+                // Агрегируем статистику
+                int totalRequested = results.size();
+                int newItemsSaved = (int) results.stream().filter(ClosePriceProcessingResult::isSaved).count();
+                int existingItemsSkipped = (int) results.stream().filter(ClosePriceProcessingResult::isExisting).count();
+                int errorCount = (int) results.stream().filter(ClosePriceProcessingResult::hasError).count();
+                int missingFromApi = (int) results.stream().filter(r -> !r.isSaved() && !r.isExisting() && !r.hasError()).count();
+                
+                List<Map<String, Object>> savedItems = results.stream()
+                    .filter(ClosePriceProcessingResult::isSaved)
+                    .map(ClosePriceProcessingResult::getSavedItem)
+                    .collect(Collectors.toList());
+                
+                String message = String.format("Успешно загружено %d новых цен основной сессии из %d найденных. Ошибок: %d", 
+                    newItemsSaved, totalRequested, errorCount);
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    true,
+                    message,
+                    totalRequested,
+                    newItemsSaved,
+                    existingItemsSkipped,
+                    errorCount,
+                    missingFromApi,
+                    savedItems
+                );
+                
+                System.out.println("[" + taskId + "] Асинхронное сохранение цен основной сессии завершено");
+                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                
+                return result;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен основной сессии: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Ошибка асинхронного сохранения цен основной сессии: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    /**
+     * Разбивает список инструментов на пакеты заданного размера
+     */
+    private <T> List<List<T>> createBatches(List<T> items, int batchSize) {
+        List<List<T>> batches = new ArrayList<>();
+        for (int i = 0; i < items.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, items.size());
+            batches.add(items.subList(i, end));
+        }
+        return batches;
+    }
+
+    /**
+     * Обрабатывает пакет акций асинхронно
+     */
+    private CompletableFuture<List<ClosePriceProcessingResult>> processShareBatchAsync(List<ShareEntity> shareBatch, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            System.out.println("[" + taskId + "] Обработка пакета акций: " + shareBatch.size() + " инструментов");
+            
+            List<CompletableFuture<ClosePriceProcessingResult>> futures = shareBatch.stream()
+                .map(share -> CompletableFuture.supplyAsync(() -> processShareClosePriceAsync(share), executorService))
+                .collect(Collectors.toList());
+            
+            // Ждем завершения всех операций в пакете
+            CompletableFuture<Void> allCompleted = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+            );
+            
+            try {
+                allCompleted.get(); // Ждем завершения
+                
+                // Собираем результаты
+                List<ClosePriceProcessingResult> results = futures.stream()
+                    .map(CompletableFuture::join)
+                    .collect(Collectors.toList());
+                
+                System.out.println("[" + taskId + "] Пакет акций обработан: " + results.size() + " результатов");
+                return results;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка обработки пакета акций: " + e.getMessage());
+                return new ArrayList<>();
+            }
+        }, executorService);
+    }
+
+    /**
+     * Обрабатывает пакет фьючерсов асинхронно
+     */
+    private CompletableFuture<List<ClosePriceProcessingResult>> processFutureBatchAsync(List<FutureEntity> futureBatch, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            System.out.println("[" + taskId + "] Обработка пакета фьючерсов: " + futureBatch.size() + " инструментов");
+            
+            List<CompletableFuture<ClosePriceProcessingResult>> futures = futureBatch.stream()
+                .map(future -> CompletableFuture.supplyAsync(() -> processFutureClosePriceAsync(future), executorService))
+                .collect(Collectors.toList());
+            
+            // Ждем завершения всех операций в пакете
+            CompletableFuture<Void> allCompleted = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+            );
+            
+            try {
+                allCompleted.get(); // Ждем завершения
+                
+                // Собираем результаты
+                List<ClosePriceProcessingResult> results = futures.stream()
+                    .map(CompletableFuture::join)
+                    .collect(Collectors.toList());
+                
+                System.out.println("[" + taskId + "] Пакет фьючерсов обработан: " + results.size() + " результатов");
+                return results;
+                
+            } catch (Exception e) {
+                System.err.println("[" + taskId + "] Ошибка обработки пакета фьючерсов: " + e.getMessage());
+                return new ArrayList<>();
+            }
+        }, executorService);
+    }
+
+    /**
+     * Обработка цены закрытия для акции
+     */
+    private ClosePriceProcessingResult processShareClosePriceAsync(ShareEntity share) {
+        try {
+            // Получаем цену закрытия из API с rate limiting
+            List<ClosePriceDto> allClosePrices = retryService.executeWithRetryAndRateLimit(
+                () -> getClosePricesDirectly(List.of(share.getFigi()), null),
+                "processShareClosePrice_" + share.getFigi(),
+                "close_prices",
+                rateLimitService
+            );
+            
+            // Фильтруем неверные цены
+            List<ClosePriceDto> validClosePrices = allClosePrices.stream()
+                .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                .collect(Collectors.toList());
+            
+            if (validClosePrices.isEmpty()) {
+                return new ClosePriceProcessingResult(share.getFigi(), false, false, true, "Цена закрытия не найдена", null);
+            }
+            
+            ClosePriceDto closePriceDto = validClosePrices.get(0);
+            LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
+            ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
+            
+            // Проверяем, есть ли уже запись
+            if (closePriceRepo.existsById(key)) {
+                return new ClosePriceProcessingResult(share.getFigi(), false, true, false, "Цена закрытия уже существует", null);
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEntity entity = new ClosePriceEntity(
+                priceDate,
+                closePriceDto.figi(),
+                "SHARE",
+                closePriceDto.closePrice(),
+                share.getCurrency(),
+                share.getExchange()
+            );
+            
+            closePriceRepo.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", closePriceDto.figi());
+            savedItem.put("ticker", share.getTicker());
+            savedItem.put("name", share.getName());
+            savedItem.put("priceDate", priceDate.toString());
+            savedItem.put("closePrice", closePriceDto.closePrice());
+            savedItem.put("instrumentType", "SHARE");
+            savedItem.put("currency", share.getCurrency());
+            savedItem.put("exchange", share.getExchange());
+            
+            return new ClosePriceProcessingResult(share.getFigi(), true, false, false, null, savedItem);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка обработки цены закрытия для акции " + share.getFigi() + ": " + e.getMessage());
+            return new ClosePriceProcessingResult(share.getFigi(), false, false, true, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Обработка цены закрытия для фьючерса
+     */
+    private ClosePriceProcessingResult processFutureClosePriceAsync(FutureEntity future) {
+        try {
+            // Получаем цену закрытия из API с rate limiting
+            List<ClosePriceDto> allClosePrices = retryService.executeWithRetryAndRateLimit(
+                () -> getClosePricesDirectly(List.of(future.getFigi()), null),
+                "processFutureClosePrice_" + future.getFigi(),
+                "close_prices",
+                rateLimitService
+            );
+            
+            // Фильтруем неверные цены
+            List<ClosePriceDto> validClosePrices = allClosePrices.stream()
+                .filter(price -> !"1970-01-01".equals(price.tradingDate()))
+                .collect(Collectors.toList());
+            
+            if (validClosePrices.isEmpty()) {
+                return new ClosePriceProcessingResult(future.getFigi(), false, false, true, "Цена закрытия не найдена", null);
+            }
+            
+            ClosePriceDto closePriceDto = validClosePrices.get(0);
+            LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
+            ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
+            
+            // Проверяем, есть ли уже запись
+            if (closePriceRepo.existsById(key)) {
+                return new ClosePriceProcessingResult(future.getFigi(), false, true, false, "Цена закрытия уже существует", null);
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEntity entity = new ClosePriceEntity(
+                priceDate,
+                closePriceDto.figi(),
+                "FUTURE",
+                closePriceDto.closePrice(),
+                future.getCurrency(),
+                future.getExchange()
+            );
+            
+            closePriceRepo.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", closePriceDto.figi());
+            savedItem.put("ticker", future.getTicker());
+            savedItem.put("name", future.getTicker());
+            savedItem.put("priceDate", priceDate.toString());
+            savedItem.put("closePrice", closePriceDto.closePrice());
+            savedItem.put("instrumentType", "FUTURE");
+            savedItem.put("currency", future.getCurrency());
+            savedItem.put("exchange", future.getExchange());
+            
+            return new ClosePriceProcessingResult(future.getFigi(), true, false, false, null, savedItem);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка обработки цены закрытия для фьючерса " + future.getFigi() + ": " + e.getMessage());
+            return new ClosePriceProcessingResult(future.getFigi(), false, false, true, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Обработка цены закрытия для конкретного инструмента
+     */
+    private ClosePriceProcessingResult processInstrumentClosePriceAsync(String figi, ClosePriceDto closePriceDto) {
+        try {
+            LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
+            ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
+            
+            // Проверяем, есть ли уже запись
+            if (closePriceRepo.existsById(key)) {
+                return new ClosePriceProcessingResult(figi, false, true, false, "Цена закрытия уже существует", null);
+            }
+            
+            // Определяем тип инструмента
+            String instrumentType = "UNKNOWN";
+            String currency = "UNKNOWN";
+            String exchange = "UNKNOWN";
+            String ticker = figi;
+            String name = figi;
+            
+            // Проверяем в кэше акций
+            ShareEntity share = shareRepo.findById(figi).orElse(null);
+            if (share != null) {
+                instrumentType = "SHARE";
+                currency = share.getCurrency();
+                exchange = share.getExchange();
+                ticker = share.getTicker();
+                name = share.getName();
+            } else {
+                // Проверяем в кэше фьючерсов
+                FutureEntity future = futureRepo.findById(figi).orElse(null);
+                if (future != null) {
+                    instrumentType = "FUTURE";
+                    currency = future.getCurrency();
+                    exchange = future.getExchange();
+                    ticker = future.getTicker();
+                    name = future.getTicker();
+                } else {
+                    // Проверяем в кэше индикативов
+                    IndicativeEntity indicative = indicativeRepo.findById(figi).orElse(null);
+                    if (indicative != null) {
+                        instrumentType = "INDICATIVE";
+                        currency = indicative.getCurrency();
+                        exchange = indicative.getExchange();
+                        ticker = indicative.getTicker();
+                        name = indicative.getTicker();
+                    }
+                }
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEntity entity = new ClosePriceEntity(
+                priceDate,
+                closePriceDto.figi(),
+                instrumentType,
+                closePriceDto.closePrice(),
+                currency,
+                exchange
+            );
+            
+            closePriceRepo.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", closePriceDto.figi());
+            savedItem.put("ticker", ticker);
+            savedItem.put("name", name);
+            savedItem.put("priceDate", priceDate.toString());
+            savedItem.put("closePrice", closePriceDto.closePrice());
+            savedItem.put("instrumentType", instrumentType);
+            savedItem.put("currency", currency);
+            savedItem.put("exchange", exchange);
+            
+            return new ClosePriceProcessingResult(figi, true, false, false, null, savedItem);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка обработки цены закрытия для инструмента " + figi + ": " + e.getMessage());
+            return new ClosePriceProcessingResult(figi, false, false, true, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Обработка цены основной сессии для акции
+     */
+    private ClosePriceProcessingResult processShareMainSessionPriceAsync(ShareEntity share, LocalDate date) {
+        try {
+            ClosePriceKey key = new ClosePriceKey(date, share.getFigi());
+            
+            // Проверяем, есть ли уже запись
+            if (closePriceRepo.existsById(key)) {
+                return new ClosePriceProcessingResult(share.getFigi(), false, true, false, "Цена основной сессии уже существует", null);
+            }
+            
+            // Ищем последнюю свечу за указанную дату
+            BigDecimal lastClosePrice = findLastClosePriceFromMinuteCandles(share.getFigi(), date);
+            
+            if (lastClosePrice == null) {
+                return new ClosePriceProcessingResult(share.getFigi(), false, false, false, "Свеча не найдена", null);
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEntity entity = new ClosePriceEntity(
+                date,
+                share.getFigi(),
+                "SHARE",
+                lastClosePrice,
+                "RUB",
+                "moex_mrng_evng_e_wknd_dlr"
+            );
+            
+            closePriceRepo.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", share.getFigi());
+            savedItem.put("ticker", share.getTicker());
+            savedItem.put("name", share.getName());
+            savedItem.put("priceDate", date.toString());
+            savedItem.put("closePrice", lastClosePrice);
+            savedItem.put("instrumentType", "SHARE");
+            savedItem.put("currency", "RUB");
+            savedItem.put("exchange", "moex_mrng_evng_e_wknd_dlr");
+            
+            return new ClosePriceProcessingResult(share.getFigi(), true, false, false, null, savedItem);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка обработки цены основной сессии для акции " + share.getFigi() + ": " + e.getMessage());
+            return new ClosePriceProcessingResult(share.getFigi(), false, false, true, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Обработка цены основной сессии для фьючерса
+     */
+    private ClosePriceProcessingResult processFutureMainSessionPriceAsync(FutureEntity future, LocalDate date) {
+        try {
+            ClosePriceKey key = new ClosePriceKey(date, future.getFigi());
+            
+            // Проверяем, есть ли уже запись
+            if (closePriceRepo.existsById(key)) {
+                return new ClosePriceProcessingResult(future.getFigi(), false, true, false, "Цена основной сессии уже существует", null);
+            }
+            
+            // Ищем последнюю свечу за указанную дату
+            BigDecimal lastClosePrice = findLastClosePriceFromMinuteCandles(future.getFigi(), date);
+            
+            if (lastClosePrice == null) {
+                return new ClosePriceProcessingResult(future.getFigi(), false, false, false, "Свеча не найдена", null);
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEntity entity = new ClosePriceEntity(
+                date,
+                future.getFigi(),
+                "FUTURE",
+                lastClosePrice,
+                "RUB",
+                "FORTS_MAIN"
+            );
+            
+            closePriceRepo.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", future.getFigi());
+            savedItem.put("ticker", future.getTicker());
+            savedItem.put("name", future.getTicker());
+            savedItem.put("priceDate", date.toString());
+            savedItem.put("closePrice", lastClosePrice);
+            savedItem.put("instrumentType", "FUTURE");
+            savedItem.put("currency", "RUB");
+            savedItem.put("exchange", "FORTS_MAIN");
+            
+            return new ClosePriceProcessingResult(future.getFigi(), true, false, false, null, savedItem);
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка обработки цены основной сессии для фьючерса " + future.getFigi() + ": " + e.getMessage());
+            return new ClosePriceProcessingResult(future.getFigi(), false, false, true, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Проверяет, является ли дата выходным днем
+     */
+    private boolean isWeekend(LocalDate date) {
+        return date.getDayOfWeek().getValue() >= 6; // Суббота = 6, Воскресенье = 7
+    }
+
+    /**
+     * Находит последнюю цену закрытия для указанной даты и FIGI из minute_candles
+     */
+    private BigDecimal findLastClosePriceFromMinuteCandles(String figi, LocalDate date) {
+        try {
+            System.out.println("Поиск свечи для " + figi + " за дату (MSK): " + date);
+
+            // Формируем точные границы суток в часовом поясе Europe/Moscow
+            ZoneId mskZone = ZoneId.of("Europe/Moscow");
+            var startInstant = date.atStartOfDay(mskZone).toInstant();
+            var endInstant = date.plusDays(1).atStartOfDay(mskZone).toInstant();
+
+            // Ищем свечи по точному временному диапазону и берем последнюю по времени
+            List<MinuteCandleEntity> candles = minuteCandleRepo.findByFigiAndTimeBetween(figi, startInstant, endInstant);
+
+            if (!candles.isEmpty()) {
+                MinuteCandleEntity lastCandle = candles.get(candles.size() - 1);
+                System.out.println("Найдена свеча (" + lastCandle.getTime() + ") для " + figi + " с ценой закрытия: " + lastCandle.getClose());
+                return lastCandle.getClose();
+            } else {
+                System.out.println("Свечи не найдены для " + figi + " за дату: " + date);
+            }
+
+            return null;
+
+        } catch (Exception e) {
+            System.err.println("Ошибка поиска последней цены закрытия для " + figi + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Результат обработки цены закрытия
+     */
+    private static class ClosePriceProcessingResult {
+        private final String figi;
+        private final boolean saved;
+        private final boolean existing;
+        private final boolean hasError;
+        private final String errorMessage;
+        private final Map<String, Object> savedItem;
+
+        public ClosePriceProcessingResult(String figi, boolean saved, boolean existing, boolean hasError, String errorMessage, Map<String, Object> savedItem) {
+            this.figi = figi;
+            this.saved = saved;
+            this.existing = existing;
+            this.hasError = hasError;
+            this.errorMessage = errorMessage;
+            this.savedItem = savedItem;
+        }
+
+        public String getFigi() { return figi; }
+        public boolean isSaved() { return saved; }
+        public boolean isExisting() { return existing; }
+        public boolean hasError() { return hasError; }
+        public String getErrorMessage() { return errorMessage; }
+        public Map<String, Object> getSavedItem() { return savedItem; }
+    }
+
 }

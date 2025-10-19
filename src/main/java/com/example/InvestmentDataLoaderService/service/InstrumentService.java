@@ -4,16 +4,19 @@ import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.IndicativeEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
+import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.client.TinkoffRestClient;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Сервис для работы с финансовыми инструментами
@@ -61,6 +65,7 @@ public class InstrumentService {
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
     private final IndicativeRepository indicativeRepo;
+    private final SystemLogRepository systemLogRepository;
     private final TinkoffRestClient restClient;
     private final TinkoffApiClient tinkoffApiClient;
 
@@ -71,6 +76,7 @@ public class InstrumentService {
      * @param shareRepo репозиторий для работы с акциями в БД
      * @param futureRepo репозиторий для работы с фьючерсами в БД
      * @param indicativeRepo репозиторий для работы с индикативными инструментами в БД
+     * @param systemLogRepository репозиторий для логирования операций
      * @param restClient REST клиент для получения индикативных инструментов из Tinkoff API
      * @param tinkoffApiClient API клиент для получения полной информации о фьючерсах
      */
@@ -78,12 +84,14 @@ public class InstrumentService {
                            ShareRepository shareRepo,
                            FutureRepository futureRepo,
                            IndicativeRepository indicativeRepo,
+                           SystemLogRepository systemLogRepository,
                            TinkoffRestClient restClient,
                            TinkoffApiClient tinkoffApiClient) {
         this.instrumentsService = instrumentsService;
         this.shareRepo = shareRepo;
         this.futureRepo = futureRepo;
         this.indicativeRepo = indicativeRepo;
+        this.systemLogRepository = systemLogRepository;
         this.restClient = restClient;
         this.tinkoffApiClient = tinkoffApiClient;
     }
@@ -137,7 +145,9 @@ public class InstrumentService {
                     instrument.get("sector").asText(),
                     instrument.get("tradingStatus").asText(),
                     instrument.get("shortEnabledFlag").asBoolean(),
-                    instrument.get("assetUid").asText()
+                    instrument.get("assetUid").asText(),
+                    QuotationDto.minPriceIncrementToBigDecimal(instrument.get("minPriceIncrement")),
+                    instrument.has("lot") ? instrument.get("lot").asInt() : 1
                 ));
             }
         }
@@ -149,98 +159,6 @@ public class InstrumentService {
     }
 
 
-    /**
-     * Сохранение акций в базу данных с защитой от дубликатов
-     * 
-     * <p>Метод получает акции из Tinkoff API по заданным фильтрам и сохраняет их в БД.
-     * Если акция уже существует в БД, она не будет сохранена повторно.</p>
-     * 
-     * <p>Возвращает детальную информацию о результате операции:</p>
-     * <ul>
-     *   <li>Количество найденных акций в API</li>
-     *   <li>Количество сохраненных новых акций</li>
-     *   <li>Количество уже существующих акций</li>
-     * </ul>
-     * 
-     * @param filter фильтр для получения акций из API
-     * @return результат операции сохранения с детальной статистикой
-     */
-    @Transactional
-    public SaveResponseDto saveShares(ShareFilterDto filter) {
-        // Получаем акции из API (используем существующий метод)
-        List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getFigi());
-        
-        List<ShareDto> savedShares = new ArrayList<>();
-        int existingCount = 0;
-        
-        for (ShareDto shareDto : sharesFromApi) {
-            // Проверяем, существует ли акция в БД
-            if (!shareRepo.existsById(shareDto.figi())) {
-                // Создаем и сохраняем новую акцию с новыми полями
-                ShareEntity shareEntity = new ShareEntity(
-                    shareDto.figi(),
-                    shareDto.ticker(),
-                    shareDto.name(),
-                    shareDto.currency(),
-                    shareDto.exchange(),
-                    shareDto.sector(),
-                    shareDto.tradingStatus(),
-                    shareDto.shortEnabled(),
-                    shareDto.assetUid(),
-                    null, // createdAt будет установлен автоматически
-                    null  // updatedAt будет установлен автоматически
-                );
-                
-                try {
-                    shareRepo.save(shareEntity);
-                    savedShares.add(shareDto);
-                } catch (Exception e) {
-                    // Логируем ошибку, но продолжаем обработку других акций
-                    System.err.println("Error saving share " + shareDto.figi() + ": " + e.getMessage());
-                }
-            } else {
-                existingCount++;
-                // Обновляем shortEnabled у существующей записи, если он изменился/пустой
-                shareRepo.findById(shareDto.figi()).ifPresent(entity -> {
-                    Boolean newValue = shareDto.shortEnabled();
-                    Boolean oldValue = entity.getShortEnabled();
-                    if ((newValue != null && !newValue.equals(oldValue)) || (oldValue == null && newValue != null)) {
-                        entity.setShortEnabled(newValue);
-                        try {
-                            shareRepo.save(entity);
-                        } catch (Exception e) {
-                            System.err.println("Error updating share shortEnabled " + shareDto.figi() + ": " + e.getMessage());
-                        }
-                    }
-                });
-            }
-        }
-        
-        // Формируем ответ
-        boolean success = !sharesFromApi.isEmpty();
-        String message;
-        
-        if (savedShares.isEmpty()) {
-            if (sharesFromApi.isEmpty()) {
-                message = "Новых акций не обнаружено. По заданным фильтрам акции не найдены.";
-            } else {
-                message = "Новых акций не обнаружено. Все найденные акции уже существуют в базе данных.";
-            }
-        } else {
-            message = String.format("Успешно загружено %d новых акций из %d найденных.", savedShares.size(), sharesFromApi.size());
-        }
-        
-        return new SaveResponseDto(
-            success,
-            message,
-            sharesFromApi.size(),
-            savedShares.size(),
-            existingCount,
-            0, // invalidItemsFiltered
-            0, // missingFromApi
-            savedShares
-        );
-    }
 
     /**
      * Получение акций из базы данных с фильтрацией
@@ -280,7 +198,9 @@ public class InstrumentService {
                     entity.getSector(),
                     entity.getTradingStatus(),
                     entity.getShortEnabled(),
-                    entity.getAssetUid()
+                    entity.getAssetUid(),
+                    entity.getMinPriceIncrement(),
+                    entity.getLot()
                 ));
             }
         }
@@ -307,7 +227,9 @@ public class InstrumentService {
                     entity.getSector(),
                     entity.getTradingStatus(),
                     entity.getShortEnabled(),
-                    entity.getAssetUid()
+                    entity.getAssetUid(),
+                    entity.getMinPriceIncrement(),
+                    entity.getLot()
                 ))
                 .orElse(null);
     }
@@ -329,7 +251,9 @@ public class InstrumentService {
                     entity.getSector(),
                     entity.getTradingStatus(),
                     entity.getShortEnabled(),
-                    entity.getAssetUid()
+                    entity.getAssetUid(),
+                    entity.getMinPriceIncrement(),
+                    entity.getLot()
                 ))
                 .orElse(null);
     }
@@ -382,6 +306,7 @@ public class InstrumentService {
                 if (instrument.hasExpirationDate()) {
                     expirationDate = tinkoffApiClient.convertTimestampToLocalDateTime(instrument.getExpirationDate());
                 }
+
                 
                 futures.add(new FutureDto(
                     instrument.getFigi(),
@@ -391,7 +316,9 @@ public class InstrumentService {
                     instrument.getCurrency(),
                     instrument.getExchange(),
                     true,
-                    expirationDate
+                    expirationDate,
+                    convertQuotationToBigDecimal(instrument.getMinPriceIncrement()),
+                    instrument.getLot()
                 ));
             }
         }
@@ -405,94 +332,6 @@ public class InstrumentService {
         return futures;
     }
 
-    @Transactional
-    public SaveResponseDto saveFutures(FutureFilterDto filter) {
-        // Получаем фьючерсы из API (используем существующий метод)
-        List<FutureDto> futuresFromApi = getFutures(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getAssetType());
-        
-        List<FutureDto> savedFutures = new ArrayList<>();
-        int existingCount = 0;
-        
-        for (FutureDto futureDto : futuresFromApi) {
-            // Проверяем, существует ли фьючерс в БД
-            if (!futureRepo.existsById(futureDto.figi())) {
-                // Создаем и сохраняем новый фьючерс
-                FutureEntity futureEntity = new FutureEntity(
-                    futureDto.figi(),
-                    futureDto.ticker(),
-                    futureDto.assetType(),
-                    futureDto.basicAsset(),
-                    futureDto.currency(),
-                    futureDto.exchange(),
-                    Boolean.TRUE,
-                    futureDto.expirationDate()
-                );
-                
-                try {
-                    futureRepo.save(futureEntity);
-                    savedFutures.add(futureDto);
-                } catch (Exception e) {
-                    // Логируем ошибку, но продолжаем обработку других фьючерсов
-                    System.err.println("Error saving future " + futureDto.figi() + ": " + e.getMessage());
-                }
-            } else {
-                existingCount++;
-                // Обновляем shortEnabled и expirationDate у существующей записи
-                futureRepo.findById(futureDto.figi()).ifPresent(entity -> {
-                    boolean needsUpdate = false;
-                    
-                    // Обновляем shortEnabled (для фьючерсов true, если null)
-                    Boolean newShortEnabled = Boolean.TRUE;
-                    Boolean oldShortEnabled = entity.getShortEnabled();
-                    if (oldShortEnabled == null || !newShortEnabled.equals(oldShortEnabled)) {
-                        entity.setShortEnabled(newShortEnabled);
-                        needsUpdate = true;
-                    }
-                    
-                    // Обновляем expirationDate
-                    LocalDateTime newExpirationDate = futureDto.expirationDate();
-                    LocalDateTime oldExpirationDate = entity.getExpirationDate();
-                    if (newExpirationDate != null && !newExpirationDate.equals(oldExpirationDate)) {
-                        entity.setExpirationDate(newExpirationDate);
-                        needsUpdate = true;
-                    }
-                    
-                    if (needsUpdate) {
-                        try {
-                            futureRepo.save(entity);
-                        } catch (Exception e) {
-                            System.err.println("Error updating future " + futureDto.figi() + ": " + e.getMessage());
-                        }
-                    }
-                });
-            }
-        }
-        
-        // Формируем ответ
-        boolean success = !futuresFromApi.isEmpty();
-        String message;
-        
-        if (savedFutures.isEmpty()) {
-            if (futuresFromApi.isEmpty()) {
-                message = "Новых фьючерсов не обнаружено. По заданным фильтрам фьючерсы не найдены.";
-            } else {
-                message = "Новых фьючерсов не обнаружено. Все найденные фьючерсы уже существуют в базе данных.";
-            }
-        } else {
-            message = String.format("Успешно загружено %d новых фьючерсов из %d найденных.", savedFutures.size(), futuresFromApi.size());
-        }
-        
-        return new SaveResponseDto(
-            success,
-            message,
-            futuresFromApi.size(),
-            savedFutures.size(),
-            existingCount,
-            0, // invalidItemsFiltered
-            0, // missingFromApi
-            savedFutures
-        );
-    }
 
     /**
      * Получение фьючерса по FIGI из базы данных
@@ -507,7 +346,9 @@ public class InstrumentService {
             entity.getCurrency(),
             entity.getExchange(),
             entity.getShortEnabled(), 
-            entity.getExpirationDate() 
+            entity.getExpirationDate(),
+            entity.getMinPriceIncrement(),
+            entity.getLot()
             ))
         .orElse(null);
         
@@ -527,9 +368,11 @@ public class InstrumentService {
             entity.getCurrency(),
             entity.getExchange(),
             entity.getShortEnabled(), 
-            entity.getExpirationDate() 
-        ))
-                .orElse(null);
+            entity.getExpirationDate(),
+            entity.getMinPriceIncrement(),
+            entity.getLot()
+            ))
+        .orElse(null);
     }
 
     // === МЕТОДЫ ДЛЯ РАБОТЫ С ИНДИКАТИВНЫМИ ИНСТРУМЕНТАМИ ===
@@ -724,78 +567,6 @@ public class InstrumentService {
         }
     }
 
-    @Transactional
-    public SaveResponseDto saveIndicatives(IndicativeFilterDto filter) {
-        // Получаем индикативные инструменты из API
-        List<IndicativeDto> indicativesFromApi = getIndicatives(
-            filter.getExchange(), 
-            filter.getCurrency(), 
-            filter.getTicker(), 
-            filter.getFigi()
-        );
-        
-        List<IndicativeDto> savedIndicatives = new ArrayList<>();
-        int existingCount = 0;
-        
-        for (IndicativeDto indicativeDto : indicativesFromApi) {
-            // Пропускаем индикативы с пустым или null figi
-            if (indicativeDto.figi() == null || indicativeDto.figi().trim().isEmpty()) {
-                System.out.println("Skipping indicative with empty FIGI: " + indicativeDto.ticker());
-                continue;
-            }
-            
-            // Проверяем, существует ли индикативный инструмент в БД
-            if (!indicativeRepo.existsById(indicativeDto.figi())) {
-                // Создаем и сохраняем новый индикативный инструмент
-                IndicativeEntity indicativeEntity = new IndicativeEntity(
-                    indicativeDto.figi(),
-                    indicativeDto.ticker(),
-                    indicativeDto.name(),
-                    indicativeDto.currency(),
-                    indicativeDto.exchange(),
-                    indicativeDto.classCode(),
-                    indicativeDto.uid(),
-                    indicativeDto.sellAvailableFlag(),
-                    indicativeDto.buyAvailableFlag()
-                );
-                
-                try {
-                    indicativeRepo.save(indicativeEntity);
-                    savedIndicatives.add(indicativeDto);
-                } catch (Exception e) {
-                    // Логируем ошибку, но продолжаем обработку других инструментов
-                    System.err.println("Error saving indicative " + indicativeDto.figi() + ": " + e.getMessage());
-                }
-            } else {
-                existingCount++;
-            }
-        }
-        
-        // Формируем ответ
-        boolean success = !indicativesFromApi.isEmpty();
-        String message;
-        
-        if (savedIndicatives.isEmpty()) {
-            if (indicativesFromApi.isEmpty()) {
-                message = "Новых индикативных инструментов не обнаружено. По заданным фильтрам инструменты не найдены.";
-            } else {
-                message = "Новых индикативных инструментов не обнаружено. Все найденные инструменты уже существуют в базе данных.";
-            }
-        } else {
-            message = String.format("Успешно загружено %d новых индикативных инструментов из %d найденных.", savedIndicatives.size(), indicativesFromApi.size());
-        }
-        
-        return new SaveResponseDto(
-            success,
-            message,
-            indicativesFromApi.size(),
-            savedIndicatives.size(),
-            existingCount,
-            0, // invalidItemsFiltered
-            0, // missingFromApi
-            savedIndicatives
-        );
-    }
 
     /**
      * Получение количества инструментов по типам
@@ -833,7 +604,9 @@ public class InstrumentService {
                     entity.getCurrency(),
                     entity.getExchange(),
                     entity.getShortEnabled(),
-                    entity.getExpirationDate()
+                    entity.getExpirationDate(),
+                    entity.getMinPriceIncrement(),
+                    entity.getLot()
                 ))
                 .collect(Collectors.toList());
     }
@@ -856,5 +629,603 @@ public class InstrumentService {
                     entity.getBuyAvailableFlag()
                 ))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Преобразует gRPC Quotation в BigDecimal
+     */
+    private BigDecimal convertQuotationToBigDecimal(ru.tinkoff.piapi.contract.v1.Quotation quotation) {
+        if (quotation == null) {
+            return BigDecimal.ZERO;
+        }
+        
+        QuotationDto quotationDto = new QuotationDto(quotation.getUnits(), quotation.getNano());
+        return quotationDto.toBigDecimal();
+    }
+
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ ====================
+    
+    /**
+     * Результат обработки акции
+     */
+    private static class ShareProcessingResult {
+        private final ShareDto shareDto;
+        private final boolean saved;
+        private final boolean existing;
+        private final boolean hasError;
+        private final String errorMessage;
+        
+        public ShareProcessingResult(ShareDto shareDto, boolean saved, boolean existing, boolean hasError, String errorMessage) {
+            this.shareDto = shareDto;
+            this.saved = saved;
+            this.existing = existing;
+            this.hasError = hasError;
+            this.errorMessage = errorMessage;
+        }
+        
+        public ShareDto getShareDto() { return shareDto; }
+        public boolean isSaved() { return saved; }
+        public boolean isExisting() { return existing; }
+        public boolean hasError() { return hasError; }
+        public String getErrorMessage() { return errorMessage; }
+    }
+    
+    /**
+     * Результат обработки фьючерса
+     */
+    private static class FutureProcessingResult {
+        private final FutureDto futureDto;
+        private final boolean saved;
+        private final boolean existing;
+        private final boolean hasError;
+        private final String errorMessage;
+        
+        public FutureProcessingResult(FutureDto futureDto, boolean saved, boolean existing, boolean hasError, String errorMessage) {
+            this.futureDto = futureDto;
+            this.saved = saved;
+            this.existing = existing;
+            this.hasError = hasError;
+            this.errorMessage = errorMessage;
+        }
+        
+        public FutureDto getFutureDto() { return futureDto; }
+        public boolean isSaved() { return saved; }
+        public boolean isExisting() { return existing; }
+        public boolean hasError() { return hasError; }
+        public String getErrorMessage() { return errorMessage; }
+    }
+    
+    /**
+     * Результат обработки индикатива
+     */
+    private static class IndicativeProcessingResult {
+        private final IndicativeDto indicativeDto;
+        private final boolean saved;
+        private final boolean existing;
+        private final boolean hasError;
+        private final String errorMessage;
+        
+        public IndicativeProcessingResult(IndicativeDto indicativeDto, boolean saved, boolean existing, boolean hasError, String errorMessage) {
+            this.indicativeDto = indicativeDto;
+            this.saved = saved;
+            this.existing = existing;
+            this.hasError = hasError;
+            this.errorMessage = errorMessage;
+        }
+        
+        public IndicativeDto getIndicativeDto() { return indicativeDto; }
+        public boolean isSaved() { return saved; }
+        public boolean isExisting() { return existing; }
+        public boolean hasError() { return hasError; }
+        public String getErrorMessage() { return errorMessage; }
+    }
+
+    // ==================== АСИНХРОННЫЕ МЕТОДЫ ====================
+
+    /**
+     * Асинхронная обработка одной акции
+     */
+    private ShareProcessingResult processShareAsync(ShareDto shareDto) {
+        try {
+            // Проверяем, существует ли акция в БД
+            if (!shareRepo.existsById(shareDto.figi())) {
+                // Создаем и сохраняем новую акцию
+                ShareEntity shareEntity = new ShareEntity(
+                    shareDto.figi(),
+                    shareDto.ticker(),
+                    shareDto.name(),
+                    shareDto.currency(),
+                    shareDto.exchange(),
+                    shareDto.sector(),
+                    shareDto.tradingStatus(),
+                    shareDto.shortEnabled(),
+                    shareDto.assetUid(),
+                    shareDto.minPriceIncrement(),
+                    shareDto.lot(),
+                    null, // createdAt будет установлен автоматически
+                    null  // updatedAt будет установлен автоматически
+                );
+                
+                shareRepo.save(shareEntity);
+                return new ShareProcessingResult(shareDto, true, false, false, null);
+            } else {
+                // Обновляем shortEnabled у существующей записи, если он изменился/пустой
+                shareRepo.findById(shareDto.figi()).ifPresent(entity -> {
+                    Boolean newValue = shareDto.shortEnabled();
+                    Boolean oldValue = entity.getShortEnabled();
+                    if ((newValue != null && !newValue.equals(oldValue)) || (oldValue == null && newValue != null)) {
+                        entity.setShortEnabled(newValue);
+                        shareRepo.save(entity);
+                    }
+                });
+                return new ShareProcessingResult(shareDto, false, true, false, null);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing share " + shareDto.figi() + ": " + e.getMessage());
+            return new ShareProcessingResult(shareDto, false, false, true, e.getMessage());
+        }
+    }
+
+    /**
+     * Асинхронная обработка одного фьючерса
+     */
+    private FutureProcessingResult processFutureAsync(FutureDto futureDto) {
+        try {
+            // Проверяем, существует ли фьючерс в БД
+            if (!futureRepo.existsById(futureDto.figi())) {
+                // Создаем и сохраняем новый фьючерс
+                FutureEntity futureEntity = new FutureEntity(
+                    futureDto.figi(),
+                    futureDto.ticker(),
+                    futureDto.assetType(),
+                    futureDto.basicAsset(),
+                    futureDto.currency(),
+                    futureDto.exchange(),
+                    Boolean.TRUE,
+                    futureDto.expirationDate(),
+                    futureDto.minPriceIncrement(),
+                    futureDto.lot()
+                );
+                
+                futureRepo.save(futureEntity);
+                return new FutureProcessingResult(futureDto, true, false, false, null);
+            } else {
+                // Обновляем shortEnabled и expirationDate у существующей записи
+                futureRepo.findById(futureDto.figi()).ifPresent(entity -> {
+                    boolean needsUpdate = false;
+                    
+                    // Обновляем shortEnabled (для фьючерсов true, если null)
+                    Boolean newShortEnabled = Boolean.TRUE;
+                    Boolean oldShortEnabled = entity.getShortEnabled();
+                    if (oldShortEnabled == null || !newShortEnabled.equals(oldShortEnabled)) {
+                        entity.setShortEnabled(newShortEnabled);
+                        needsUpdate = true;
+                    }
+                    
+                    // Обновляем expirationDate
+                    LocalDateTime newExpirationDate = futureDto.expirationDate();
+                    LocalDateTime oldExpirationDate = entity.getExpirationDate();
+                    if (newExpirationDate != null && !newExpirationDate.equals(oldExpirationDate)) {
+                        entity.setExpirationDate(newExpirationDate);
+                        needsUpdate = true;
+                    }
+                    
+                    if (needsUpdate) {
+                        futureRepo.save(entity);
+                    }
+                });
+                return new FutureProcessingResult(futureDto, false, true, false, null);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing future " + futureDto.figi() + ": " + e.getMessage());
+            return new FutureProcessingResult(futureDto, false, false, true, e.getMessage());
+        }
+    }
+
+    /**
+     * Асинхронная обработка одного индикатива
+     */
+    private IndicativeProcessingResult processIndicativeAsync(IndicativeDto indicativeDto) {
+        try {
+            // Пропускаем индикативы с пустым или null figi
+            if (indicativeDto.figi() == null || indicativeDto.figi().trim().isEmpty()) {
+                return new IndicativeProcessingResult(indicativeDto, false, false, true, "Empty FIGI");
+            }
+            
+            // Проверяем, существует ли индикативный инструмент в БД
+            if (!indicativeRepo.existsById(indicativeDto.figi())) {
+                // Создаем и сохраняем новый индикативный инструмент
+                IndicativeEntity indicativeEntity = new IndicativeEntity(
+                    indicativeDto.figi(),
+                    indicativeDto.ticker(),
+                    indicativeDto.name(),
+                    indicativeDto.currency(),
+                    indicativeDto.exchange(),
+                    indicativeDto.classCode(),
+                    indicativeDto.uid(),
+                    indicativeDto.sellAvailableFlag(),
+                    indicativeDto.buyAvailableFlag()
+                );
+                
+                indicativeRepo.save(indicativeEntity);
+                return new IndicativeProcessingResult(indicativeDto, true, false, false, null);
+            } else {
+                return new IndicativeProcessingResult(indicativeDto, false, true, false, null);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing indicative " + indicativeDto.figi() + ": " + e.getMessage());
+            return new IndicativeProcessingResult(indicativeDto, false, false, true, e.getMessage());
+        }
+    }
+
+    /**
+     * Асинхронное сохранение акций в базу данных
+     * 
+     * <p>Выполняет сохранение акций в асинхронном режиме с логированием процесса.
+     * Возвращает CompletableFuture для отслеживания выполнения операции.</p>
+     * 
+     * @param filter фильтр для получения акций из API
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> saveSharesAsync(ShareFilterDto filter, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ АКЦИЙ ===");
+                System.out.println("Task ID: " + taskId);
+                System.out.println("Фильтр: " + filter);
+                
+                // Получаем акции из API (блокирующий запрос остается)
+                List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getFigi());
+                
+                System.out.println("Получено " + sharesFromApi.size() + " акций из API, начинаем параллельную обработку...");
+                
+                // Параллельная обработка акций
+                List<CompletableFuture<ShareProcessingResult>> futures = sharesFromApi.parallelStream()
+                    .map(shareDto -> CompletableFuture.supplyAsync(() -> processShareAsync(shareDto)))
+                    .collect(Collectors.toList());
+                
+                // Ждем завершения всех операций
+                CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                    futures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                List<ShareProcessingResult> results = allFutures.thenApply(v -> 
+                    futures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(Collectors.toList())
+                ).join();
+                
+                // Подсчитываем статистику
+                List<ShareDto> savedShares = results.stream()
+                    .filter(result -> result.isSaved())
+                    .map(ShareProcessingResult::getShareDto)
+                    .collect(Collectors.toList());
+                
+                int existingCount = (int) results.stream()
+                    .filter(result -> result.isExisting())
+                    .count();
+                
+                int errorCount = (int) results.stream()
+                    .filter(result -> result.hasError())
+                    .count();
+                
+                // Формируем ответ
+                boolean success = !sharesFromApi.isEmpty();
+                String message;
+                
+                if (savedShares.isEmpty()) {
+                    if (sharesFromApi.isEmpty()) {
+                        message = "Новых акций не обнаружено. По заданным фильтрам акции не найдены.";
+                    } else {
+                        message = "Новых акций не обнаружено. Все найденные акции уже существуют в базе данных.";
+                    }
+                } else {
+                    message = String.format("Успешно загружено %d новых акций из %d найденных. Ошибок: %d", 
+                        savedShares.size(), sharesFromApi.size(), errorCount);
+                }
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    success,
+                    message,
+                    sharesFromApi.size(),
+                    savedShares.size(),
+                    existingCount,
+                    errorCount, // invalidItemsFiltered
+                    0, // missingFromApi
+                    savedShares
+                );
+                
+                System.out.println("Асинхронное сохранение акций завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                // Логируем успешное завершение в БД
+                try {
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/instruments/shares");
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                }
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения акций для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/instruments/shares");
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронного сохранения акций: " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                throw new RuntimeException("Ошибка асинхронного сохранения акций: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение фьючерсов в базу данных
+     * 
+     * <p>Выполняет сохранение фьючерсов в асинхронном режиме с логированием процесса.
+     * Возвращает CompletableFuture для отслеживания выполнения операции.</p>
+     * 
+     * @param filter фильтр для получения фьючерсов из API
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> saveFuturesAsync(FutureFilterDto filter, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ФЬЮЧЕРСОВ ===");
+                System.out.println("Task ID: " + taskId);
+                System.out.println("Фильтр: " + filter);
+                
+                // Получаем фьючерсы из API (блокирующий запрос остается)
+                List<FutureDto> futuresFromApi = getFutures(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getAssetType());
+                
+                System.out.println("Получено " + futuresFromApi.size() + " фьючерсов из API, начинаем параллельную обработку...");
+                
+                // Параллельная обработка фьючерсов
+                List<CompletableFuture<FutureProcessingResult>> futures = futuresFromApi.parallelStream()
+                    .map(futureDto -> CompletableFuture.supplyAsync(() -> processFutureAsync(futureDto)))
+                    .collect(Collectors.toList());
+                
+                // Ждем завершения всех операций
+                CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                    futures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                List<FutureProcessingResult> results = allFutures.thenApply(v -> 
+                    futures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(Collectors.toList())
+                ).join();
+                
+                // Подсчитываем статистику
+                List<FutureDto> savedFutures = results.stream()
+                    .filter(result -> result.isSaved())
+                    .map(FutureProcessingResult::getFutureDto)
+                    .collect(Collectors.toList());
+                
+                int existingCount = (int) results.stream()
+                    .filter(result -> result.isExisting())
+                    .count();
+                
+                int errorCount = (int) results.stream()
+                    .filter(result -> result.hasError())
+                    .count();
+                
+                // Формируем ответ
+                boolean success = !futuresFromApi.isEmpty();
+                String message;
+                
+                if (savedFutures.isEmpty()) {
+                    if (futuresFromApi.isEmpty()) {
+                        message = "Новых фьючерсов не обнаружено. По заданным фильтрам фьючерсы не найдены.";
+                    } else {
+                        message = "Новых фьючерсов не обнаружено. Все найденные фьючерсы уже существуют в базе данных.";
+                    }
+                } else {
+                    message = String.format("Успешно загружено %d новых фьючерсов из %d найденных. Ошибок: %d", 
+                        savedFutures.size(), futuresFromApi.size(), errorCount);
+                }
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    success,
+                    message,
+                    futuresFromApi.size(),
+                    savedFutures.size(),
+                    existingCount,
+                    errorCount, // invalidItemsFiltered
+                    0, // missingFromApi
+                    savedFutures
+                );
+                
+                System.out.println("Асинхронное сохранение фьючерсов завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                // Логируем успешное завершение в БД
+                try {
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/instruments/futures");
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                }
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения фьючерсов для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/instruments/futures");
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронного сохранения фьючерсов: " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                throw new RuntimeException("Ошибка асинхронного сохранения фьючерсов: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Асинхронное сохранение индикативов в базу данных
+     * 
+     * <p>Выполняет сохранение индикативных инструментов в асинхронном режиме с логированием процесса.
+     * Возвращает CompletableFuture для отслеживания выполнения операции.</p>
+     * 
+     * @param filter фильтр для получения индикативов из API
+     * @param taskId уникальный идентификатор задачи для логирования
+     * @return CompletableFuture с результатом операции сохранения
+     */
+    public CompletableFuture<SaveResponseDto> saveIndicativesAsync(IndicativeFilterDto filter, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ИНДИКАТИВОВ ===");
+                System.out.println("Task ID: " + taskId);
+                System.out.println("Фильтр: " + filter);
+                
+                // Получаем индикативные инструменты из API (блокирующий запрос остается)
+                List<IndicativeDto> indicativesFromApi = getIndicatives(
+                    filter.getExchange(), 
+                    filter.getCurrency(), 
+                    filter.getTicker(), 
+                    filter.getFigi()
+                );
+                
+                System.out.println("Получено " + indicativesFromApi.size() + " индикативов из API, начинаем параллельную обработку...");
+                
+                // Параллельная обработка индикативов
+                List<CompletableFuture<IndicativeProcessingResult>> futures = indicativesFromApi.parallelStream()
+                    .map(indicativeDto -> CompletableFuture.supplyAsync(() -> processIndicativeAsync(indicativeDto)))
+                    .collect(Collectors.toList());
+                
+                // Ждем завершения всех операций
+                CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                    futures.toArray(new CompletableFuture[0])
+                );
+                
+                // Получаем результаты
+                List<IndicativeProcessingResult> results = allFutures.thenApply(v -> 
+                    futures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(Collectors.toList())
+                ).join();
+                
+                // Подсчитываем статистику
+                List<IndicativeDto> savedIndicatives = results.stream()
+                    .filter(result -> result.isSaved())
+                    .map(IndicativeProcessingResult::getIndicativeDto)
+                    .collect(Collectors.toList());
+                
+                int existingCount = (int) results.stream()
+                    .filter(result -> result.isExisting())
+                    .count();
+                
+                int errorCount = (int) results.stream()
+                    .filter(result -> result.hasError())
+                    .count();
+                
+                // Формируем ответ
+                boolean success = !indicativesFromApi.isEmpty();
+                String message;
+                
+                if (savedIndicatives.isEmpty()) {
+                    if (indicativesFromApi.isEmpty()) {
+                        message = "Новых индикативных инструментов не обнаружено. По заданным фильтрам инструменты не найдены.";
+                    } else {
+                        message = "Новых индикативных инструментов не обнаружено. Все найденные инструменты уже существуют в базе данных.";
+                    }
+                } else {
+                    message = String.format("Успешно загружено %d новых индикативных инструментов из %d найденных. Ошибок: %d", 
+                        savedIndicatives.size(), indicativesFromApi.size(), errorCount);
+                }
+                
+                SaveResponseDto result = new SaveResponseDto(
+                    success,
+                    message,
+                    indicativesFromApi.size(),
+                    savedIndicatives.size(),
+                    existingCount,
+                    errorCount, // invalidItemsFiltered
+                    0, // missingFromApi
+                    savedIndicatives
+                );
+                
+                System.out.println("Асинхронное сохранение индикативов завершено для taskId: " + taskId);
+                System.out.println("Результат: " + result.getMessage());
+                
+                // Логируем успешное завершение в БД
+                try {
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/instruments/indicatives");
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                }
+                
+                return result;
+            } catch (Exception e) {
+                System.err.println("Ошибка асинхронного сохранения индикативов для taskId " + taskId + ": " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/instruments/indicatives");
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронного сохранения индикативов: " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                } catch (Exception logException) {
+                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                throw new RuntimeException("Ошибка асинхронного сохранения индикативов: " + e.getMessage(), e);
+            }
+        });
     }
 }

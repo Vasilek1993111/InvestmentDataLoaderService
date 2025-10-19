@@ -21,15 +21,18 @@ public class InstrumentPreloadSchedulerService {
     }
 
     /**
-     * Ежедневный прогрев кеша и сохранение инструментов:
+     * Ежедневный прогрев кеша и асинхронное сохранение инструментов:
      * - Акции: только биржа moex_mrng_evng_e_wknd_dlr
      * - Фьючерсы: все
      * - Индексы (индикативные инструменты): все
+     * 
+     * <p>Использует асинхронные методы для сохранения инструментов в БД.
+     * Прогрев кеша выполняется синхронно, а сохранение - асинхронно с параллельной обработкой.</p>
      */
     @Scheduled(cron = "0 45 0 * * *", zone = "Europe/Moscow")
     public void preloadAndPersistInstruments() {
         String taskId = "PRELOAD_" + LocalDateTime.now(ZoneId.of("Europe/Moscow"));
-        System.out.println("[" + taskId + "] Начало ежедневного прогрева кеша и сохранения инструментов (00:45 MSK)");
+        System.out.println("[" + taskId + "] Начало ежедневного прогрева кеша и асинхронного сохранения инструментов (00:45 MSK)");
 
         try {
             // Акции: только MOEX
@@ -38,9 +41,18 @@ public class InstrumentPreloadSchedulerService {
             // Прогрев кеша
             List<ShareDto> shares = instrumentService.getShares(shareFilter.getStatus(), shareFilter.getExchange(), shareFilter.getCurrency(), shareFilter.getTicker(), shareFilter.getFigi());
             System.out.println("[" + taskId + "] В кеш загружено акций: " + shares.size());
-            // Сохранение в БД без дублей
-            SaveResponseDto shareSave = instrumentService.saveShares(shareFilter);
-            System.out.println("[" + taskId + "] Сохранение акций: " + shareSave.getMessage());
+            
+            // Асинхронное сохранение в БД с параллельной обработкой
+            String shareTaskId = taskId + "_SHARES";
+            System.out.println("[" + taskId + "] Запуск асинхронного сохранения акций (taskId: " + shareTaskId + ")");
+            instrumentService.saveSharesAsync(shareFilter, shareTaskId)
+                .thenAccept(result -> {
+                    System.out.println("[" + shareTaskId + "] Асинхронное сохранение акций завершено: " + result.getMessage());
+                })
+                .exceptionally(throwable -> {
+                    System.err.println("[" + shareTaskId + "] Ошибка асинхронного сохранения акций: " + throwable.getMessage());
+                    return null;
+                });
 
             // Фьючерсы: все
             System.out.println("[" + taskId + "] Загрузка фьючерсов (все)");
@@ -48,8 +60,18 @@ public class InstrumentPreloadSchedulerService {
             List<FutureDto> futures = instrumentService.getFutures(
                     futureFilter.getStatus(), futureFilter.getExchange(), futureFilter.getCurrency(), futureFilter.getTicker(), futureFilter.getAssetType());
             System.out.println("[" + taskId + "] В кеш загружено фьючерсов: " + futures.size());
-            SaveResponseDto futureSave = instrumentService.saveFutures(futureFilter);
-            System.out.println("[" + taskId + "] Сохранение фьючерсов: " + futureSave.getMessage());
+            
+            // Асинхронное сохранение фьючерсов
+            String futureTaskId = taskId + "_FUTURES";
+            System.out.println("[" + taskId + "] Запуск асинхронного сохранения фьючерсов (taskId: " + futureTaskId + ")");
+            instrumentService.saveFuturesAsync(futureFilter, futureTaskId)
+                .thenAccept(result -> {
+                    System.out.println("[" + futureTaskId + "] Асинхронное сохранение фьючерсов завершено: " + result.getMessage());
+                })
+                .exceptionally(throwable -> {
+                    System.err.println("[" + futureTaskId + "] Ошибка асинхронного сохранения фьючерсов: " + throwable.getMessage());
+                    return null;
+                });
 
             // Индексы (индикативные): все
             System.out.println("[" + taskId + "] Загрузка индексов/индикативных инструментов (все)");
@@ -57,12 +79,24 @@ public class InstrumentPreloadSchedulerService {
             List<IndicativeDto> indicatives = instrumentService.getIndicatives(
                     indicativeFilter.getExchange(), indicativeFilter.getCurrency(), indicativeFilter.getTicker(), indicativeFilter.getFigi());
             System.out.println("[" + taskId + "] В кеш загружено индикативных инструментов: " + indicatives.size());
-            SaveResponseDto indicativeSave = instrumentService.saveIndicatives(indicativeFilter);
-            System.out.println("[" + taskId + "] Сохранение индикативных: " + indicativeSave.getMessage());
+            
+            // Асинхронное сохранение индикативов
+            String indicativeTaskId = taskId + "_INDICATIVES";
+            System.out.println("[" + taskId + "] Запуск асинхронного сохранения индикативов (taskId: " + indicativeTaskId + ")");
+            instrumentService.saveIndicativesAsync(indicativeFilter, indicativeTaskId)
+                .thenAccept(result -> {
+                    System.out.println("[" + indicativeTaskId + "] Асинхронное сохранение индикативов завершено: " + result.getMessage());
+                })
+                .exceptionally(throwable -> {
+                    System.err.println("[" + indicativeTaskId + "] Ошибка асинхронного сохранения индикативов: " + throwable.getMessage());
+                    return null;
+                });
 
-            System.out.println("[" + taskId + "] Прогрев кеша и сохранение инструментов завершены");
+            System.out.println("[" + taskId + "] Прогрев кеша завершен, асинхронное сохранение инструментов запущено");
+            System.out.println("[" + taskId + "] Отслеживайте статус операций по taskId: " + shareTaskId + ", " + futureTaskId + ", " + indicativeTaskId);
+            
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка ежедневного прогрева/сохранения инструментов: " + e.getMessage());
+            System.err.println("[" + taskId + "] Ошибка ежедневного прогрева кеша: " + e.getMessage());
             e.printStackTrace();
         }
     }

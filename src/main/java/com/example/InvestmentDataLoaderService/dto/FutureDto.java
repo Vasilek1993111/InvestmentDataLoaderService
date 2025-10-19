@@ -1,6 +1,7 @@
 package com.example.InvestmentDataLoaderService.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record FutureDto(
@@ -12,7 +13,9 @@ public record FutureDto(
     String exchange,    
     Boolean shortEnabled,
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    LocalDateTime expirationDate
+    LocalDateTime expirationDate,
+    BigDecimal minPriceIncrement,
+    Integer lot
 ) {
     
 }

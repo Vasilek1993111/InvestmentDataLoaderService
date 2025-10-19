@@ -82,7 +82,7 @@ public class EveningSessionController {
                             priceData.put("figi", share.getFigi());
                             priceData.put("ticker", share.getTicker());
                             priceData.put("name", share.getName());
-                            priceData.put("priceDate", yesterday);
+                            priceData.put("priceDate", yesterday.toString());
                             priceData.put("closePrice", lastClosePrice);
                             priceData.put("instrumentType", "SHARE");
                             priceData.put("currency", "RUB");
@@ -119,7 +119,7 @@ public class EveningSessionController {
                             priceData.put("figi", future.getFigi());
                             priceData.put("ticker", future.getTicker());
                             priceData.put("name", future.getTicker());
-                            priceData.put("priceDate", yesterday);
+                            priceData.put("priceDate", yesterday.toString());
                             priceData.put("closePrice", lastClosePrice);
                             priceData.put("instrumentType", "FUTURE");
                             priceData.put("currency", "RUB");
@@ -143,7 +143,7 @@ public class EveningSessionController {
             response.put("message", "Цены закрытия вечерней сессии за " + yesterday + " получены успешно");
             response.put("data", eveningClosePrices);
             response.put("count", eveningClosePrices.size());
-            response.put("date", yesterday);
+            response.put("date", yesterday.toString());
             response.put("statistics", Map.of(
                 "totalProcessed", totalProcessed,
                 "foundPrices", foundPrices,
@@ -226,7 +226,7 @@ public class EveningSessionController {
                             savedItem.put("figi", share.getFigi());
                             savedItem.put("ticker", share.getTicker());
                             savedItem.put("name", share.getName());
-                            savedItem.put("priceDate", yesterday);
+                            savedItem.put("priceDate", yesterday.toString());
                             savedItem.put("closePrice", lastClosePrice);
                             savedItem.put("instrumentType", "SHARE");
                             savedItem.put("currency", "RUB");
@@ -284,7 +284,7 @@ public class EveningSessionController {
                             savedItem.put("figi", future.getFigi());
                             savedItem.put("ticker", future.getTicker());
                             savedItem.put("name", future.getTicker());
-                            savedItem.put("priceDate", yesterday);
+                            savedItem.put("priceDate", yesterday.toString());
                             savedItem.put("closePrice", lastClosePrice);
                             savedItem.put("instrumentType", "FUTURE");
                             savedItem.put("currency", "RUB");
@@ -318,7 +318,7 @@ public class EveningSessionController {
             response.put("message", "Цены закрытия вечерней сессии за " + yesterday + " загружены успешно");
             response.put("data", savedItems);
             response.put("count", savedItems.size());
-            response.put("date", yesterday);
+            response.put("date", yesterday.toString());
             response.put("statistics", Map.of(
                 "totalRequested", totalRequested,
                 "newItemsSaved", newItemsSaved,
@@ -374,7 +374,7 @@ public class EveningSessionController {
                             priceData.put("figi", share.getFigi());
                             priceData.put("ticker", share.getTicker());
                             priceData.put("name", share.getName());
-                            priceData.put("priceDate", date);
+                            priceData.put("priceDate", date.toString());
                             priceData.put("closePrice", lastClosePrice);
                             priceData.put("instrumentType", "SHARE");
                             priceData.put("currency", "RUB");
@@ -411,7 +411,7 @@ public class EveningSessionController {
                             priceData.put("figi", future.getFigi());
                             priceData.put("ticker", future.getTicker());
                             priceData.put("name", future.getTicker());
-                            priceData.put("priceDate", date);
+                            priceData.put("priceDate", date.toString());
                             priceData.put("closePrice", lastClosePrice);
                             priceData.put("instrumentType", "FUTURE");
                             priceData.put("currency", "RUB");
@@ -515,7 +515,7 @@ public class EveningSessionController {
                             savedItem.put("figi", share.getFigi());
                             savedItem.put("ticker", share.getTicker());
                             savedItem.put("name", share.getName());
-                            savedItem.put("priceDate", date);
+                            savedItem.put("priceDate", date.toString());
                             savedItem.put("closePrice", lastClosePrice);
                             savedItem.put("instrumentType", "SHARE");
                             savedItem.put("currency", "RUB");
@@ -573,7 +573,7 @@ public class EveningSessionController {
                             savedItem.put("figi", future.getFigi());
                             savedItem.put("ticker", future.getTicker());
                             savedItem.put("name", future.getTicker());
-                            savedItem.put("priceDate", date);
+                            savedItem.put("priceDate", date.toString());
                             savedItem.put("closePrice", lastClosePrice);
                             savedItem.put("instrumentType", "FUTURE");
                             savedItem.put("currency", "RUB");
@@ -667,7 +667,7 @@ public class EveningSessionController {
                             priceData.put("figi", share.getFigi());
                             priceData.put("ticker", share.getTicker());
                             priceData.put("name", share.getName());
-                            priceData.put("priceDate", date);
+                            priceData.put("priceDate", date.toString());
                             priceData.put("closePrice", lastClosePrice);
                             priceData.put("instrumentType", "SHARE");
                             priceData.put("currency", "RUB");
@@ -743,7 +743,7 @@ public class EveningSessionController {
                             priceData.put("figi", future.getFigi());
                             priceData.put("ticker", future.getTicker());
                             priceData.put("name", future.getTicker());
-                            priceData.put("priceDate", date);
+                            priceData.put("priceDate", date.toString());
                             priceData.put("closePrice", lastClosePrice);
                             priceData.put("instrumentType", "FUTURE");
                             priceData.put("currency", "RUB");
@@ -845,7 +845,7 @@ public class EveningSessionController {
                             savedItem.put("figi", share.getFigi());
                             savedItem.put("ticker", share.getTicker());
                             savedItem.put("name", share.getName());
-                            savedItem.put("priceDate", date);
+                            savedItem.put("priceDate", date.toString()  );
                             savedItem.put("closePrice", lastClosePrice);
                             savedItem.put("instrumentType", "SHARE");
                             
@@ -941,7 +941,7 @@ public class EveningSessionController {
                             savedItem.put("figi", future.getFigi());
                             savedItem.put("ticker", future.getTicker());
                             savedItem.put("name", future.getTicker());
-                            savedItem.put("priceDate", date);
+                            savedItem.put("priceDate", date.toString());   
                             savedItem.put("closePrice", lastClosePrice);
                             savedItem.put("instrumentType", "FUTURE");
                             
@@ -1002,7 +1002,7 @@ public class EveningSessionController {
                 if (lastClosePrice.compareTo(BigDecimal.ZERO) > 0) {
                     Map<String, Object> priceData = new HashMap<>();
                     priceData.put("figi", figi);
-                    priceData.put("priceDate", date);
+                    priceData.put("priceDate", date.toString());
                     priceData.put("closePrice", lastClosePrice);
                     priceData.put("instrumentType", "UNKNOWN"); // Не знаем тип без дополнительного запроса
                     priceData.put("currency", "RUB");
@@ -1104,7 +1104,7 @@ public class EveningSessionController {
                     
                     Map<String, Object> savedItem = new HashMap<>();
                     savedItem.put("figi", figi);
-                    savedItem.put("priceDate", date);
+                    savedItem.put("priceDate", date.toString());
                     savedItem.put("closePrice", lastClosePrice);
                     savedItem.put("instrumentType", instrumentType);
                     savedItem.put("currency", "RUB");
