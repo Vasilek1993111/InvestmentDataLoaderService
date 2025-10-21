@@ -7,6 +7,8 @@ import com.example.InvestmentDataLoaderService.service.MinuteCandleService;
 import com.example.InvestmentDataLoaderService.service.DailyCandleService;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
 import com.example.InvestmentDataLoaderService.util.MinuteCandleMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,7 @@ import java.util.*;
 @RequestMapping("/api/candles/instrument")
 public class CandlesInstrumentController {
 
+    private static final Logger log = LoggerFactory.getLogger(CandlesInstrumentController.class);
     private final MinuteCandleService minuteCandleService;
     private final DailyCandleService dailyCandleService;
     private final TinkoffApiClient tinkoffApiClient;
@@ -69,15 +72,15 @@ public class CandlesInstrumentController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Дата: " + date);
+            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Дата: {}", date);
 
             // Получаем минутные свечи из API
             var candles = tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_1_MIN");
@@ -132,9 +135,9 @@ public class CandlesInstrumentController {
                 response.put("averagePrice", avgPrice);
             }
 
-            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Всего свечей: " + totalCandles);
+            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Всего свечей: {}", totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -150,16 +153,15 @@ public class CandlesInstrumentController {
 
             try {
                 systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
+                log.info("Лог завершения работы сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
+                log.error("Ошибка сохранения лога завершения работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка получения минутных свечей инструмента: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка получения минутных свечей инструмента: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -174,9 +176,9 @@ public class CandlesInstrumentController {
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
+                log.info("Лог ошибки сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -212,16 +214,16 @@ public class CandlesInstrumentController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Дата: " + date);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Дата: {}", date);
+            log.info("Task ID: {}", taskId);
 
             // Создаем запрос для загрузки минутных свечей
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -246,8 +248,7 @@ public class CandlesInstrumentController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронного сохранения минутных свечей инструмента: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронного сохранения минутных свечей инструмента: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -263,7 +264,7 @@ public class CandlesInstrumentController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -304,15 +305,15 @@ public class CandlesInstrumentController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ПОЛУЧЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Дата: " + date);
+            log.info("=== ПОЛУЧЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Дата: {}", date);
 
             // Получаем дневные свечи из API
             var candles = tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_DAY");
@@ -379,9 +380,9 @@ public class CandlesInstrumentController {
                 response.put("averagePrice", avgPrice);
             }
 
-            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Всего свечей: " + totalCandles);
+            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Всего свечей: {}", totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -397,16 +398,15 @@ public class CandlesInstrumentController {
 
             try {
                 systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
+                log.info("Лог завершения работы сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
+                log.error("Ошибка сохранения лога завершения работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка получения дневных свечей инструмента: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка получения дневных свечей инструмента: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -421,9 +421,9 @@ public class CandlesInstrumentController {
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
+                log.info("Лог ошибки сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -459,16 +459,16 @@ public class CandlesInstrumentController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Дата: " + date);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ ДНЕВНЫХ СВЕЧЕЙ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Дата: {}", date);
+            log.info("Task ID: {}", taskId);
 
             // Создаем запрос для загрузки дневных свечей
             DailyCandleRequestDto request = new DailyCandleRequestDto();
@@ -493,8 +493,7 @@ public class CandlesInstrumentController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронного сохранения дневных свечей инструмента: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронного сохранения дневных свечей инструмента: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -510,7 +509,7 @@ public class CandlesInstrumentController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();

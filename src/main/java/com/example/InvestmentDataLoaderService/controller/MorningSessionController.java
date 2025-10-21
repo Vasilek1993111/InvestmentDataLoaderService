@@ -4,6 +4,8 @@ import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.service.MorningSessionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,7 @@ import java.util.UUID;
 @RequestMapping("/api/morning-session")
 public class MorningSessionController {
 
+    private static final Logger log = LoggerFactory.getLogger(MorningSessionController.class);
     private final MorningSessionService morningSessionService;
     private final SystemLogRepository systemLogRepository;
 
@@ -55,14 +58,14 @@ public class MorningSessionController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН УТРЕННЕЙ СЕССИИ ЗА СЕГОДНЯ ===");
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН УТРЕННЕЙ СЕССИИ ЗА СЕГОДНЯ ===");
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронное сохранение
             morningSessionService.fetchAndStoreMorningSessionPricesTodayAsync(taskId);
@@ -79,8 +82,7 @@ public class MorningSessionController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронной загрузки цен утренней сессии за сегодня: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронной загрузки цен утренней сессии за сегодня: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -95,7 +97,7 @@ public class MorningSessionController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(

@@ -1,9 +1,9 @@
 package com.example.InvestmentDataLoaderService.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -14,6 +14,8 @@ import java.util.function.Supplier;
 @Service
 public class RetryService {
 
+    private static final Logger log = LoggerFactory.getLogger(RetryService.class);
+    
     // Максимальное количество попыток
     private static final int MAX_RETRY_ATTEMPTS = 3;
     
@@ -37,11 +39,11 @@ public class RetryService {
         
         for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
             try {
-                System.out.println("[" + operationName + "] Попытка " + attempt + "/" + MAX_RETRY_ATTEMPTS);
+                log.info("[{}] Попытка {}/{}", operationName, attempt, MAX_RETRY_ATTEMPTS);
                 T result = operation.get();
                 
                 if (attempt > 1) {
-                    System.out.println("[" + operationName + "] Успешно выполнено с попытки " + attempt);
+                    log.info("[{}] Успешно выполнено с попытки {}", operationName, attempt);
                 }
                 
                 return result;
@@ -51,14 +53,14 @@ public class RetryService {
                 
                 // Проверяем, стоит ли повторять попытку
                 if (!shouldRetry(e, attempt)) {
-                    System.err.println("[" + operationName + "] Критическая ошибка, повтор не требуется: " + e.getMessage());
+                    log.error("[{}] Критическая ошибка, повтор не требуется: {}", operationName, e.getMessage());
                     throw e;
                 }
                 
                 if (attempt < MAX_RETRY_ATTEMPTS) {
                     long delay = calculateRetryDelay(attempt);
-                    System.err.println("[" + operationName + "] Ошибка на попытке " + attempt + ": " + e.getMessage());
-                    System.err.println("[" + operationName + "] Повтор через " + delay + "ms");
+                    log.error("[{}] Ошибка на попытке {}: {}", operationName, attempt, e.getMessage());
+                    log.error("[{}] Повтор через {}ms", operationName, delay);
                     
                     try {
                         Thread.sleep(delay);
@@ -67,7 +69,7 @@ public class RetryService {
                         throw new RuntimeException("Операция прервана", ie);
                     }
                 } else {
-                    System.err.println("[" + operationName + "] Все попытки исчерпаны. Последняя ошибка: " + e.getMessage());
+                    log.error("[{}] Все попытки исчерпаны. Последняя ошибка: {}", operationName, e.getMessage());
                 }
             }
         }

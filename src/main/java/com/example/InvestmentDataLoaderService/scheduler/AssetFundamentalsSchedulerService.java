@@ -4,6 +4,8 @@ import com.example.InvestmentDataLoaderService.service.AssetFundamentalService;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.dto.AssetFundamentalDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,7 @@ import java.util.UUID;
 @Service
 public class AssetFundamentalsSchedulerService {
 
+    private static final Logger log = LoggerFactory.getLogger(AssetFundamentalsSchedulerService.class);
     private final AssetFundamentalService assetFundamentalService;
     private final SystemLogRepository systemLogRepository;
 
@@ -40,9 +43,9 @@ public class AssetFundamentalsSchedulerService {
             String taskId = "FUNDAMENTALS_" + UUID.randomUUID().toString().substring(0, 8);
             Instant startTime = Instant.now();
             
-            System.out.println("=== НАЧАЛО ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
-            System.out.println("Task ID: " + taskId);
-            System.out.println("Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== НАЧАЛО ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
+            log.info("Task ID: {}", taskId);
+            log.info("Время запуска: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем начало обновления
             logSchedulerStart(taskId, "Обновление фундаментальных показателей");
@@ -50,15 +53,14 @@ public class AssetFundamentalsSchedulerService {
             // Обновляем фундаментальные показатели для всех акций
             updateFundamentalsForShares(taskId);
             
-            System.out.println("=== ЗАВЕРШЕНИЕ ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
-            System.out.println("Время завершения: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== ЗАВЕРШЕНИЕ ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
+            log.info("Время завершения: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем завершение обновления
             logSchedulerEnd(taskId, "Обновление фундаментальных показателей", startTime);
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в обновлении фундаментальных показателей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Критическая ошибка в обновлении фундаментальных показателей", e);
         }
     }
 
@@ -69,7 +71,7 @@ public class AssetFundamentalsSchedulerService {
         try {
             String taskId = parentTaskId + "_SHARES";
             
-            System.out.println("[" + taskId + "] Начало обновления фундаментальных показателей для акций");
+            log.info("[{}] Начало обновления фундаментальных показателей для акций", taskId);
             
             // Получаем фундаментальные показатели для всех акций
             List<AssetFundamentalDto> fundamentals = assetFundamentalService.getFundamentalsForAssets(
@@ -77,19 +79,18 @@ public class AssetFundamentalsSchedulerService {
             );
             
             if (fundamentals != null && !fundamentals.isEmpty()) {
-                System.out.println("[" + taskId + "] Получено " + fundamentals.size() + " записей фундаментальных показателей");
+                log.info("[{}] Получено {} записей фундаментальных показателей", taskId, fundamentals.size());
                 
                 // Сохраняем с принудительным обновлением
                 assetFundamentalService.saveAssetFundamentals(fundamentals);
                 
-                System.out.println("[" + taskId + "] Обновление фундаментальных показателей для акций завершено");
+                log.info("[{}] Обновление фундаментальных показателей для акций завершено", taskId);
             } else {
-                System.out.println("[" + taskId + "] Не получены данные фундаментальных показателей для акций");
+                log.info("[{}] Не получены данные фундаментальных показателей для акций", taskId);
             }
             
         } catch (Exception e) {
-            System.err.println("Ошибка при обновлении фундаментальных показателей для акций: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка при обновлении фундаментальных показателей для акций", e);
         }
     }
 
@@ -102,10 +103,10 @@ public class AssetFundamentalsSchedulerService {
             String taskId = "MANUAL_FUNDAMENTALS_" + UUID.randomUUID().toString().substring(0, 8);
             Instant startTime = Instant.now();
             
-            System.out.println("=== НАЧАЛО РУЧНОГО ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
-            System.out.println("Task ID: " + taskId);
-            System.out.println("Активы: " + assetUids);
-            System.out.println("Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== НАЧАЛО РУЧНОГО ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
+            log.info("Task ID: {}", taskId);
+            log.info("Активы: {}", assetUids);
+            log.info("Время запуска: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем начало обновления
             logSchedulerStart(taskId, "Ручное обновление фундаментальных показателей");
@@ -114,25 +115,24 @@ public class AssetFundamentalsSchedulerService {
             List<AssetFundamentalDto> fundamentals = assetFundamentalService.getFundamentalsForAssets(assetUids);
             
             if (fundamentals != null && !fundamentals.isEmpty()) {
-                System.out.println("[" + taskId + "] Получено " + fundamentals.size() + " записей фундаментальных показателей");
+                log.info("[{}] Получено {} записей фундаментальных показателей", taskId, fundamentals.size());
                 
                 // Сохраняем с принудительным обновлением
                 assetFundamentalService.saveAssetFundamentals(fundamentals);
                 
-                System.out.println("[" + taskId + "] Ручное обновление фундаментальных показателей завершено");
+                log.info("[{}] Ручное обновление фундаментальных показателей завершено", taskId);
             } else {
-                System.out.println("[" + taskId + "] Не получены данные фундаментальных показателей");
+                log.info("[{}] Не получены данные фундаментальных показателей", taskId);
             }
             
-            System.out.println("=== ЗАВЕРШЕНИЕ РУЧНОГО ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
-            System.out.println("Время завершения: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== ЗАВЕРШЕНИЕ РУЧНОГО ОБНОВЛЕНИЯ ФУНДАМЕНТАЛЬНЫХ ПОКАЗАТЕЛЕЙ ===");
+            log.info("Время завершения: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем завершение обновления
             logSchedulerEnd(taskId, "Ручное обновление фундаментальных показателей", startTime);
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в ручном обновлении фундаментальных показателей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Критическая ошибка в ручном обновлении фундаментальных показателей", e);
         }
     }
 
@@ -148,21 +148,21 @@ public class AssetFundamentalsSchedulerService {
      */
     private void logSchedulerStart(String taskId, String operation) {
         try {
-            SystemLogEntity log = new SystemLogEntity();
-            log.setTaskId(taskId);
-            log.setEndpoint("/scheduler/asset-fundamentals");
-            log.setMethod("SCHEDULED");
-            log.setStatus("STARTED");
-            log.setMessage(operation + " запущена");
-            log.setStartTime(Instant.now());
-            log.setEndTime(Instant.now());
-            log.setDurationMs(0L);
+            SystemLogEntity systemLog = new SystemLogEntity();
+            systemLog.setTaskId(taskId);
+            systemLog.setEndpoint("/scheduler/asset-fundamentals");
+            systemLog.setMethod("SCHEDULED");
+            systemLog.setStatus("STARTED");
+            systemLog.setMessage(operation + " запущена");
+            systemLog.setStartTime(Instant.now());
+            systemLog.setEndTime(Instant.now());
+            systemLog.setDurationMs(0L);
             
-            systemLogRepository.save(log);
-            System.out.println("Лог начала работы планировщика сохранен: " + taskId);
+            systemLogRepository.save(systemLog);
+            log.info("Лог начала работы планировщика сохранен: {}", taskId);
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения лога начала работы планировщика: " + e.getMessage());
+            log.error("Ошибка сохранения лога начала работы планировщика", e);
         }
     }
 
@@ -174,21 +174,21 @@ public class AssetFundamentalsSchedulerService {
             Instant endTime = Instant.now();
             long duration = endTime.toEpochMilli() - startTime.toEpochMilli();
             
-            SystemLogEntity log = new SystemLogEntity();
-            log.setTaskId(taskId);
-            log.setEndpoint("/scheduler/asset-fundamentals");
-            log.setMethod("SCHEDULED");
-            log.setStatus("COMPLETED");
-            log.setMessage(operation + " завершена успешно. Время выполнения: " + duration + " мс");
-            log.setStartTime(startTime);
-            log.setEndTime(endTime);
-            log.setDurationMs(duration);
+            SystemLogEntity systemLog = new SystemLogEntity();
+            systemLog.setTaskId(taskId);
+            systemLog.setEndpoint("/scheduler/asset-fundamentals");
+            systemLog.setMethod("SCHEDULED");
+            systemLog.setStatus("COMPLETED");
+            systemLog.setMessage(operation + " завершена успешно. Время выполнения: " + duration + " мс");
+            systemLog.setStartTime(startTime);
+            systemLog.setEndTime(endTime);
+            systemLog.setDurationMs(duration);
             
-            systemLogRepository.save(log);
-            System.out.println("Лог завершения работы планировщика сохранен: " + taskId);
+            systemLogRepository.save(systemLog);
+            log.info("Лог завершения работы планировщика сохранен: {}", taskId);
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения лога завершения работы планировщика: " + e.getMessage());
+            log.error("Ошибка сохранения лога завершения работы планировщика", e);
         }
     }
 }

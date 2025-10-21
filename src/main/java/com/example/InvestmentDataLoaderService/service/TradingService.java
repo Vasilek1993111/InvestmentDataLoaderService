@@ -2,6 +2,8 @@ package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
 import com.google.protobuf.Timestamp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
@@ -19,6 +21,7 @@ import java.util.HashMap;
 @Service
 public class TradingService {
 
+    private static final Logger log = LoggerFactory.getLogger(TradingService.class);
     private final InstrumentsServiceBlockingStub instrumentsService;
     private final MarketDataServiceBlockingStub marketDataService;
     private final UsersServiceBlockingStub usersService;

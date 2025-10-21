@@ -6,6 +6,8 @@ import com.example.InvestmentDataLoaderService.service.MinuteCandleService;
 import com.example.InvestmentDataLoaderService.service.DailyCandleService;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
 @Service
 public class CandleSchedulerService {
 
+    private static final Logger log = LoggerFactory.getLogger(CandleSchedulerService.class);
     private final MinuteCandleService minuteCandleService;
     private final DailyCandleService dailyCandleService;
     private final SystemLogRepository systemLogRepository;
@@ -43,10 +46,10 @@ public class CandleSchedulerService {
             String taskId = "SCHEDULER_" + UUID.randomUUID().toString().substring(0, 8);
             Instant startTime = Instant.now();
             
-            System.out.println("=== НАЧАЛО ЕЖЕДНЕВНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
-            System.out.println("Task ID: " + taskId);
-            System.out.println("Дата: " + previousDay);
-            System.out.println("Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== НАЧАЛО ЕЖЕДНЕВНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
+            log.info("Task ID: {}", taskId);
+            log.info("Дата: {}", previousDay);
+            log.info("Время запуска: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем начало загрузки
             logSchedulerStart(taskId, "Ежедневная загрузка свечей", previousDay);
@@ -60,15 +63,14 @@ public class CandleSchedulerService {
             // Загружаем дневные свечи для всех типов активов
             fetchDailyCandlesForAllAssets(previousDay, taskId);
             
-            System.out.println("=== ЗАВЕРШЕНИЕ ЕЖЕДНЕВНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
-            System.out.println("Время завершения: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== ЗАВЕРШЕНИЕ ЕЖЕДНЕВНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
+            log.info("Время завершения: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем завершение загрузки
             logSchedulerEnd(taskId, "Ежедневная загрузка свечей", startTime);
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в ежедневной загрузке свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Критическая ошибка в ежедневной загрузке свечей", e);
         }
     }
 
@@ -79,7 +81,7 @@ public class CandleSchedulerService {
         try {
             String taskId = parentTaskId + "_MINUTE";
             
-            System.out.println("[" + taskId + "] Начало загрузки минутных свечей за " + date);
+            log.info("[{}] Начало загрузки минутных свечей за {}", taskId, date);
             
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
             request.setDate(date);
@@ -88,11 +90,10 @@ public class CandleSchedulerService {
             // Запускаем загрузку в асинхронном режиме
             minuteCandleService.saveMinuteCandlesAsync(request, taskId);
             
-            System.out.println("[" + taskId + "] Загрузка минутных свечей запущена в фоновом режиме");
+            log.info("[{}] Загрузка минутных свечей запущена в фоновом режиме", taskId);
             
         } catch (Exception e) {
-            System.err.println("Ошибка при запуске загрузки минутных свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка при запуске загрузки минутных свечей", e);
         }
     }
 
@@ -103,7 +104,7 @@ public class CandleSchedulerService {
         try {
             String taskId = parentTaskId + "_DAILY";
             
-            System.out.println("[" + taskId + "] Начало загрузки дневных свечей за " + date);
+            log.info("[{}] Начало загрузки дневных свечей за {}", taskId, date);
             
             DailyCandleRequestDto request = new DailyCandleRequestDto();
             request.setDate(date);
@@ -112,11 +113,10 @@ public class CandleSchedulerService {
             // Запускаем загрузку в асинхронном режиме
             dailyCandleService.saveDailyCandlesAsync(request, taskId);
             
-            System.out.println("[" + taskId + "] Загрузка дневных свечей запущена в фоновом режиме");
+            log.info("[{}] Загрузка дневных свечей запущена в фоновом режиме", taskId);
             
         } catch (Exception e) {
-            System.err.println("Ошибка при запуске загрузки дневных свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка при запуске загрузки дневных свечей", e);
         }
     }
 
@@ -129,10 +129,10 @@ public class CandleSchedulerService {
             String taskId = "MANUAL_" + UUID.randomUUID().toString().substring(0, 8);
             Instant startTime = Instant.now();
             
-            System.out.println("=== НАЧАЛО РУЧНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
-            System.out.println("Task ID: " + taskId);
-            System.out.println("Дата: " + date);
-            System.out.println("Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== НАЧАЛО РУЧНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
+            log.info("Task ID: {}", taskId);
+            log.info("Дата: {}", date);
+            log.info("Время запуска: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем начало загрузки
             logSchedulerStart(taskId, "Ручная загрузка свечей", date);
@@ -146,15 +146,14 @@ public class CandleSchedulerService {
             // Загружаем дневные свечи для всех типов активов
             fetchDailyCandlesForAllAssets(date, taskId);
             
-            System.out.println("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
-            System.out.println("Время завершения: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ СВЕЧЕЙ ===");
+            log.info("Время завершения: {}", LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Логируем завершение загрузки
             logSchedulerEnd(taskId, "Ручная загрузка свечей", startTime);
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в ручной загрузке свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Критическая ошибка в ручной загрузке свечей", e);
         }
     }
 
@@ -166,17 +165,16 @@ public class CandleSchedulerService {
         try {
             String taskId = "MANUAL_MINUTE_" + UUID.randomUUID().toString().substring(0, 8);
             
-            System.out.println("=== НАЧАЛО РУЧНОЙ ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
-            System.out.println("Task ID: " + taskId);
-            System.out.println("Дата: " + date);
+            log.info("=== НАЧАЛО РУЧНОЙ ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
+            log.info("Task ID: {}", taskId);
+            log.info("Дата: {}", date);
             
             fetchMinuteCandlesForAllAssets(date, taskId);
             
-            System.out.println("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
+            log.info("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
             
         } catch (Exception e) {
-            System.err.println("Ошибка в ручной загрузке минутных свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка в ручной загрузке минутных свечей", e);
         }
     }
 
@@ -188,17 +186,16 @@ public class CandleSchedulerService {
         try {
             String taskId = "MANUAL_DAILY_" + UUID.randomUUID().toString().substring(0, 8);
             
-            System.out.println("=== НАЧАЛО РУЧНОЙ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
-            System.out.println("Task ID: " + taskId);
-            System.out.println("Дата: " + date);
+            log.info("=== НАЧАЛО РУЧНОЙ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
+            log.info("Task ID: {}", taskId);
+            log.info("Дата: {}", date);
             
             fetchDailyCandlesForAllAssets(date, taskId);
             
-            System.out.println("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
+            log.info("=== ЗАВЕРШЕНИЕ РУЧНОЙ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
             
         } catch (Exception e) {
-            System.err.println("Ошибка в ручной загрузке дневных свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка в ручной загрузке дневных свечей", e);
         }
     }
 
@@ -207,21 +204,21 @@ public class CandleSchedulerService {
      */
     private void logSchedulerStart(String taskId, String operation, LocalDate date) {
         try {
-            SystemLogEntity log = new SystemLogEntity();
-            log.setTaskId(taskId);
-            log.setEndpoint("/scheduler/candles");
-            log.setMethod("SCHEDULED");
-            log.setStatus("STARTED");
-            log.setMessage(operation + " для даты " + date + " запущена");
-            log.setStartTime(Instant.now());
-            log.setEndTime(Instant.now());
-            log.setDurationMs(0L);
+            SystemLogEntity systemLog = new SystemLogEntity();
+            systemLog.setTaskId(taskId);
+            systemLog.setEndpoint("/scheduler/candles");
+            systemLog.setMethod("SCHEDULED");
+            systemLog.setStatus("STARTED");
+            systemLog.setMessage(operation + " для даты " + date + " запущена");
+            systemLog.setStartTime(Instant.now());
+            systemLog.setEndTime(Instant.now());
+            systemLog.setDurationMs(0L);
             
-            systemLogRepository.save(log);
-            System.out.println("Лог начала работы шедулера сохранен: " + taskId);
+            systemLogRepository.save(systemLog);
+            log.info("Лог начала работы шедулера сохранен: {}", taskId);
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения лога начала работы шедулера: " + e.getMessage());
+            log.error("Ошибка сохранения лога начала работы шедулера", e);
         }
     }
 
@@ -233,21 +230,21 @@ public class CandleSchedulerService {
             Instant endTime = Instant.now();
             long duration = endTime.toEpochMilli() - startTime.toEpochMilli();
             
-            SystemLogEntity log = new SystemLogEntity();
-            log.setTaskId(taskId);
-            log.setEndpoint("/scheduler/candles");
-            log.setMethod("SCHEDULED");
-            log.setStatus("COMPLETED");
-            log.setMessage(operation + " завершена успешно. Время выполнения: " + duration + " мс");
-            log.setStartTime(startTime);
-            log.setEndTime(endTime);
-            log.setDurationMs(duration);
+            SystemLogEntity systemLog = new SystemLogEntity();
+            systemLog.setTaskId(taskId);
+            systemLog.setEndpoint("/scheduler/candles");
+            systemLog.setMethod("SCHEDULED");
+            systemLog.setStatus("COMPLETED");
+            systemLog.setMessage(operation + " завершена успешно. Время выполнения: " + duration + " мс");
+            systemLog.setStartTime(startTime);
+            systemLog.setEndTime(endTime);
+            systemLog.setDurationMs(duration);
             
-            systemLogRepository.save(log);
-            System.out.println("Лог завершения работы шедулера сохранен: " + taskId);
+            systemLogRepository.save(systemLog);
+            log.info("Лог завершения работы шедулера сохранен: {}", taskId);
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения лога завершения работы шедулера: " + e.getMessage());
+            log.error("Ошибка сохранения лога завершения работы шедулера", e);
         }
     }
 

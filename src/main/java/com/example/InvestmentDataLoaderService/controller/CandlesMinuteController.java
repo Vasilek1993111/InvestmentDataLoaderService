@@ -5,6 +5,8 @@ import com.example.InvestmentDataLoaderService.entity.*;
 import com.example.InvestmentDataLoaderService.repository.*;
 import com.example.InvestmentDataLoaderService.service.MinuteCandleService;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import java.util.*;
 @RequestMapping("/api/candles/minute")
 public class CandlesMinuteController {
 
+    private static final Logger log = LoggerFactory.getLogger(CandlesMinuteController.class);
     private final MinuteCandleService minuteCandleService;
     private final TinkoffApiClient tinkoffApiClient;
     private final ShareRepository shareRepository;
@@ -71,9 +74,9 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
@@ -84,10 +87,10 @@ public class CandlesMinuteController {
                 request.setDate(LocalDate.now());
             }
             
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА СЕГОДНЯ ===");
-            System.out.println("Инструменты: " + request.getInstruments());
-            System.out.println("Типы активов: " + request.getAssetType());
-            System.out.println("Task ID: " + taskId);
+            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА СЕГОДНЯ ===");
+            log.info("Инструменты: {}", request.getInstruments());
+            log.info("Типы активов: {}", request.getAssetType());
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронную загрузку
             minuteCandleService.saveMinuteCandlesAsync(request, taskId);
@@ -106,8 +109,7 @@ public class CandlesMinuteController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска загрузки минутных свечей: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска загрузки минутных свечей: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -123,7 +125,7 @@ public class CandlesMinuteController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -163,9 +165,9 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
@@ -176,11 +178,11 @@ public class CandlesMinuteController {
                 request.setDate(date);
             }
             
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА ДАТУ ===");
-            System.out.println("Дата: " + date);
-            System.out.println("Инструменты: " + request.getInstruments());
-            System.out.println("Типы активов: " + request.getAssetType());
-            System.out.println("Task ID: " + taskId);
+            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА ДАТУ ===");
+            log.info("Дата: {}", date);
+            log.info("Инструменты: {}", request.getInstruments());
+            log.info("Типы активов: {}", request.getAssetType());
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронную загрузку
             minuteCandleService.saveMinuteCandlesAsync(request, taskId);
@@ -200,8 +202,7 @@ public class CandlesMinuteController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска загрузки минутных свечей за дату: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска загрузки минутных свечей за дату: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -217,7 +218,7 @@ public class CandlesMinuteController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -257,18 +258,18 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
-            System.out.println("Дата: " + date);
+            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
+            log.info("Дата: {}", date);
 
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
-            System.out.println("Найдено акций: " + shares.size());
+            log.info("Найдено акций: {}", shares.size());
 
             List<Map<String, Object>> allCandles = new ArrayList<>();
             int totalCandles = 0;
@@ -280,13 +281,13 @@ public class CandlesMinuteController {
             for (ShareEntity share : shares) {
                 processedInstruments++;
                 try {
-                    System.out.println("Получаем свечи для акции: " + share.getTicker() + " (" + share.getFigi() + ")");
+                    log.info("Получаем свечи для акции: {} ({})", share.getTicker(), share.getFigi());
 
                     // Получаем минутные свечи из API
                     var candles = tinkoffApiClient.getCandles(share.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
 
                     if (candles != null && !candles.isEmpty()) {
-                        System.out.println("Получено " + candles.size() + " свечей для " + share.getTicker());
+                        log.info("Получено {} свечей для {}", candles.size(), share.getTicker());
                         successfulInstruments++;
 
                         // Логируем успешное получение данных для каждого FIGI
@@ -302,9 +303,9 @@ public class CandlesMinuteController {
 
                         try {
                             systemLogRepository.save(figiLog);
-                            System.out.println("Лог успешного получения данных для FIGI " + share.getFigi() + " сохранен");
+                            log.info("Лог успешного получения данных для FIGI {} сохранен", share.getFigi());
                         } catch (Exception logException) {
-                            System.err.println("Ошибка сохранения лога для FIGI " + share.getFigi() + ": " + logException.getMessage());
+                            log.error("Ошибка сохранения лога для FIGI {}: {}", share.getFigi(), logException.getMessage(), logException);
                         }
 
                         for (var candle : candles) {
@@ -340,7 +341,7 @@ public class CandlesMinuteController {
                             totalCandles++;
                         }
                     } else {
-                        System.out.println("Нет данных для акции: " + share.getTicker());
+                        log.info("Нет данных для акции: {}", share.getTicker());
                         noDataInstruments++;
 
                         // Логируем отсутствие данных для FIGI
@@ -356,14 +357,14 @@ public class CandlesMinuteController {
 
                         try {
                             systemLogRepository.save(noDataLog);
-                            System.out.println("Лог отсутствия данных для FIGI " + share.getFigi() + " сохранен");
+                            log.info("Лог отсутствия данных для FIGI {} сохранен", share.getFigi());
                         } catch (Exception logException) {
-                            System.err.println("Ошибка сохранения лога отсутствия данных для FIGI " + share.getFigi() + ": " + logException.getMessage());
+                            log.error("Ошибка сохранения лога отсутствия данных для FIGI {}: {}", share.getFigi(), logException.getMessage(), logException);
                         }
                     }
 
                 } catch (Exception e) {
-                    System.err.println("Ошибка получения свечей для акции " + share.getTicker() + ": " + e.getMessage());
+                    log.error("Ошибка получения свечей для акции {}: {}", share.getTicker(), e.getMessage(), e);
                     errorInstruments++;
 
                     // Логируем ошибку для FIGI
@@ -379,9 +380,9 @@ public class CandlesMinuteController {
 
                     try {
                         systemLogRepository.save(errorLog);
-                        System.out.println("Лог ошибки для FIGI " + share.getFigi() + " сохранен");
+                        log.info("Лог ошибки для FIGI {} сохранен", share.getFigi());
                     } catch (Exception logException) {
-                        System.err.println("Ошибка сохранения лога ошибки для FIGI " + share.getFigi() + ": " + logException.getMessage());
+                        log.error("Ошибка сохранения лога ошибки для FIGI " + share.getFigi() + ": " + logException.getMessage());
                     }
                 }
             }
@@ -424,9 +425,9 @@ public class CandlesMinuteController {
                 response.put("averagePrice", avgPrice);
             }
 
-            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
-            System.out.println("Всего инструментов: " + shares.size());
-            System.out.println("Всего свечей: " + totalCandles);
+            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
+            log.info("Всего инструментов: {}", shares.size());
+            log.info("Всего свечей: {}", totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -447,16 +448,15 @@ public class CandlesMinuteController {
 
             try {
                 systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
+                log.info("Лог завершения работы сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
+                log.error("Ошибка сохранения лога завершения работы: " + logException.getMessage());
             }
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка получения минутных свечей акций: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка получения минутных свечей акций: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -471,9 +471,9 @@ public class CandlesMinuteController {
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
+                log.info("Лог ошибки сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -508,19 +508,19 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ЗА ДАТУ ===");
-            System.out.println("Дата: " + date);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ЗА ДАТУ ===");
+            log.info("Дата: {}", date);
+            log.info("Task ID: {}", taskId);
 
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
-            System.out.println("Найдено акций: " + shares.size());
+            log.info("Найдено акций: {}", shares.size());
 
             // Создаем запрос для загрузки всех минутных свечей акций
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -545,8 +545,7 @@ public class CandlesMinuteController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска загрузки минутных свечей акций: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска загрузки минутных свечей акций: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -562,7 +561,7 @@ public class CandlesMinuteController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -602,19 +601,19 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ЗА ДАТУ ===");
-            System.out.println("Дата: " + date);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ЗА ДАТУ ===");
+            log.info("Дата: {}", date);
+            log.info("Task ID: {}", taskId);
 
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
-            System.out.println("Найдено фьючерсов: " + futures.size());
+            log.info("Найдено фьючерсов: {}", futures.size());
 
             // Создаем запрос для загрузки всех минутных свечей фьючерсов
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -639,8 +638,7 @@ public class CandlesMinuteController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска загрузки минутных свечей фьючерсов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска загрузки минутных свечей фьючерсов: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -656,7 +654,7 @@ public class CandlesMinuteController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -693,31 +691,31 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
-            System.out.println("Дата: " + date);
+            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
+            log.info("Дата: {}", date);
 
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
-            System.out.println("Найдено фьючерсов: " + futures.size());
+            log.info("Найдено фьючерсов: {}", futures.size());
 
             List<Map<String, Object>> allCandles = new ArrayList<>();
             int totalCandles = 0;
 
             for (FutureEntity future : futures) {
                 try {
-                    System.out.println("Получаем свечи для фьючерса: " + future.getTicker() + " (" + future.getFigi() + ")");
+                    log.info("Получаем свечи для фьючерса: {} ({})", future.getTicker(), future.getFigi());
 
                     // Получаем минутные свечи из API
                     var candles = tinkoffApiClient.getCandles(future.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
 
                     if (candles != null && !candles.isEmpty()) {
-                        System.out.println("Получено " + candles.size() + " свечей для " + future.getTicker());
+                        log.info("Получено {} свечей для {}", candles.size(), future.getTicker());
 
                         for (var candle : candles) {
                             Map<String, Object> candleData = new HashMap<>();
@@ -752,11 +750,11 @@ public class CandlesMinuteController {
                             totalCandles++;
                         }
                     } else {
-                        System.out.println("Нет данных для фьючерса: " + future.getTicker());
+                        log.info("Нет данных для фьючерса: {}", future.getTicker());
                     }
 
                 } catch (Exception e) {
-                    System.err.println("Ошибка получения свечей для фьючерса " + future.getTicker() + ": " + e.getMessage());
+                    log.error("Ошибка получения свечей для фьючерса " + future.getTicker() + ": " + e.getMessage());
                 }
             }
 
@@ -794,9 +792,9 @@ public class CandlesMinuteController {
                 response.put("averagePrice", avgPrice);
             }
 
-            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
-            System.out.println("Всего инструментов: " + futures.size());
-            System.out.println("Всего свечей: " + totalCandles);
+            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
+            log.info("Всего инструментов: " + futures.size());
+            log.info("Всего свечей: {}", totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -813,16 +811,15 @@ public class CandlesMinuteController {
 
             try {
                 systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
+                log.info("Лог завершения работы сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
+                log.error("Ошибка сохранения лога завершения работы: " + logException.getMessage());
             }
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка получения минутных свечей фьючерсов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка получения минутных свечей фьючерсов: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -837,9 +834,9 @@ public class CandlesMinuteController {
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
+                log.info("Лог ошибки сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -876,19 +873,19 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ЗА ДАТУ ===");
-            System.out.println("Дата: " + date);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ЗА ДАТУ ===");
+            log.info("Дата: {}", date);
+            log.info("Task ID: {}", taskId);
 
             // Получаем все индикативы из БД
             List<IndicativeEntity> indicatives = indicativeRepository.findAll();
-            System.out.println("Найдено индикативов: " + indicatives.size());
+            log.info("Найдено индикативов: {}", indicatives.size());
 
             // Создаем запрос для загрузки всех минутных свечей индикативов
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -913,8 +910,7 @@ public class CandlesMinuteController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска загрузки минутных свечей индикативов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска загрузки минутных свечей индикативов: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -930,7 +926,7 @@ public class CandlesMinuteController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -967,31 +963,31 @@ public class CandlesMinuteController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
-            System.out.println("Дата: " + date);
+            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
+            log.info("Дата: {}", date);
 
             // Получаем все индикативы из БД
             List<IndicativeEntity> indicatives = indicativeRepository.findAll();
-            System.out.println("Найдено индикативов: " + indicatives.size());
+            log.info("Найдено индикативов: {}", indicatives.size());
 
             List<Map<String, Object>> allCandles = new ArrayList<>();
             int totalCandles = 0;
 
             for (IndicativeEntity indicative : indicatives) {
                 try {
-                    System.out.println("Получаем свечи для индикатива: " + indicative.getTicker() + " (" + indicative.getFigi() + ")");
+                    log.info("Получаем свечи для индикатива: {} ({})", indicative.getTicker(), indicative.getFigi());
 
                     // Получаем минутные свечи из API
                     var candles = tinkoffApiClient.getCandles(indicative.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
 
                     if (candles != null && !candles.isEmpty()) {
-                        System.out.println("Получено " + candles.size() + " свечей для " + indicative.getTicker());
+                        log.info("Получено {} свечей для {}", candles.size(), indicative.getTicker());
 
                         for (var candle : candles) {
                             Map<String, Object> candleData = new HashMap<>();
@@ -1026,11 +1022,11 @@ public class CandlesMinuteController {
                             totalCandles++;
                         }
                     } else {
-                        System.out.println("Нет данных для индикатива: " + indicative.getTicker());
+                        log.info("Нет данных для индикатива: {}", indicative.getTicker());
                     }
 
                 } catch (Exception e) {
-                    System.err.println("Ошибка получения свечей для индикатива " + indicative.getTicker() + ": " + e.getMessage());
+                    log.error("Ошибка получения свечей для индикатива " + indicative.getTicker() + ": " + e.getMessage());
                 }
             }
 
@@ -1068,9 +1064,9 @@ public class CandlesMinuteController {
                 response.put("averagePrice", avgPrice);
             }
 
-            System.out.println("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
-            System.out.println("Всего инструментов: " + indicatives.size());
-            System.out.println("Всего свечей: " + totalCandles);
+            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
+            log.info("Всего инструментов: " + indicatives.size());
+            log.info("Всего свечей: {}", totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -1087,16 +1083,15 @@ public class CandlesMinuteController {
 
             try {
                 systemLogRepository.save(resultLog);
-                System.out.println("Лог завершения работы сохранен для taskId: " + taskId);
+                log.info("Лог завершения работы сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога завершения работы: " + logException.getMessage());
+                log.error("Ошибка сохранения лога завершения работы: " + logException.getMessage());
             }
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка получения минутных свечей индикативов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка получения минутных свечей индикативов: " + e.getMessage());
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -1111,9 +1106,9 @@ public class CandlesMinuteController {
 
             try {
                 systemLogRepository.save(errorLog);
-                System.out.println("Лог ошибки сохранен для taskId: " + taskId);
+                log.info("Лог ошибки сохранен для taskId: {}", taskId);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             Map<String, Object> errorResponse = new HashMap<>();

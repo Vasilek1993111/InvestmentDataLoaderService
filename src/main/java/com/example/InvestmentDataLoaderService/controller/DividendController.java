@@ -4,6 +4,8 @@ import com.example.InvestmentDataLoaderService.dto.DividendDto;
 import com.example.InvestmentDataLoaderService.dto.DividendRequestDto;
 import com.example.InvestmentDataLoaderService.entity.DividendEntity;
 import com.example.InvestmentDataLoaderService.service.DividendService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/dividends")
 public class DividendController {
+    
+    private static final Logger log = LoggerFactory.getLogger(DividendController.class);
     
     @Autowired
     private DividendService dividendService;
@@ -68,8 +72,8 @@ public ResponseEntity<Map<String, Object>> loadDividends(
         LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(2024, 1, 1);
         LocalDate to = request.getTo() != null ? request.getTo() : LocalDate.of(2026, 12, 31);
         
-        System.out.println("Начинаем загрузку дивидендов для инструментов: " + request.getInstruments());
-        System.out.println("Период: " + from + " - " + to);
+        log.info("Начинаем загрузку дивидендов для инструментов: {}", request.getInstruments());
+        log.info("Период: {} - {}", from, to);
         
         // Загружаем дивиденды для указанных инструментов
         Map<String, Object> result = dividendService.loadDividendsForAllSharesToDb(request.getInstruments(), from, to);

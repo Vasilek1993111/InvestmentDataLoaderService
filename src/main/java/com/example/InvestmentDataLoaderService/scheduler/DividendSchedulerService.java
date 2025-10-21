@@ -3,6 +3,8 @@ package com.example.InvestmentDataLoaderService.scheduler;
 import com.example.InvestmentDataLoaderService.service.DividendService;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import java.util.Map;
 @Service
 public class DividendSchedulerService {
 
+    private static final Logger log = LoggerFactory.getLogger(DividendSchedulerService.class);
     private final DividendService dividendService;
     private final SystemLogRepository systemLogRepository;
 

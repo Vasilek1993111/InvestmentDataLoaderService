@@ -9,6 +9,8 @@ import com.example.InvestmentDataLoaderService.entity.ShareEntity;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
 @Service
 public class CachedInstrumentService {
 
+    private static final Logger log = LoggerFactory.getLogger(CachedInstrumentService.class);
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final IndicativeRepository indicativeRepository;
@@ -59,16 +62,16 @@ public class CachedInstrumentService {
             List<ShareDto> cachedShares = getSharesFromCache();
             
             if (cachedShares != null && !cachedShares.isEmpty()) {
-                System.out.println("Получено " + cachedShares.size() + " акций из кэша");
+                log.info("Получено " + cachedShares.size() + " акций из кэша");
                 return convertSharesDtoToEntity(cachedShares);
             }
             
             // Fallback на БД
-            System.out.println("Кэш акций пуст, загружаем из БД");
+            log.info("Кэш акций пуст, загружаем из БД");
             return shareRepository.findAll();
             
         } catch (Exception e) {
-            System.err.println("Ошибка при получении акций из кэша, используем БД: " + e.getMessage());
+            log.error("Ошибка при получении акций из кэша, используем БД: " + e.getMessage());
             return shareRepository.findAll();
         }
     }
@@ -85,16 +88,16 @@ public class CachedInstrumentService {
             List<FutureDto> cachedFutures = getFuturesFromCache();
             
             if (cachedFutures != null && !cachedFutures.isEmpty()) {
-                System.out.println("Получено " + cachedFutures.size() + " фьючерсов из кэша");
+                log.info("Получено " + cachedFutures.size() + " фьючерсов из кэша");
                 return convertFuturesDtoToEntity(cachedFutures);
             }
             
             // Fallback на БД
-            System.out.println("Кэш фьючерсов пуст, загружаем из БД");
+            log.info("Кэш фьючерсов пуст, загружаем из БД");
             return futureRepository.findAll();
             
         } catch (Exception e) {
-            System.err.println("Ошибка при получении фьючерсов из кэша, используем БД: " + e.getMessage());
+            log.error("Ошибка при получении фьючерсов из кэша, используем БД: " + e.getMessage());
             return futureRepository.findAll();
         }
     }
@@ -111,16 +114,16 @@ public class CachedInstrumentService {
             List<IndicativeDto> cachedIndicatives = getIndicativesFromCache();
             
             if (cachedIndicatives != null && !cachedIndicatives.isEmpty()) {
-                System.out.println("Получено " + cachedIndicatives.size() + " индикативов из кэша");
+                log.info("Получено " + cachedIndicatives.size() + " индикативов из кэша");
                 return convertIndicativesDtoToEntity(cachedIndicatives);
             }
             
             // Fallback на БД
-            System.out.println("Кэш индикативов пуст, загружаем из БД");
+            log.info("Кэш индикативов пуст, загружаем из БД");
             return indicativeRepository.findAll();
             
         } catch (Exception e) {
-            System.err.println("Ошибка при получении индикативов из кэша, используем БД: " + e.getMessage());
+            log.error("Ошибка при получении индикативов из кэша, используем БД: " + e.getMessage());
             return indicativeRepository.findAll();
         }
     }
@@ -152,7 +155,7 @@ public class CachedInstrumentService {
                     List<ShareDto> shares = (List<ShareDto>) wrapper.get();
                     if (shares != null && !shares.isEmpty()) {
                         allShares.addAll(shares);
-                        System.out.println("Найдено " + shares.size() + " акций в кэше с ключом: " + cacheKey);
+                        log.info("Найдено " + shares.size() + " акций в кэше с ключом: " + cacheKey);
                         break; // Используем первый найденный ключ
                     }
                 }
@@ -169,7 +172,7 @@ public class CachedInstrumentService {
                         List<ShareDto> shares = (List<ShareDto>) entry.getValue();
                         if (shares != null && !shares.isEmpty()) {
                             allShares.addAll(shares);
-                            System.out.println("Найдено " + shares.size() + " акций в кэше с ключом: " + entry.getKey());
+                            log.info("Найдено " + shares.size() + " акций в кэше с ключом: " + entry.getKey());
                             break; // Используем первый найденный список
                         }
                     }
@@ -177,7 +180,7 @@ public class CachedInstrumentService {
             }
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения акций из кэша: " + e.getMessage());
+            log.error("Ошибка получения акций из кэша: " + e.getMessage());
         }
         
         return allShares;
@@ -209,7 +212,7 @@ public class CachedInstrumentService {
                     List<FutureDto> futures = (List<FutureDto>) wrapper.get();
                     if (futures != null && !futures.isEmpty()) {
                         allFutures.addAll(futures);
-                        System.out.println("Найдено " + futures.size() + " фьючерсов в кэше с ключом: " + cacheKey);
+                        log.info("Найдено " + futures.size() + " фьючерсов в кэше с ключом: " + cacheKey);
                         break; // Используем первый найденный ключ
                     }
                 }
@@ -226,7 +229,7 @@ public class CachedInstrumentService {
                         List<FutureDto> futures = (List<FutureDto>) entry.getValue();
                         if (futures != null && !futures.isEmpty()) {
                             allFutures.addAll(futures);
-                            System.out.println("Найдено " + futures.size() + " фьючерсов в кэше с ключом: " + entry.getKey());
+                            log.info("Найдено " + futures.size() + " фьючерсов в кэше с ключом: " + entry.getKey());
                             break; // Используем первый найденный список
                         }
                     }
@@ -234,7 +237,7 @@ public class CachedInstrumentService {
             }
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения фьючерсов из кэша: " + e.getMessage());
+            log.error("Ошибка получения фьючерсов из кэша: " + e.getMessage());
         }
         
         return allFutures;
@@ -266,7 +269,7 @@ public class CachedInstrumentService {
                     List<IndicativeDto> indicatives = (List<IndicativeDto>) wrapper.get();
                     if (indicatives != null && !indicatives.isEmpty()) {
                         allIndicatives.addAll(indicatives);
-                        System.out.println("Найдено " + indicatives.size() + " индикативов в кэше с ключом: " + cacheKey);
+                        log.info("Найдено " + indicatives.size() + " индикативов в кэше с ключом: " + cacheKey);
                         break; // Используем первый найденный ключ
                     }
                 }
@@ -283,7 +286,7 @@ public class CachedInstrumentService {
                         List<IndicativeDto> indicatives = (List<IndicativeDto>) entry.getValue();
                         if (indicatives != null && !indicatives.isEmpty()) {
                             allIndicatives.addAll(indicatives);
-                            System.out.println("Найдено " + indicatives.size() + " индикативов в кэше с ключом: " + entry.getKey());
+                            log.info("Найдено " + indicatives.size() + " индикативов в кэше с ключом: " + entry.getKey());
                             break; // Используем первый найденный список
                         }
                     }
@@ -291,7 +294,7 @@ public class CachedInstrumentService {
             }
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения индикативов из кэша: " + e.getMessage());
+            log.error("Ошибка получения индикативов из кэша: " + e.getMessage());
         }
         
         return allIndicatives;
@@ -391,7 +394,7 @@ public class CachedInstrumentService {
                     .anyMatch(indicative -> indicative.figi().equals(figi));
             
         } catch (Exception e) {
-            System.err.println("Ошибка при проверке инструмента в кэше: " + e.getMessage());
+            log.error("Ошибка при проверке инструмента в кэше: " + e.getMessage());
             return false;
         }
     }
@@ -416,26 +419,26 @@ public class CachedInstrumentService {
             
             // Добавляем отладочную информацию
             if (sharesCount > 0) {
-                System.out.println("DEBUG: Найдено " + sharesCount + " акций в кэше");
+                log.info("DEBUG: Найдено " + sharesCount + " акций в кэше");
             } else {
-                System.out.println("DEBUG: Акции в кэше не найдены");
+                log.info("DEBUG: Акции в кэше не найдены");
             }
             
             if (futuresCount > 0) {
-                System.out.println("DEBUG: Найдено " + futuresCount + " фьючерсов в кэше");
+                log.info("DEBUG: Найдено " + futuresCount + " фьючерсов в кэше");
             } else {
-                System.out.println("DEBUG: Фьючерсы в кэше не найдены");
+                log.info("DEBUG: Фьючерсы в кэше не найдены");
             }
             
             if (indicativesCount > 0) {
-                System.out.println("DEBUG: Найдено " + indicativesCount + " индикативов в кэше");
+                log.info("DEBUG: Найдено " + indicativesCount + " индикативов в кэше");
             } else {
-                System.out.println("DEBUG: Индикативы в кэше не найдены");
+                log.info("DEBUG: Индикативы в кэше не найдены");
             }
             
             return info;
         } catch (Exception e) {
-            System.err.println("Ошибка получения информации о кэше: " + e.getMessage());
+            log.error("Ошибка получения информации о кэше: " + e.getMessage());
             e.printStackTrace();
             return "Ошибка получения информации о кэше: " + e.getMessage();
         }

@@ -14,6 +14,8 @@ import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,6 +38,7 @@ import java.util.concurrent.Executors;
 @Service
 public class MainSessionPriceService {
 
+    private static final Logger log = LoggerFactory.getLogger(MainSessionPriceService.class);
     private final MarketDataServiceBlockingStub marketDataService;
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
@@ -125,14 +128,14 @@ public class MainSessionPriceService {
         for (ClosePriceDto price : prices) {
             if ("1970-01-01".equals(price.tradingDate())) {
                 invalidPricesCount++;
-                System.out.println("Фильтруем неверную цену с датой 1970-01-01 для FIGI: " + price.figi());
+                log.debug("Фильтруем неверную цену с датой 1970-01-01 для FIGI: {}", price.figi());
             } else {
                 validPrices.add(price);
             }
         }
         
         if (invalidPricesCount > 0) {
-            System.out.println("Отфильтровано " + invalidPricesCount + " неверных цен с датой 1970-01-01");
+            log.warn("Отфильтровано {} неверных цен с датой 1970-01-01", invalidPricesCount);
         }
         
         return validPrices;
@@ -148,26 +151,26 @@ public class MainSessionPriceService {
         for (ClosePriceDto price : prices) {
             if ("1970-01-01".equals(price.tradingDate())) {
                 invalidPricesCount++;
-                System.out.println("Фильтруем неверную цену с датой 1970-01-01 для FIGI: " + price.figi());
+                log.debug("Фильтруем неверную цену с датой 1970-01-01 для FIGI: {}", price.figi());
             } else {
                 validPrices.add(price);
             }
         }
         
         if (invalidPricesCount > 0) {
-            System.out.println("Отфильтровано " + invalidPricesCount + " неверных цен с датой 1970-01-01");
+            log.warn("Отфильтровано {} неверных цен с датой 1970-01-01", invalidPricesCount);
         }
         
         return validPrices;
     }
 
     public List<ClosePriceDto> getClosePrices(List<String> instrumentIds, String status) {
-        System.out.println("=== ЗАПРОС ЦЕН ЗАКРЫТИЯ ===");
-        System.out.println("Количество инструментов: " + (instrumentIds != null ? instrumentIds.size() : 0));
+        log.info("=== ЗАПРОС ЦЕН ЗАКРЫТИЯ ===");
+        log.info("Количество инструментов: {}", (instrumentIds != null ? instrumentIds.size() : 0));
         
         // Если instrumentIds не переданы, возвращаем пустой список
         if (instrumentIds == null || instrumentIds.isEmpty()) {
-            System.out.println("instrumentIds не переданы, возвращаем пустой список");
+            log.warn("instrumentIds не переданы, возвращаем пустой список");
             return new ArrayList<>();
         }
         
@@ -189,8 +192,7 @@ public class MainSessionPriceService {
             return filterValidPrices(closePricesFromApi);
             
         } catch (Exception e) {
-            System.err.println("Ошибка при получении цен закрытия: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка при получении цен закрытия", e);
             
             // Возвращаем пустой список вместо исключения
             return new ArrayList<>();
@@ -235,7 +237,7 @@ public class MainSessionPriceService {
             list.add(new ClosePriceDto(p.getFigi(), date, price, eveningSessionPrice));
         }
         
-        System.out.println("Получено " + list.size() + " цен закрытия из API");
+        log.info("Получено {} цен закрытия из API", list.size());
         return list;
     }
 
@@ -282,13 +284,13 @@ public class MainSessionPriceService {
             // Если в запросе передан явный список инструментов — загружаем только по ним
             int batchSize = 100;
             if (request.getInstruments() != null && !request.getInstruments().isEmpty()) {
-                System.out.println("Запрашиваем цены закрытия точечно для " + instrumentIds.size() + " инструментов батчами по " + batchSize);
+                log.info("Запрашиваем цены закрытия точечно для {} инструментов батчами по {}", instrumentIds.size(), batchSize);
                 for (int i = 0; i < instrumentIds.size(); i += batchSize) {
                     int toIndex = Math.min(i + batchSize, instrumentIds.size());
                     List<String> batch = instrumentIds.subList(i, toIndex);
                     List<ClosePriceDto> prices = getClosePrices(batch, null);
                     closePricesFromApi.addAll(prices);
-                    System.out.println("Получено цен для батча точечных инструментов (" + batch.size() + "): " + prices.size());
+                    log.info("Получено цен для батча точечных инструментов ({}): {}", batch.size(), prices.size());
                     try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                 }
             } else {
@@ -309,21 +311,20 @@ public class MainSessionPriceService {
 
                 // Батчим запросы по 100 инструментов, чтобы избежать лимитов API
                 if (!sharesAndFuturesIds.isEmpty()) {
-                    System.out.println("Запрашиваем цены закрытия для " + sharesAndFuturesIds.size() + " shares и futures батчами по " + batchSize);
+                    log.info("Запрашиваем цены закрытия для {} shares и futures батчами по {}", sharesAndFuturesIds.size(), batchSize);
                     for (int i = 0; i < sharesAndFuturesIds.size(); i += batchSize) {
                         int toIndex = Math.min(i + batchSize, sharesAndFuturesIds.size());
                         List<String> batch = sharesAndFuturesIds.subList(i, toIndex);
                         List<ClosePriceDto> sharesFuturesPrices = getClosePrices(batch, null);
                         closePricesFromApi.addAll(sharesFuturesPrices);
-                        System.out.println("Получено цен для батча shares/futures (" + batch.size() + "): " + sharesFuturesPrices.size());
+                        log.info("Получено цен для батча shares/futures ({}): {}", batch.size(), sharesFuturesPrices.size());
                         try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                     }
                 }
             }
 
         } catch (Exception e) {
-            System.err.println("Ошибка при получении цен закрытия из API: " + e.getMessage());
-            System.err.println("Количество инструментов в запросе: " + instrumentIds.size());
+            log.error("Ошибка при получении цен закрытия из API. Количество инструментов в запросе: {}", instrumentIds.size(), e);
             
             return new SaveResponseDto(
                 false,
@@ -341,17 +342,17 @@ public class MainSessionPriceService {
         int existingCount = 0;
         int failedSavesCount = 0;
         
-        System.out.println("=== НАЧАЛО ОБРАБОТКИ ЦЕН ЗАКРЫТИЯ ===");
-        System.out.println("Всего получено цен из API: " + closePricesFromApi.size());
-        System.out.println("Отфильтровано неверных цен (1970-01-01): " + invalidPricesFiltered);
-        System.out.println("Валидных цен для обработки: " + closePrices.size());
-        System.out.println("Запрашивалось инструментов: " + requestedInstrumentsCount);
+        log.info("=== НАЧАЛО ОБРАБОТКИ ЦЕН ЗАКРЫТИЯ ===");
+        log.info("Всего получено цен из API: {}", closePricesFromApi.size());
+        log.info("Отфильтровано неверных цен (1970-01-01): {}", invalidPricesFiltered);
+        log.info("Валидных цен для обработки: {}", closePrices.size());
+        log.info("Запрашивалось инструментов: {}", requestedInstrumentsCount);
         
         for (ClosePriceDto closePriceDto : closePrices) {
             LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
             ClosePriceKey key = new ClosePriceKey(priceDate, closePriceDto.figi());
             
-            System.out.println("Обрабатываем: " + closePriceDto.figi() + " на дату: " + priceDate + " цена: " + closePriceDto.closePrice());
+            log.debug("Обрабатываем: {} на дату: {} цена: {}", closePriceDto.figi(), priceDate, closePriceDto.closePrice());
 
             // Определяем тип инструмента и получаем дополнительную информацию
             String instrumentType = "UNKNOWN";
@@ -391,7 +392,7 @@ public class MainSessionPriceService {
                     continue;
                 }
             } catch (Exception e) {
-                System.err.println("existsById check failed for key (" + priceDate + ", " + closePriceDto.figi() + ") : " + e.getMessage());
+                log.error("existsById check failed for key ({}, {})", priceDate, closePriceDto.figi(), e);
             }
 
             // Создаем и сохраняем новую запись в invest.close_prices
@@ -407,38 +408,36 @@ public class MainSessionPriceService {
             try {
                 closePriceRepo.save(closePriceEntity);
                 savedPrices.add(closePriceDto);
-                System.out.println("Successfully saved to close_prices: " + closePriceDto.figi() + " on " + priceDate);
+                log.info("Successfully saved to close_prices: {} on {}", closePriceDto.figi(), priceDate);
             } catch (DataIntegrityViolationException dive) {
-                System.err.println("DataIntegrityViolation saving to close_prices for " + closePriceDto.figi() +
-                        " on " + priceDate + ": " + dive.getMessage());
+                log.error("DataIntegrityViolation saving to close_prices for {} on {}", closePriceDto.figi(), priceDate, dive);
                 failedSavesCount++;
             } catch (Exception e) {
-                System.err.println("Error saving to close_prices for " + closePriceDto.figi() +
-                        " on " + priceDate + ": " + e.getMessage());
+                log.error("Error saving to close_prices for {} on {}", closePriceDto.figi(), priceDate, e);
                 failedSavesCount++;
             }
         }
         
-        System.out.println("=== ЗАВЕРШЕНИЕ ОБРАБОТКИ ЦЕН ЗАКРЫТИЯ ===");
-        System.out.println("Запрошено инструментов: " + requestedInstrumentsCount);
-        System.out.println("Получено цен из API: " + closePricesFromApi.size());
-        System.out.println("Отфильтровано неверных цен: " + invalidPricesFiltered);
-        System.out.println("Валидных цен для обработки: " + closePrices.size());
-        System.out.println("Сохранено успешно: " + savedPrices.size());
-        System.out.println("Уже существовало: " + existingCount);
-        System.out.println("Ошибок сохранения: " + failedSavesCount);
+        log.info("=== ЗАВЕРШЕНИЕ ОБРАБОТКИ ЦЕН ЗАКРЫТИЯ ===");
+        log.info("Запрошено инструментов: {}", requestedInstrumentsCount);
+        log.info("Получено цен из API: {}", closePricesFromApi.size());
+        log.info("Отфильтровано неверных цен: {}", invalidPricesFiltered);
+        log.info("Валидных цен для обработки: {}", closePrices.size());
+        log.info("Сохранено успешно: {}", savedPrices.size());
+        log.info("Уже существовало: {}", existingCount);
+        log.info("Ошибок сохранения: {}", failedSavesCount);
         
         // Подсчитываем "потерянные" цены
         int missingPrices = requestedInstrumentsCount - closePricesFromApi.size();
         int processedPrices = closePrices.size();
         int unprocessedPrices = closePricesFromApi.size() - processedPrices;
         
-        System.out.println("=== ДЕТАЛЬНАЯ СТАТИСТИКА ===");
-        System.out.println("Цены не получены из API: " + missingPrices);
-        System.out.println("Цены отфильтрованы как неверные: " + invalidPricesFiltered);
-        System.out.println("Цены обработаны: " + processedPrices);
-        System.out.println("Цены не обработаны: " + unprocessedPrices);
-        System.out.println("Проверка: " + requestedInstrumentsCount + " = " + closePricesFromApi.size() + " + " + missingPrices);
+        log.info("=== ДЕТАЛЬНАЯ СТАТИСТИКА ===");
+        log.info("Цены не получены из API: {}", missingPrices);
+        log.info("Цены отфильтрованы как неверные: {}", invalidPricesFiltered);
+        log.info("Цены обработаны: {}", processedPrices);
+        log.info("Цены не обработаны: {}", unprocessedPrices);
+        log.info("Проверка: {} = {} + {}", requestedInstrumentsCount, closePricesFromApi.size(), missingPrices);
         
         // Подсчитываем полученные цены и сохраненные
         int receivedPricesCount = closePricesFromApi.size();
@@ -489,13 +488,13 @@ public class MainSessionPriceService {
     public CompletableFuture<SaveResponseDto> saveClosePricesAsync(String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен закрытия с пакетной обработкой");
+                log.info("[{}] Начало асинхронного сохранения цен закрытия с пакетной обработкой", taskId);
                 
                 // Получаем все акции и фьючерсы (блокирующий запрос остается)
                 List<ShareEntity> shares = shareRepo.findAll();
                 List<FutureEntity> futures = futureRepo.findAll();
                 
-                System.out.println("[" + taskId + "] Найдено акций: " + shares.size() + ", фьючерсов: " + futures.size());
+                log.info("[{}] Найдено акций: {}, фьючерсов: {}", taskId, shares.size(), futures.size());
                 
                 // Фильтруем только RUB инструменты
                 List<ShareEntity> rubShares = shares.stream()
@@ -506,14 +505,14 @@ public class MainSessionPriceService {
                     .filter(future -> "RUB".equalsIgnoreCase(future.getCurrency()))
                     .collect(Collectors.toList());
                 
-                System.out.println("[" + taskId + "] RUB акций: " + rubShares.size() + ", RUB фьючерсов: " + rubFutures.size());
+                log.info("[{}] RUB акций: {}, RUB фьючерсов: {}", taskId, rubShares.size(), rubFutures.size());
                 
                 // Разбиваем на пакеты
                 int batchSize = batchProcessingProperties.getBatchSize();
                 List<List<ShareEntity>> shareBatches = createBatches(rubShares, batchSize);
                 List<List<FutureEntity>> futureBatches = createBatches(rubFutures, batchSize);
                 
-                System.out.println("[" + taskId + "] Создано пакетов акций: " + shareBatches.size() + ", пакетов фьючерсов: " + futureBatches.size());
+                log.info("[{}] Создано пакетов акций: {}, пакетов фьючерсов: {}", taskId, shareBatches.size(), futureBatches.size());
                 
                 // Обрабатываем пакеты акций
                 List<CompletableFuture<List<ClosePriceProcessingResult>>> shareBatchFutures = new ArrayList<>();
@@ -595,8 +594,8 @@ public class MainSessionPriceService {
                     savedItems
                 );
                 
-                System.out.println("[" + taskId + "] Пакетная обработка завершена");
-                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                log.info("[{}] Пакетная обработка завершена", taskId);
+                log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
                 // Логируем успешное завершение в БД
                 try {
@@ -610,14 +609,13 @@ public class MainSessionPriceService {
                     successLog.setEndTime(Instant.now());
                     systemLogRepository.save(successLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога успешного завершения", logException);
                 }
                 
                 return result;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен закрытия: " + e.getMessage());
-                e.printStackTrace();
+                log.error("[{}] Ошибка асинхронного сохранения цен закрытия", taskId, e);
                 
                 // Логируем ошибку в БД
                 try {
@@ -631,7 +629,7 @@ public class MainSessionPriceService {
                     errorLog.setEndTime(Instant.now());
                     systemLogRepository.save(errorLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога ошибки", logException);
                 }
                 
                 throw new RuntimeException("Ошибка асинхронного сохранения цен закрытия: " + e.getMessage(), e);
@@ -645,25 +643,25 @@ public class MainSessionPriceService {
     public CompletableFuture<SaveResponseDto> saveSharesClosePricesAsync(String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен закрытия для акций с пакетной обработкой");
+                log.info("[{}] Начало асинхронного сохранения цен закрытия для акций с пакетной обработкой", taskId);
                 
                 // Получаем все акции (блокирующий запрос остается)
                 List<ShareEntity> shares = shareRepo.findAll();
                 
-                System.out.println("[" + taskId + "] Найдено акций: " + shares.size());
+                log.info("[{}] Найдено акций: {}", taskId, shares.size());
                 
                 // Фильтруем только RUB инструменты
                 List<ShareEntity> rubShares = shares.stream()
                     .filter(share -> "RUB".equalsIgnoreCase(share.getCurrency()))
                     .collect(Collectors.toList());
                 
-                System.out.println("[" + taskId + "] RUB акций: " + rubShares.size());
+                log.info("[{}] RUB акций: {}", taskId, rubShares.size());
                 
                 // Разбиваем на пакеты
                 int batchSize = batchProcessingProperties.getBatchSize();
                 List<List<ShareEntity>> shareBatches = createBatches(rubShares, batchSize);
                 
-                System.out.println("[" + taskId + "] Создано пакетов акций: " + shareBatches.size());
+                log.info("[{}] Создано пакетов акций: {}", taskId, shareBatches.size());
                 
                 // Обрабатываем пакеты акций
                 List<CompletableFuture<List<ClosePriceProcessingResult>>> shareBatchFutures = new ArrayList<>();
@@ -722,14 +720,13 @@ public class MainSessionPriceService {
                     savedItems
                 );
                 
-                System.out.println("[" + taskId + "] Асинхронное сохранение цен закрытия для акций завершено");
-                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                log.info("[{}] Асинхронное сохранение цен закрытия для акций завершено", taskId);
+                log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
                 return result;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен закрытия для акций: " + e.getMessage());
-                e.printStackTrace();
+                log.error("[{}] Ошибка асинхронного сохранения цен закрытия для акций", taskId, e);
                 throw new RuntimeException("Ошибка асинхронного сохранения цен закрытия для акций: " + e.getMessage(), e);
             }
         });
@@ -741,25 +738,25 @@ public class MainSessionPriceService {
     public CompletableFuture<SaveResponseDto> saveFuturesClosePricesAsync(String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен закрытия для фьючерсов с пакетной обработкой");
+                log.info("[{}] Начало асинхронного сохранения цен закрытия для фьючерсов с пакетной обработкой", taskId);
                 
                 // Получаем все фьючерсы (блокирующий запрос остается)
                 List<FutureEntity> futures = futureRepo.findAll();
                 
-                System.out.println("[" + taskId + "] Найдено фьючерсов: " + futures.size());
+                log.info("[{}] Найдено фьючерсов: {}", taskId, futures.size());
                 
                 // Фильтруем только RUB инструменты
                 List<FutureEntity> rubFutures = futures.stream()
                     .filter(future -> "RUB".equalsIgnoreCase(future.getCurrency()))
                     .collect(Collectors.toList());
                 
-                System.out.println("[" + taskId + "] RUB фьючерсов: " + rubFutures.size());
+                log.info("[{}] RUB фьючерсов: {}", taskId, rubFutures.size());
                 
                 // Разбиваем на пакеты
                 int batchSize = batchProcessingProperties.getBatchSize();
                 List<List<FutureEntity>> futureBatches = createBatches(rubFutures, batchSize);
                 
-                System.out.println("[" + taskId + "] Создано пакетов фьючерсов: " + futureBatches.size());
+                log.info("[{}] Создано пакетов фьючерсов: {}", taskId, futureBatches.size());
                 
                 // Обрабатываем пакеты фьючерсов
                 List<CompletableFuture<List<ClosePriceProcessingResult>>> futureBatchFutures = new ArrayList<>();
@@ -818,14 +815,13 @@ public class MainSessionPriceService {
                     savedItems
                 );
                 
-                System.out.println("[" + taskId + "] Асинхронное сохранение цен закрытия для фьючерсов завершено");
-                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                log.info("[{}] Асинхронное сохранение цен закрытия для фьючерсов завершено", taskId);
+                log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
                 return result;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен закрытия для фьючерсов: " + e.getMessage());
-                e.printStackTrace();
+                log.error("[{}] Ошибка асинхронного сохранения цен закрытия для фьючерсов", taskId, e);
                 throw new RuntimeException("Ошибка асинхронного сохранения цен закрытия для фьючерсов: " + e.getMessage(), e);
             }
         });
@@ -837,7 +833,7 @@ public class MainSessionPriceService {
     public CompletableFuture<SaveResponseDto> saveInstrumentClosePriceAsync(String figi, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("[" + taskId + "] Начало асинхронного сохранения цены закрытия для инструмента: " + figi);
+                log.info("[{}] Начало асинхронного сохранения цены закрытия для инструмента: {}", taskId, figi);
                 
                 // Получаем цену закрытия из API (блокирующий запрос остается)
                 List<ClosePriceDto> allClosePrices = getClosePrices(List.of(figi), null);
@@ -886,14 +882,13 @@ public class MainSessionPriceService {
                     savedItems
                 );
                 
-                System.out.println("[" + taskId + "] Асинхронное сохранение цены закрытия для инструмента завершено");
-                System.out.println("[" + taskId + "] Результат: " + response.getMessage());
+                log.info("[{}] Асинхронное сохранение цены закрытия для инструмента завершено", taskId);
+                log.info("[{}] Результат: {}", taskId, response.getMessage());
                 
                 return response;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цены закрытия для инструмента " + figi + ": " + e.getMessage());
-                e.printStackTrace();
+                log.error("[{}] Ошибка асинхронного сохранения цены закрытия для инструмента {}", taskId, figi, e);
                 throw new RuntimeException("Ошибка асинхронного сохранения цены закрытия для инструмента: " + e.getMessage(), e);
             }
         });
@@ -905,7 +900,7 @@ public class MainSessionPriceService {
     public CompletableFuture<SaveResponseDto> saveMainSessionPricesForDateAsync(LocalDate date, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("[" + taskId + "] Начало асинхронного сохранения цен основной сессии за дату: " + date);
+                log.info("[{}] Начало асинхронного сохранения цен основной сессии за дату: {}", taskId, date);
                 
                 // Проверяем выходной день
                 if (isWeekend(date)) {
@@ -926,7 +921,7 @@ public class MainSessionPriceService {
         List<ShareEntity> shares = shareRepo.findAll();
                 List<FutureEntity> futures = futureRepo.findAll();
                 
-                System.out.println("[" + taskId + "] Найдено акций: " + shares.size() + ", фьючерсов: " + futures.size());
+                log.info("[{}] Найдено акций: {}, фьючерсов: {}", taskId, shares.size(), futures.size());
                 
                 // Параллельная обработка акций
                 List<CompletableFuture<ClosePriceProcessingResult>> shareFutures = shares.stream()
@@ -981,14 +976,13 @@ public class MainSessionPriceService {
                     savedItems
                 );
                 
-                System.out.println("[" + taskId + "] Асинхронное сохранение цен основной сессии завершено");
-                System.out.println("[" + taskId + "] Результат: " + result.getMessage());
+                log.info("[{}] Асинхронное сохранение цен основной сессии завершено", taskId);
+                log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
                 return result;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка асинхронного сохранения цен основной сессии: " + e.getMessage());
-                e.printStackTrace();
+                log.error("[{}] Ошибка асинхронного сохранения цен основной сессии", taskId, e);
                 throw new RuntimeException("Ошибка асинхронного сохранения цен основной сессии: " + e.getMessage(), e);
             }
         });
@@ -1013,7 +1007,7 @@ public class MainSessionPriceService {
      */
     private CompletableFuture<List<ClosePriceProcessingResult>> processShareBatchAsync(List<ShareEntity> shareBatch, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
-            System.out.println("[" + taskId + "] Обработка пакета акций: " + shareBatch.size() + " инструментов");
+            log.info("[{}] Обработка пакета акций: {} инструментов", taskId, shareBatch.size());
             
             List<CompletableFuture<ClosePriceProcessingResult>> futures = shareBatch.stream()
                 .map(share -> CompletableFuture.supplyAsync(() -> processShareClosePriceAsync(share), executorService))
@@ -1025,18 +1019,17 @@ public class MainSessionPriceService {
             );
             
             try {
-                allCompleted.get(); // Ждем завершения
+                allCompleted.get();
                 
-                // Собираем результаты
                 List<ClosePriceProcessingResult> results = futures.stream()
                     .map(CompletableFuture::join)
                     .collect(Collectors.toList());
                 
-                System.out.println("[" + taskId + "] Пакет акций обработан: " + results.size() + " результатов");
+                log.info("[{}] Пакет акций обработан: {} результатов", taskId, results.size());
                 return results;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка обработки пакета акций: " + e.getMessage());
+                log.error("[{}] Ошибка обработки пакета акций", taskId, e);
                 return new ArrayList<>();
             }
         }, executorService);
@@ -1047,7 +1040,7 @@ public class MainSessionPriceService {
      */
     private CompletableFuture<List<ClosePriceProcessingResult>> processFutureBatchAsync(List<FutureEntity> futureBatch, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
-            System.out.println("[" + taskId + "] Обработка пакета фьючерсов: " + futureBatch.size() + " инструментов");
+            log.info("[{}] Обработка пакета фьючерсов: {} инструментов", taskId, futureBatch.size());
             
             List<CompletableFuture<ClosePriceProcessingResult>> futures = futureBatch.stream()
                 .map(future -> CompletableFuture.supplyAsync(() -> processFutureClosePriceAsync(future), executorService))
@@ -1059,18 +1052,17 @@ public class MainSessionPriceService {
             );
             
             try {
-                allCompleted.get(); // Ждем завершения
+                allCompleted.get();
                 
-                // Собираем результаты
                 List<ClosePriceProcessingResult> results = futures.stream()
                     .map(CompletableFuture::join)
                     .collect(Collectors.toList());
                 
-                System.out.println("[" + taskId + "] Пакет фьючерсов обработан: " + results.size() + " результатов");
+                log.info("[{}] Пакет фьючерсов обработан: {} результатов", taskId, results.size());
                 return results;
                 
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка обработки пакета фьючерсов: " + e.getMessage());
+                log.error("[{}] Ошибка обработки пакета фьючерсов", taskId, e);
                 return new ArrayList<>();
             }
         }, executorService);
@@ -1132,7 +1124,7 @@ public class MainSessionPriceService {
             return new ClosePriceProcessingResult(share.getFigi(), true, false, false, null, savedItem);
             
         } catch (Exception e) {
-            System.err.println("Ошибка обработки цены закрытия для акции " + share.getFigi() + ": " + e.getMessage());
+            log.error("Ошибка обработки цены закрытия для акции {}", share.getFigi(), e);
             return new ClosePriceProcessingResult(share.getFigi(), false, false, true, e.getMessage(), null);
         }
     }
@@ -1193,7 +1185,7 @@ public class MainSessionPriceService {
             return new ClosePriceProcessingResult(future.getFigi(), true, false, false, null, savedItem);
             
         } catch (Exception e) {
-            System.err.println("Ошибка обработки цены закрытия для фьючерса " + future.getFigi() + ": " + e.getMessage());
+            log.error("Ошибка обработки цены закрытия для фьючерса {}", future.getFigi(), e);
             return new ClosePriceProcessingResult(future.getFigi(), false, false, true, e.getMessage(), null);
         }
     }
@@ -1273,7 +1265,7 @@ public class MainSessionPriceService {
             return new ClosePriceProcessingResult(figi, true, false, false, null, savedItem);
             
         } catch (Exception e) {
-            System.err.println("Ошибка обработки цены закрытия для инструмента " + figi + ": " + e.getMessage());
+            log.error("Ошибка обработки цены закрытия для инструмента {}", figi, e);
             return new ClosePriceProcessingResult(figi, false, false, true, e.getMessage(), null);
         }
     }
@@ -1388,7 +1380,7 @@ public class MainSessionPriceService {
      */
     private BigDecimal findLastClosePriceFromMinuteCandles(String figi, LocalDate date) {
         try {
-            System.out.println("Поиск свечи для " + figi + " за дату (MSK): " + date);
+            log.info("Поиск свечи для {} за дату (MSK): {}", figi, date);
 
             // Формируем точные границы суток в часовом поясе Europe/Moscow
             ZoneId mskZone = ZoneId.of("Europe/Moscow");
@@ -1400,16 +1392,16 @@ public class MainSessionPriceService {
 
             if (!candles.isEmpty()) {
                 MinuteCandleEntity lastCandle = candles.get(candles.size() - 1);
-                System.out.println("Найдена свеча (" + lastCandle.getTime() + ") для " + figi + " с ценой закрытия: " + lastCandle.getClose());
+                log.info("Найдена свеча ({}) для {} с ценой закрытия: {}", lastCandle.getTime(), figi, lastCandle.getClose());
                 return lastCandle.getClose();
             } else {
-                System.out.println("Свечи не найдены для " + figi + " за дату: " + date);
+                log.info("Свечи не найдены для {} за дату: {}", figi, date);
             }
 
             return null;
 
         } catch (Exception e) {
-            System.err.println("Ошибка поиска последней цены закрытия для " + figi + ": " + e.getMessage());
+            log.error("Ошибка поиска последней цены закрытия для {}", figi, e);
             return null;
         }
     }

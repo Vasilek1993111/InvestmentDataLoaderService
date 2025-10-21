@@ -15,6 +15,7 @@ import java.util.Map;
 @RequestMapping("/api/volume-aggregation")
 public class VolumeAggregationController {
     
+  
     
     /**
      * Ручное обновление материализованного представления

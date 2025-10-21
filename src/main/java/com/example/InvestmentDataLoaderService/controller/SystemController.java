@@ -1,5 +1,7 @@
 package com.example.InvestmentDataLoaderService.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,8 @@ import java.util.HashMap;
 @RequestMapping("/api/system")
 public class SystemController {
     
+    private static final Logger log = LoggerFactory.getLogger(SystemController.class);
+    
 
     // ==================== ЗДОРОВЬЕ СИСТЕМЫ ====================
 
@@ -23,9 +27,12 @@ public class SystemController {
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> getHealthStatus() {
+        log.info("=== ПРОВЕРКА ЗДОРОВЬЯ СИСТЕМЫ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Начинаем проверку компонентов системы...");
+            
             // Проверяем основные компоненты системы
             boolean materializedViewsExist = false; // TODO: Реализовать проверку материализованных представлений
             
@@ -40,9 +47,11 @@ public class SystemController {
             response.put("components", components);
             response.put("uptime", System.currentTimeMillis());
             
+            log.info("Проверка здоровья системы завершена успешно. Статус: healthy");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при проверке здоровья системы: {}", e.getMessage(), e);
             response.put("status", "unhealthy");
             response.put("message", "Ошибка проверки здоровья системы: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
@@ -56,9 +65,11 @@ public class SystemController {
      */
     @GetMapping("/diagnostics")
     public ResponseEntity<Map<String, Object>> getSystemDiagnostics() {
+        log.info("=== ДИАГНОСТИКА СИСТЕМЫ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Начинаем сбор диагностической информации...");
             Map<String, Object> diagnostics = new HashMap<>();
             
             // Проверка материализованных представлений
@@ -67,6 +78,7 @@ public class SystemController {
                 "exists", viewsExist,
                 "status", viewsExist ? "ok" : "missing"
             ));
+            log.debug("Проверка материализованных представлений: {}", viewsExist ? "найдены" : "не найдены");
             
             // Информация о системе
             diagnostics.put("system", Map.of(
@@ -78,6 +90,8 @@ public class SystemController {
                 "total_memory", Runtime.getRuntime().totalMemory(),
                 "free_memory", Runtime.getRuntime().freeMemory()
             ));
+            log.debug("Собрана информация о системе: Java {}, ОС {}", 
+                System.getProperty("java.version"), System.getProperty("os.name"));
             
             // Информация о расписании
             Map<String, Object> scheduleInfo = new HashMap<>();
@@ -85,14 +99,17 @@ public class SystemController {
             scheduleInfo.put("full_refresh", "0 20 2 * * * (каждый день в 2:20)");
             scheduleInfo.put("timezone", "Europe/Moscow");
             diagnostics.put("schedules", scheduleInfo);
+            log.debug("Собрана информация о расписании");
             
             response.put("success", true);
             response.put("data", diagnostics);
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Диагностика системы завершена успешно");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при диагностике системы: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Ошибка диагностики системы: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
@@ -108,9 +125,11 @@ public class SystemController {
      */
     @GetMapping("/volume-aggregation/check")
     public ResponseEntity<Map<String, Object>> checkMaterializedViews() {
+        log.info("=== ПРОВЕРКА МАТЕРИАЛИЗОВАННЫХ ПРЕДСТАВЛЕНИЙ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Проверяем наличие материализованных представлений...");
             boolean exists = false; // TODO: Реализовать проверку материализованных представлений
             
             response.put("success", true);
@@ -118,9 +137,11 @@ public class SystemController {
             response.put("message", exists ? "Материализованные представления существуют" : "Материализованные представления не найдены");
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Проверка материализованных представлений завершена. Результат: {}", exists ? "найдены" : "не найдены");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при проверке материализованных представлений: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Ошибка проверки материализованных представлений: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
@@ -134,9 +155,11 @@ public class SystemController {
      */
     @GetMapping("/volume-aggregation/schedule-info")
     public ResponseEntity<Map<String, Object>> getScheduleInfo() {
+        log.info("=== ПОЛУЧЕНИЕ ИНФОРМАЦИИ О РАСПИСАНИИ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Формируем информацию о расписании обновлений...");
             Map<String, Object> scheduleInfo = new HashMap<>();
             scheduleInfo.put("daily_refresh", "0 * * * * * (каждую минуту)");
             scheduleInfo.put("full_refresh", "0 20 2 * * * (каждый день в 2:20)");
@@ -147,9 +170,11 @@ public class SystemController {
             response.put("data", scheduleInfo);
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Информация о расписании успешно сформирована");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении информации о расписании: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Ошибка получения информации о расписании: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
@@ -165,9 +190,11 @@ public class SystemController {
      */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getSystemStats() {
+        log.info("=== ПОЛУЧЕНИЕ СТАТИСТИКИ СИСТЕМЫ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Собираем статистику системы...");
             Map<String, Object> stats = new HashMap<>();
             
             // Статистика памяти
@@ -178,11 +205,15 @@ public class SystemController {
             memoryStats.put("free_memory_mb", runtime.freeMemory() / 1024 / 1024);
             memoryStats.put("used_memory_mb", (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024);
             stats.put("memory", memoryStats);
+            log.debug("Собрана статистика памяти: {} MB используется из {} MB", 
+                (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024,
+                runtime.maxMemory() / 1024 / 1024);
             
             // Статистика процессора
             Map<String, Object> processorStats = new HashMap<>();
             processorStats.put("available_processors", runtime.availableProcessors());
             stats.put("processor", processorStats);
+            log.debug("Собрана статистика процессора: {} ядер", runtime.availableProcessors());
             
             // Статистика времени работы
             Map<String, Object> uptimeStats = new HashMap<>();
@@ -198,9 +229,11 @@ public class SystemController {
             response.put("data", stats);
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Статистика системы успешно собрана");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении статистики системы: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Ошибка получения статистики системы: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
@@ -216,9 +249,11 @@ public class SystemController {
      */
     @GetMapping("/info")
     public ResponseEntity<Map<String, Object>> getSystemInfo() {
+        log.info("=== ПОЛУЧЕНИЕ ИНФОРМАЦИИ О СИСТЕМЕ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Собираем информацию о системе...");
             Map<String, Object> info = new HashMap<>();
             
             // Информация о Java
@@ -227,6 +262,7 @@ public class SystemController {
                 "vendor", System.getProperty("java.vendor"),
                 "home", System.getProperty("java.home")
             ));
+            log.debug("Собрана информация о Java: версия {}", System.getProperty("java.version"));
             
             // Информация об ОС
             info.put("os", Map.of(
@@ -234,6 +270,7 @@ public class SystemController {
                 "version", System.getProperty("os.version"),
                 "arch", System.getProperty("os.arch")
             ));
+            log.debug("Собрана информация об ОС: {} {}", System.getProperty("os.name"), System.getProperty("os.version"));
             
             // Информация о пользователе
             info.put("user", Map.of(
@@ -253,9 +290,11 @@ public class SystemController {
             response.put("data", info);
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Информация о системе успешно собрана");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении информации о системе: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Ошибка получения информации о системе: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
@@ -269,9 +308,11 @@ public class SystemController {
      */
     @GetMapping("/external-services")
     public ResponseEntity<Map<String, Object>> checkExternalServices() {
+        log.info("=== ПРОВЕРКА ВНЕШНИХ СЕРВИСОВ ===");
         Map<String, Object> response = new HashMap<>();
         
         try {
+            log.info("Проверяем доступность внешних сервисов...");
             Map<String, Object> services = new HashMap<>();
             
             // Здесь можно добавить проверки внешних сервисов
@@ -280,19 +321,23 @@ public class SystemController {
                 "status", "unknown",
                 "message", "Проверка не реализована"
             ));
+            log.debug("Статус Tinkoff API: проверка не реализована");
             
             services.put("database", Map.of(
                 "status", "healthy",
                 "message", "Подключение к базе данных работает"
             ));
+            log.debug("Статус базы данных: healthy");
             
             response.put("success", true);
             response.put("data", services);
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Проверка внешних сервисов завершена");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при проверке внешних сервисов: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Ошибка проверки внешних сервисов: " + e.getMessage());
             response.put("timestamp", LocalDateTime.now().toString());
