@@ -1,6 +1,8 @@
 package com.example.InvestmentDataLoaderService.service;
 
 import com.example.InvestmentDataLoaderService.dto.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ import java.util.List;
 @Service
 public class CacheWarmupService {
 
+    private static final Logger log = LoggerFactory.getLogger(CacheWarmupService.class);
     private static final String MOEX_EXCHANGE = "moex_mrng_evng_e_wknd_dlr";
     
     private final InstrumentService instrumentService;
@@ -46,11 +49,11 @@ public class CacheWarmupService {
     @EventListener(ApplicationReadyEvent.class)
     public void warmupCacheOnStartup() {
         String taskId = "STARTUP_WARMUP_" + LocalDateTime.now(ZoneId.of("Europe/Moscow"));
-        System.out.println("[" + taskId + "] Начало прогрева кэша при запуске приложения");
+        log.info("[{}] Начало прогрева кэша при запуске приложения", taskId);
 
         try {
             // Прогрев кэша акций (только MOEX)
-            System.out.println("[" + taskId + "] Прогрев кэша акций (exchange=" + MOEX_EXCHANGE + ")");
+            log.info("[{}] Warming up shares cache (exchange={})", taskId, MOEX_EXCHANGE);
             ShareFilterDto shareFilter = new ShareFilterDto(null, MOEX_EXCHANGE, null, null, null, null, null);
             List<ShareDto> shares = instrumentService.getShares(
                 shareFilter.getStatus(), 
@@ -59,10 +62,10 @@ public class CacheWarmupService {
                 shareFilter.getTicker(), 
                 shareFilter.getFigi()
             );
-            System.out.println("[" + taskId + "] В кэш загружено акций: " + shares.size());
+            log.info("[{}] В кэш загружено акций: {}", taskId, shares.size());
 
             // Прогрев кэша фьючерсов (все)
-            System.out.println("[" + taskId + "] Прогрев кэша фьючерсов (все)");
+            log.info("[{}] Прогрев кэша фьючерсов (все)", taskId);
             FutureFilterDto futureFilter = new FutureFilterDto(null, null, null, null, null);
             List<FutureDto> futures = instrumentService.getFutures(
                 futureFilter.getStatus(), 
@@ -71,10 +74,10 @@ public class CacheWarmupService {
                 futureFilter.getTicker(), 
                 futureFilter.getAssetType()
             );
-            System.out.println("[" + taskId + "] В кэш загружено фьючерсов: " + futures.size());
+            log.info("[{}] В кэш загружено фьючерсов: {}", taskId, futures.size());
 
             // Прогрев кэша индикативных инструментов (все)
-            System.out.println("[" + taskId + "] Прогрев кэша индикативных инструментов (все)");
+            log.info("[{}] Прогрев кэша индикативных инструментов (все)", taskId);
             IndicativeFilterDto indicativeFilter = new IndicativeFilterDto(null, null, null, null);
             List<IndicativeDto> indicatives = instrumentService.getIndicatives(
                 indicativeFilter.getExchange(), 
@@ -82,13 +85,12 @@ public class CacheWarmupService {
                 indicativeFilter.getTicker(), 
                 indicativeFilter.getFigi()
             );
-            System.out.println("[" + taskId + "] В кэш загружено индикативных инструментов: " + indicatives.size());
+            log.info("[{}] В кэш загружено индикативных инструментов: {}", taskId, indicatives.size());
 
-            System.out.println("[" + taskId + "] Прогрев кэша при запуске завершен успешно");
+            log.info("[{}] Прогрев кэша при запуске завершен успешно", taskId);
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка при прогреве кэша при запуске: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[{}] Ошибка при прогреве кэша при запуске: {}", taskId, e.getMessage(), e);
         }
     }
 
@@ -100,11 +102,11 @@ public class CacheWarmupService {
      */
     public void manualWarmupCache() {
         String taskId = "MANUAL_WARMUP_" + LocalDateTime.now(ZoneId.of("Europe/Moscow"));
-        System.out.println("[" + taskId + "] Начало ручного прогрева кэша");
+        log.info("[{}] Начало ручного прогрева кэша", taskId);
 
         try {
             // Прогрев кэша акций
-            System.out.println("[" + taskId + "] Прогрев кэша акций");
+            log.info("[{}] Прогрев кэша акций", taskId);
             ShareFilterDto shareFilter = new ShareFilterDto(null, MOEX_EXCHANGE, null, null, null, null, null);
             List<ShareDto> shares = instrumentService.getShares(
                 shareFilter.getStatus(), 
@@ -113,10 +115,10 @@ public class CacheWarmupService {
                 shareFilter.getTicker(), 
                 shareFilter.getFigi()
             );
-            System.out.println("[" + taskId + "] В кэш загружено акций: " + shares.size());
+            log.info("[{}] В кэш загружено акций: {}", taskId, shares.size());
 
             // Прогрев кэша фьючерсов
-            System.out.println("[" + taskId + "] Прогрев кэша фьючерсов");
+            log.info("[{}] Прогрев кэша фьючерсов", taskId);
             FutureFilterDto futureFilter = new FutureFilterDto(null, null, null, null, null);
             List<FutureDto> futures = instrumentService.getFutures(
                 futureFilter.getStatus(), 
@@ -125,10 +127,10 @@ public class CacheWarmupService {
                 futureFilter.getTicker(), 
                 futureFilter.getAssetType()
             );
-            System.out.println("[" + taskId + "] В кэш загружено фьючерсов: " + futures.size());
+            log.info("[{}] В кэш загружено фьючерсов: {}", taskId, futures.size());
 
             // Прогрев кэша индикативных инструментов
-            System.out.println("[" + taskId + "] Прогрев кэша индикативных инструментов");
+            log.info("[{}] Прогрев кэша индикативных инструментов", taskId);
             IndicativeFilterDto indicativeFilter = new IndicativeFilterDto(null, null, null, null);
             List<IndicativeDto> indicatives = instrumentService.getIndicatives(
                 indicativeFilter.getExchange(), 
@@ -136,13 +138,12 @@ public class CacheWarmupService {
                 indicativeFilter.getTicker(), 
                 indicativeFilter.getFigi()
             );
-            System.out.println("[" + taskId + "] В кэш загружено индикативных инструментов: " + indicatives.size());
+            log.info("[{}] В кэш загружено индикативных инструментов: {}", taskId, indicatives.size());
 
-            System.out.println("[" + taskId + "] Ручной прогрев кэша завершен успешно");
+            log.info("[{}] Ручной прогрев кэша завершен успешно", taskId);
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка при ручном прогреве кэша: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[{}] Ошибка при ручном прогреве кэша: {}", taskId, e.getMessage(), e);
             throw new RuntimeException("Ошибка при ручном прогреве кэша", e);
         }
     }

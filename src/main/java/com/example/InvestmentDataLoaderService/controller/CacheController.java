@@ -1,6 +1,8 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.service.CacheWarmupService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +38,7 @@ import java.util.*;
 @RequestMapping("/api/cache")
 public class CacheController {
 
+    private static final Logger log = LoggerFactory.getLogger(CacheController.class);
     private final CacheWarmupService cacheWarmupService;
     private final CacheManager cacheManager;
 
@@ -66,7 +69,9 @@ public class CacheController {
      */
     @PostMapping("/warmup")
     public ResponseEntity<Map<String, Object>> warmupCache() {
+        log.info("=== ПРОГРЕВ КЭША ===");
         try {
+            log.info("Запускаем принудительный прогрев кэша...");
             cacheWarmupService.manualWarmupCache();
             
             Map<String, Object> response = Map.of(
@@ -75,9 +80,11 @@ public class CacheController {
                 "timestamp", LocalDateTime.now().toString()
             );
             
+            log.info("Кэш успешно прогрет");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при прогреве кэша: {}", e.getMessage(), e);
             Map<String, Object> response = Map.of(
                 "success", false,
                 "message", "Ошибка при прогреве кэша: " + e.getMessage(),
@@ -108,14 +115,19 @@ public class CacheController {
             @RequestParam(required = false) String cacheName,
             @RequestParam(defaultValue = "100") int limit) {
         
+        log.info("=== ПОЛУЧЕНИЕ СОДЕРЖИМОГО КЭША ===");
+        log.info("Параметры: cacheName={}, limit={}", cacheName, limit);
+        
         try {
             Map<String, Object> response = new HashMap<>();
             response.put("timestamp", LocalDateTime.now().toString());
             
             if (cacheName != null && !cacheName.isEmpty()) {
                 // Просмотр конкретного кэша
+                log.info("Получаем содержимое кэша: {}", cacheName);
                 Cache cache = cacheManager.getCache(cacheName);
                 if (cache == null) {
+                    log.warn("Кэш '{}' не найден", cacheName);
                     response.put("error", "Кэш '" + cacheName + "' не найден");
                     return ResponseEntity.badRequest().body(response);
                 }
@@ -123,9 +135,11 @@ public class CacheController {
                 Map<String, Object> cacheInfo = getCacheInfo(cache, limit);
                 response.put("cacheName", cacheName);
                 response.putAll(cacheInfo);
+                log.info("Содержимое кэша {} получено успешно", cacheName);
                 
             } else {
                 // Просмотр всех кэшей
+                log.info("Получаем содержимое всех кэшей");
                 Map<String, Object> allCaches = new HashMap<>();
                 String[] cacheNames = {"sharesCache", "futuresCache", "indicativesCache", "closePricesCache"};
                 
@@ -134,15 +148,18 @@ public class CacheController {
                     if (cache != null) {
                         Map<String, Object> cacheInfo = getCacheInfo(cache, limit);
                         allCaches.put(name, cacheInfo);
+                        log.debug("Кэш {} обработан", name);
                     }
                 }
                 
                 response.put("caches", allCaches);
+                log.info("Содержимое всех кэшей получено успешно");
             }
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении содержимого кэша: {}", e.getMessage(), e);
             Map<String, Object> response = Map.of(
                 "error", "Ошибка при получении содержимого кэша: " + e.getMessage(),
                 "timestamp", LocalDateTime.now().toString()
@@ -167,7 +184,9 @@ public class CacheController {
      */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getCacheStats() {
+        log.info("=== ПОЛУЧЕНИЕ СТАТИСТИКИ КЭША ===");
         try {
+            log.info("Собираем статистику по всем кэшам...");
             Map<String, Object> stats = new HashMap<>();
             stats.put("timestamp", LocalDateTime.now().toString());
             
@@ -183,6 +202,7 @@ public class CacheController {
                     Map<String, Object> cacheInfo = getCacheInfo(cache, Integer.MAX_VALUE);
                     cacheStats.put(cacheName, cacheInfo);
                     totalEntries += (Integer) cacheInfo.get("entryCount");
+                    log.debug("Кэш {}: {} записей", cacheName, cacheInfo.get("entryCount"));
                 }
             }
             
@@ -191,9 +211,11 @@ public class CacheController {
             stats.put("totalEntries", totalEntries);
             stats.put("cacheDetails", cacheStats);
             
+            log.info("Статистика кэша: {} активных кэшей, {} записей", activeCaches, totalEntries);
             return ResponseEntity.ok(stats);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении статистики кэша: {}", e.getMessage(), e);
             Map<String, Object> response = Map.of(
                 "error", "Ошибка при получении статистики кэша: " + e.getMessage(),
                 "timestamp", LocalDateTime.now().toString()
@@ -215,14 +237,19 @@ public class CacheController {
     public ResponseEntity<Map<String, Object>> clearCache(
             @RequestParam(required = false) String cacheName) {
         
+        log.info("=== ОЧИСТКА КЭША ===");
+        log.info("Параметр cacheName: {}", cacheName);
+        
         try {
             Map<String, Object> response = new HashMap<>();
             response.put("timestamp", LocalDateTime.now().toString());
             
             if (cacheName != null && !cacheName.isEmpty()) {
                 // Очистка конкретного кэша
+                log.info("Очищаем кэш: {}", cacheName);
                 Cache cache = cacheManager.getCache(cacheName);
                 if (cache == null) {
+                    log.warn("Кэш '{}' не найден", cacheName);
                     response.put("error", "Кэш '" + cacheName + "' не найден");
                     return ResponseEntity.badRequest().body(response);
                 }
@@ -231,9 +258,11 @@ public class CacheController {
                 response.put("success", true);
                 response.put("message", "Кэш '" + cacheName + "' успешно очищен");
                 response.put("clearedCache", cacheName);
+                log.info("Кэш {} успешно очищен", cacheName);
                 
             } else {
                 // Очистка всех кэшей
+                log.info("Очищаем все кэши");
                 String[] cacheNames = {"sharesCache", "futuresCache", "indicativesCache", "closePricesCache"};
                 List<String> clearedCaches = new ArrayList<>();
                 
@@ -242,17 +271,20 @@ public class CacheController {
                     if (cache != null) {
                         cache.clear();
                         clearedCaches.add(name);
+                        log.debug("Кэш {} очищен", name);
                     }
                 }
                 
                 response.put("success", true);
                 response.put("message", "Все кэши успешно очищены");
                 response.put("clearedCaches", clearedCaches);
+                log.info("Все кэши успешно очищены: {}", clearedCaches);
             }
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при очистке кэша: {}", e.getMessage(), e);
             Map<String, Object> response = Map.of(
                 "success", false,
                 "error", "Ошибка при очистке кэша: " + e.getMessage(),

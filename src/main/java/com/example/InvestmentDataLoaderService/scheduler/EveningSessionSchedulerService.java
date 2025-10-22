@@ -12,6 +12,8 @@ import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ import java.util.UUID;
 @Service
 public class EveningSessionSchedulerService {
 
+    private static final Logger log = LoggerFactory.getLogger(EveningSessionSchedulerService.class);
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final IndicativeRepository indicativeRepository;
@@ -55,31 +58,30 @@ public class EveningSessionSchedulerService {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
             String taskId = "EVENING_" + UUID.randomUUID().toString().substring(0, 8);
             
-            System.out.println("=== НАЧАЛО ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
-            System.out.println("[" + taskId + "] Дата: " + previousDay);
-            System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== НАЧАЛО ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+            log.info("[{}] Дата: {}", taskId, previousDay);
+            log.info("[{}] Время запуска: {}", taskId, LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Проверяем, является ли предыдущий день выходным
             if (isWeekend(previousDay)) {
                 String message = "Предыдущий день является выходным (" + previousDay + "). Вечерняя сессия не проводится в выходные дни.";
-                System.out.println("[" + taskId + "] " + message);
-                System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+                log.info("[{}] {}", taskId, message);
+                log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
                 return;
             }
             
             SaveResponseDto response = processEveningSessionPrices(previousDay, taskId);
             
-            System.out.println("[" + taskId + "] Загрузка завершена:");
-            System.out.println("[" + taskId + "] - Успех: " + response.isSuccess());
-            System.out.println("[" + taskId + "] - Сообщение: " + response.getMessage());
-            System.out.println("[" + taskId + "] - Всего запрошено: " + response.getTotalRequested());
-            System.out.println("[" + taskId + "] - Сохранено новых: " + response.getNewItemsSaved());
-            System.out.println("[" + taskId + "] - Пропущено существующих: " + response.getExistingItemsSkipped());
-            System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
+            log.info("[{}] Загрузка завершена:", taskId);
+            log.info("[{}] - Успех: {}", taskId, response.isSuccess());
+            log.info("[{}] - Сообщение: {}", taskId, response.getMessage());
+            log.info("[{}] - Всего запрошено: {}", taskId, response.getTotalRequested());
+            log.info("[{}] - Сохранено новых: {}", taskId, response.getNewItemsSaved());
+            log.info("[{}] - Пропущено существующих: {}", taskId, response.getExistingItemsSkipped());
+            log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ЦЕН ЗАКРЫТИЯ ВЕЧЕРНЕЙ СЕССИИ ===");
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в загрузке цен закрытия вечерней сессии: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Критическая ошибка в загрузке цен закрытия вечерней сессии", e);
         }
     }
 
@@ -88,13 +90,13 @@ public class EveningSessionSchedulerService {
      */
     public SaveResponseDto processEveningSessionPrices(LocalDate date, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Начало обработки цен закрытия вечерней сессии за " + date);
+            log.info("[{}] Начало обработки цен закрытия вечерней сессии за {}", taskId, date);
             
             // Получаем все акции, фьючерсы и индикативные инструменты из БД
             List<ShareEntity> shares = shareRepository.findAll();
             List<FutureEntity> futures = futureRepository.findAll();
             List<IndicativeEntity> indicatives = indicativeRepository.findAll();
-            System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций, " + futures.size() + " фьючерсов и " + indicatives.size() + " индикативных инструментов для обработки");
+            log.info("[{}] Найдено {} акций, {} фьючерсов и {} индикативных инструментов для обработки", taskId, shares.size(), futures.size(), indicatives.size());
             
             List<ClosePriceEveningSessionDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
@@ -106,12 +108,12 @@ public class EveningSessionSchedulerService {
             for (ShareEntity share : shares) {
                 try {
                     processedInstruments++;
-                    System.out.println("[" + taskId + "] Обработка акции " + processedInstruments + "/" + (shares.size() + futures.size()) + ": " + share.getTicker() + " (" + share.getFigi() + ")");
+                    log.info("[{}] Обработка акции {}/{}: {} ({})", taskId, processedInstruments, (shares.size() + futures.size()), share.getTicker(), share.getFigi());
                     
                     // Проверяем, есть ли уже запись для этой даты и FIGI
                     if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, share.getFigi())) {
                         existingCount++;
-                        System.out.println("[" + taskId + "] Запись уже существует для " + share.getTicker() + " за " + date);
+                        log.info("[{}] Запись уже существует для {} за {}", taskId, share.getTicker(), date);
                         continue;
                     }
                     
@@ -144,13 +146,13 @@ public class EveningSessionSchedulerService {
                         savedItems.add(dto);
                         savedCount++;
                         
-                        System.out.println("[" + taskId + "] Сохранена цена закрытия для " + share.getTicker() + ": " + lastClosePrice);
+                        log.info("[{}] Сохранена цена закрытия для {}: {}", taskId, share.getTicker(), lastClosePrice);
                     } else {
-                        System.out.println("[" + taskId + "] Не найдена свеча для " + share.getTicker() + " за " + date);
+                        log.info("[{}] Не найдена свеча для {} за {}", taskId, share.getTicker(), date);
                     }
                     
                 } catch (Exception e) {
-                    System.err.println("[" + taskId + "] Ошибка обработки акции " + share.getTicker() + ": " + e.getMessage());
+                    log.error("[{}] Ошибка обработки акции {}", taskId, share.getTicker(), e);
                 }
             }
             
@@ -158,12 +160,12 @@ public class EveningSessionSchedulerService {
             for (FutureEntity future : futures) {
                 try {
                     processedInstruments++;
-                    System.out.println("[" + taskId + "] Обработка фьючерса " + processedInstruments + "/" + (shares.size() + futures.size()) + ": " + future.getTicker() + " (" + future.getFigi() + ")");
+                    log.info("[{}] Обработка фьючерса {}/{}: {} ({})", taskId, processedInstruments, (shares.size() + futures.size()), future.getTicker(), future.getFigi());
                     
                     // Проверяем, есть ли уже запись для этой даты и FIGI
                     if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, future.getFigi())) {
                         existingCount++;
-                        System.out.println("[" + taskId + "] Запись уже существует для " + future.getTicker() + " за " + date);
+                        log.info("[{}] Запись уже существует для {} за {}", taskId, future.getTicker(), date);
                         continue;
                     }
                     
@@ -196,13 +198,13 @@ public class EveningSessionSchedulerService {
                         savedItems.add(dto);
                         savedCount++;
                         
-                        System.out.println("[" + taskId + "] Сохранена цена закрытия для " + future.getTicker() + ": " + lastClosePrice);
+                        log.info("[{}] Сохранена цена закрытия для {}: {}", taskId, future.getTicker(), lastClosePrice);
                     } else {
-                        System.out.println("[" + taskId + "] Не найдена свеча для " + future.getTicker() + " за " + date);
+                        log.info("[{}] Не найдена свеча для {} за {}", taskId, future.getTicker(), date);
                     }
                     
                 } catch (Exception e) {
-                    System.err.println("[" + taskId + "] Ошибка обработки фьючерса " + future.getTicker() + ": " + e.getMessage());
+                    log.error("[{}] Ошибка обработки фьючерса {}", taskId, future.getTicker(), e);
                 }
             }
             
@@ -210,18 +212,18 @@ public class EveningSessionSchedulerService {
             for (IndicativeEntity indicative : indicatives) {
                 // Пропускаем пустые или null FIGI
                 if (indicative.getFigi() == null || indicative.getFigi().trim().isEmpty()) {
-                    System.err.println("[" + taskId + "] Skipping empty or null FIGI for indicative: " + indicative.getTicker());
+                    log.warn("[{}] Skipping empty or null FIGI for indicative: {}", taskId, indicative.getTicker());
                     continue;
                 }
                 
                 try {
                     processedInstruments++;
-                    System.out.println("[" + taskId + "] Обработка индикативного инструмента " + processedInstruments + "/" + (shares.size() + futures.size() + indicatives.size()) + ": " + indicative.getTicker() + " (" + indicative.getFigi() + ")");
+                    log.info("[{}] Обработка индикативного инструмента {}/{}: {} ({})", taskId, processedInstruments, (shares.size() + futures.size() + indicatives.size()), indicative.getTicker(), indicative.getFigi());
                     
                     // Проверяем, есть ли уже запись для этой даты и FIGI
                     if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, indicative.getFigi())) {
                         existingCount++;
-                        System.out.println("[" + taskId + "] Запись уже существует для " + indicative.getTicker() + " за " + date);
+                        log.info("[{}] Запись уже существует для {} за {}", taskId, indicative.getTicker(), date);
                         continue;
                     }
                     
@@ -254,21 +256,21 @@ public class EveningSessionSchedulerService {
                         savedItems.add(dto);
                         savedCount++;
                         
-                        System.out.println("[" + taskId + "] Сохранена цена закрытия для " + indicative.getTicker() + ": " + lastClosePrice);
+                        log.info("[{}] Сохранена цена закрытия для {}: {}", taskId, indicative.getTicker(), lastClosePrice);
                     } else {
-                        System.out.println("[" + taskId + "] Не найдена свеча для " + indicative.getTicker() + " за " + date);
+                        log.info("[{}] Не найдена свеча для {} за {}", taskId, indicative.getTicker(), date);
                     }
                     
                 } catch (Exception e) {
-                    System.err.println("[" + taskId + "] Ошибка обработки индикативного инструмента " + indicative.getTicker() + ": " + e.getMessage());
+                    log.error("[{}] Ошибка обработки индикативного инструмента {}", taskId, indicative.getTicker(), e);
                 }
             }
             
-            System.out.println("[" + taskId + "] Обработка завершена:");
-            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments + " (акций: " + shares.size() + ", фьючерсов: " + futures.size() + ", индикативных: " + indicatives.size() + ")");
-            System.out.println("[" + taskId + "] - Запрошено цен: " + totalRequested);
-            System.out.println("[" + taskId + "] - Сохранено новых: " + savedCount);
-            System.out.println("[" + taskId + "] - Пропущено существующих: " + existingCount);
+            log.info("[{}] Обработка завершена:", taskId);
+            log.info("[{}] - Обработано инструментов: {} (акций: {}, фьючерсов: {}, индикативных: {})", taskId, processedInstruments, shares.size(), futures.size(), indicatives.size());
+            log.info("[{}] - Запрошено цен: {}", taskId, totalRequested);
+            log.info("[{}] - Сохранено новых: {}", taskId, savedCount);
+            log.info("[{}] - Пропущено существующих: {}", taskId, existingCount);
             
             return new SaveResponseDto(
                 true,
@@ -282,8 +284,7 @@ public class EveningSessionSchedulerService {
             );
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Критическая ошибка в обработке цен закрытия вечерней сессии: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[{}] Критическая ошибка в обработке цен закрытия вечерней сессии", taskId, e);
             return new SaveResponseDto(
                 false,
                 "Ошибка загрузки цен закрытия вечерней сессии: " + e.getMessage(),
@@ -302,7 +303,7 @@ public class EveningSessionSchedulerService {
      */
     private BigDecimal findLastClosePriceForDate(String figi, LocalDate date, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Поиск свечи для " + figi + " за дату (MSK): " + date);
+            log.info("[{}] Поиск свечи для {} за дату (MSK): {}", taskId, figi, date);
 
             // Формируем точные границы суток в часовом поясе Europe/Moscow
             var mskZone = ZoneId.of("Europe/Moscow");
@@ -314,16 +315,16 @@ public class EveningSessionSchedulerService {
 
             if (!candles.isEmpty()) {
                 MinuteCandleEntity lastCandle = candles.get(candles.size() - 1);
-                System.out.println("[" + taskId + "] Найдена минутная свеча (" + lastCandle.getTime() + ") для " + figi + " с ценой закрытия: " + lastCandle.getClose());
+                log.info("[{}] Найдена минутная свеча ({}) для {} с ценой закрытия: {}", taskId, lastCandle.getTime(), figi, lastCandle.getClose());
                 return lastCandle.getClose();
             } else {
-                System.out.println("[" + taskId + "] Свечи не найдены для " + figi + " за дату: " + date);
+                log.info("[{}] Свечи не найдены для {} за дату: {}", taskId, figi, date);
             }
 
             return null;
 
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка поиска последней цены закрытия для " + figi + ": " + e.getMessage());
+            log.error("[{}] Ошибка поиска последней цены закрытия для {}", taskId, figi, e);
             return null;
         }
     }
@@ -345,7 +346,7 @@ public class EveningSessionSchedulerService {
         // Проверяем, является ли дата выходным днем
         if (isWeekend(date)) {
             String message = "В выходные дни (суббота и воскресенье) вечерняя сессия не проводится. Дата: " + date;
-            System.out.println("[" + taskId + "] " + message);
+            log.info("[{}] {}", taskId, message);
             return new SaveResponseDto(
                 false,
                 message,

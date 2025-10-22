@@ -6,6 +6,8 @@ import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 
 
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ import java.util.Map;
 
 @Service
 public class DividendService {
+    
+    private static final Logger log = LoggerFactory.getLogger(DividendService.class);
     
     @Autowired
     private DividendRepository dividendRepository;
@@ -46,7 +50,7 @@ public class DividendService {
                 // Если передано ключевое слово SHARES, загружаем все акции
                 List<String> allShareFigis = shareRepository.findAllFigis();
                 figisToProcess.addAll(allShareFigis);
-                System.out.println("Загружаем дивиденды для всех акций (" + allShareFigis.size() + " инструментов)");
+                log.info("Загружаем дивиденды для всех акций ({} инструментов)", allShareFigis.size());
             } else {
                 // Обычный FIGI инструмента
                 figisToProcess.add(instrument);
@@ -75,7 +79,7 @@ public class DividendService {
                 
                 processedInstruments++;
             } catch (Exception e) {
-                System.err.println("Ошибка загрузки дивидендов для " + figi + ": " + e.getMessage());
+                log.error("Ошибка загрузки дивидендов для {}", figi, e);
                 errorInstruments++;
             }
         }
@@ -313,7 +317,7 @@ public Map<String, Object> loadDividendsForAllSharesToDb(List<String> instrument
         try {
             // Получаем все FIGI акций
             List<String> allShareFigis = shareRepository.findAllFigis();
-            System.out.println("Получаем дивиденды для всех акций (" + allShareFigis.size() + " инструментов)");
+            log.info("Получаем дивиденды для всех акций ({} инструментов)", allShareFigis.size());
             
             // Получаем дивиденды для каждого FIGI
             for (String figi : allShareFigis) {
@@ -324,12 +328,12 @@ public Map<String, Object> loadDividendsForAllSharesToDb(List<String> instrument
                     List<DividendEntity> dividends = tinkoffApiClient.getDividends(figi, from, to);
                     allDividends.addAll(dividends);
                 } catch (Exception e) {
-                    System.err.println("Ошибка получения дивидендов от T-API для " + figi + ": " + e.getMessage());
+                    log.error("Ошибка получения дивидендов от T-API для {}", figi, e);
                 }
             }
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения списка акций: " + e.getMessage());
+            log.error("Ошибка получения списка акций", e);
         }
         
         return allDividends;
@@ -342,7 +346,7 @@ public Map<String, Object> loadDividendsForAllSharesToDb(List<String> instrument
         try {
             return tinkoffApiClient.getDividends(figi, from, to);
         } catch (Exception e) {
-            System.err.println("Ошибка получения дивидендов от T-API для " + figi + ": " + e.getMessage());
+            log.error("Ошибка получения дивидендов от T-API для {}", figi, e);
             return new ArrayList<>();
         }
     }

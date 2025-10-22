@@ -4,7 +4,8 @@ import com.example.InvestmentDataLoaderService.dto.*;
 import com.example.InvestmentDataLoaderService.exception.ValidationException;
 import com.example.InvestmentDataLoaderService.service.TradingService;
 import com.example.InvestmentDataLoaderService.util.QueryParamValidator;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 @RequestMapping("/api/trading")
 public class TradingController {
 
+    private static final Logger log = LoggerFactory.getLogger(TradingController.class);
     private final TradingService tradingService;
 
     public TradingController(TradingService tradingService) {

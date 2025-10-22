@@ -2,6 +2,8 @@ package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +35,7 @@ import java.util.Map;
 @RequestMapping("/api/status")
 public class StatusController {
 
+    private static final Logger log = LoggerFactory.getLogger(StatusController.class);
     private final SystemLogRepository systemLogRepository;
 
     public StatusController(SystemLogRepository systemLogRepository) {
@@ -63,11 +66,14 @@ public class StatusController {
      */
     @GetMapping("/{taskId}")
     public ResponseEntity<?> getTaskStatus(@PathVariable String taskId) {
+        log.info("=== ПОЛУЧЕНИЕ СТАТУСА ЗАДАЧИ: {} ===", taskId);
         try {
+            log.info("Ищем логи для taskId: {}", taskId);
             // Получаем все логи по taskId, отсортированные по времени создания (новые первыми)
             List<SystemLogEntity> logs = systemLogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
             
             if (logs.isEmpty()) {
+                log.warn("Задача с taskId '{}' не найдена", taskId);
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
                 response.put("message", "Задача с taskId '" + taskId + "' не найдена");
@@ -80,6 +86,8 @@ public class StatusController {
             
             // Берем последний лог (самый свежий)
             SystemLogEntity latestLog = logs.get(0);
+            log.info("Найден последний лог для taskId {}: статус {}, сообщение: {}", 
+                taskId, latestLog.getStatus(), latestLog.getMessage());
             
             // Формируем ответ
             Map<String, Object> response = new HashMap<>();
@@ -109,32 +117,34 @@ public class StatusController {
             // Добавляем историю операций (последние 5 записей)
             List<Map<String, Object>> history = logs.stream()
                 .limit(5)
-                .map(log -> {
-                    Map<String, Object> logEntry = new HashMap<>();
-                    logEntry.put("status", log.getStatus());
-                    logEntry.put("message", log.getMessage());
-                    logEntry.put("timestamp", log.getCreatedAt().toString());
+                .map(logEntry -> {
+                    Map<String, Object> entry = new HashMap<>();
+                    entry.put("status", logEntry.getStatus());
+                    entry.put("message", logEntry.getMessage());
+                    entry.put("timestamp", logEntry.getCreatedAt().toString());
                     
                     // Вычисляем длительность или показываем статус
-                    if (log.getDurationMs() != null) {
-                        logEntry.put("durationMs", log.getDurationMs());
-                    } else if ("STARTED".equals(log.getStatus())) {
+                    if (logEntry.getDurationMs() != null) {
+                        entry.put("durationMs", logEntry.getDurationMs());
+                    } else if ("STARTED".equals(logEntry.getStatus())) {
                         // Для активных задач показываем время с момента запуска
-                        long currentDuration = System.currentTimeMillis() - log.getStartTime().toEpochMilli();
-                        logEntry.put("durationMs", currentDuration);
-                        logEntry.put("isActive", true);
+                        long currentDuration = System.currentTimeMillis() - logEntry.getStartTime().toEpochMilli();
+                        entry.put("durationMs", currentDuration);
+                        entry.put("isActive", true);
                     } else {
-                        logEntry.put("durationMs", "N/A");
+                        entry.put("durationMs", "N/A");
                     }
                     
-                    return logEntry;
+                    return entry;
                 })
                 .toList();
             response.put("history", history);
             
+            log.info("Статус задачи {} успешно получен. Найдено {} записей в истории", taskId, logs.size());
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении статуса задачи {}: {}", taskId, e.getMessage(), e);
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Ошибка получения статуса задачи: " + e.getMessage());
@@ -160,7 +170,9 @@ public class StatusController {
      */
     @GetMapping("/active")
     public ResponseEntity<?> getActiveTasks() {
+        log.info("=== ПОЛУЧЕНИЕ АКТИВНЫХ ЗАДАЧ ===");
         try {
+            log.info("Ищем активные задачи...");
             List<SystemLogEntity> activeTasks = systemLogRepository.findActiveTasks();
             
             List<Map<String, Object>> tasks = activeTasks.stream()
@@ -192,9 +204,11 @@ public class StatusController {
             response.put("count", tasks.size());
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Найдено {} активных задач", tasks.size());
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении активных задач: {}", e.getMessage(), e);
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Ошибка получения активных задач: " + e.getMessage());
@@ -219,13 +233,15 @@ public class StatusController {
      */
     @GetMapping("/stats")
     public ResponseEntity<?> getTaskStats() {
+        log.info("=== ПОЛУЧЕНИЕ СТАТИСТИКИ ЗАДАЧ ===");
         try {
+            log.info("Собираем статистику по всем задачам...");
             List<SystemLogEntity> allLogs = systemLogRepository.findAll();
             
             long totalTasks = allLogs.size();
-            long startedTasks = allLogs.stream().filter(log -> "STARTED".equals(log.getStatus())).count();
-            long completedTasks = allLogs.stream().filter(log -> "COMPLETED".equals(log.getStatus())).count();
-            long failedTasks = allLogs.stream().filter(log -> "FAILED".equals(log.getStatus())).count();
+            long startedTasks = allLogs.stream().filter(logEntry -> "STARTED".equals(logEntry.getStatus())).count();
+            long completedTasks = allLogs.stream().filter(logEntry -> "COMPLETED".equals(logEntry.getStatus())).count();
+            long failedTasks = allLogs.stream().filter(logEntry -> "FAILED".equals(logEntry.getStatus())).count();
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -236,9 +252,13 @@ public class StatusController {
             response.put("successRate", totalTasks > 0 ? (double) completedTasks / totalTasks * 100 : 0);
             response.put("timestamp", LocalDateTime.now().toString());
             
+            log.info("Статистика задач: всего {}, запущено {}, завершено {}, ошибок {}, успешность {}%", 
+                totalTasks, startedTasks, completedTasks, failedTasks, 
+                totalTasks > 0 ? (double) completedTasks / totalTasks * 100 : 0);
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
+            log.error("Ошибка при получении статистики задач: {}", e.getMessage(), e);
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Ошибка получения статистики: " + e.getMessage());

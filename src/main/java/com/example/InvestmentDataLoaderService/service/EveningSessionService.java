@@ -1,245 +1,710 @@
 package com.example.InvestmentDataLoaderService.service;
 
-import com.example.InvestmentDataLoaderService.dto.*;
+import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.entity.ClosePriceEveningSessionEntity;
 import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.entity.ShareEntity;
+import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.repository.ClosePriceEveningSessionRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import com.example.InvestmentDataLoaderService.repository.MinuteCandleRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
-import org.springframework.dao.DataIntegrityViolationException;
+import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
+/**
+ * Сервис для работы с ценами вечерней сессии
+ * Обрабатывает данные из minute_candles и сохраняет в close_price_evening_session
+ */
 @Service
 public class EveningSessionService {
 
-    private final MainSessionPriceService mainSessionPriceService;
-    private final ShareRepository shareRepo;
-    private final FutureRepository futureRepo;
-    private final ClosePriceEveningSessionRepository closePriceEveningSessionRepo;
+    private static final Logger logger = LoggerFactory.getLogger(EveningSessionService.class);
 
-    public EveningSessionService(MainSessionPriceService mainSessionPriceService,
-                               ShareRepository shareRepo,
-                               FutureRepository futureRepo,
-                               ClosePriceEveningSessionRepository closePriceEveningSessionRepo) {
-        this.mainSessionPriceService = mainSessionPriceService;
-        this.shareRepo = shareRepo;
-        this.futureRepo = futureRepo;
-        this.closePriceEveningSessionRepo = closePriceEveningSessionRepo;
+    private final ShareRepository shareRepository;
+    private final FutureRepository futureRepository;
+    private final MinuteCandleRepository minuteCandleRepository;
+    private final ClosePriceEveningSessionRepository closePriceEveningSessionRepository;
+    private final SystemLogRepository systemLogRepository;
+    private final ExecutorService executorService;
+
+    public EveningSessionService(
+            ShareRepository shareRepository,
+            FutureRepository futureRepository,
+            MinuteCandleRepository minuteCandleRepository,
+            ClosePriceEveningSessionRepository closePriceEveningSessionRepository,
+            SystemLogRepository systemLogRepository) {
+        this.shareRepository = shareRepository;
+        this.futureRepository = futureRepository;
+        this.minuteCandleRepository = minuteCandleRepository;
+        this.closePriceEveningSessionRepository = closePriceEveningSessionRepository;
+        this.systemLogRepository = systemLogRepository;
+        this.executorService = Executors.newFixedThreadPool(20);
     }
 
     /**
-     * Сохранение цен вечерней сессии
+     * Асинхронная загрузка цен закрытия вечерней сессии за вчерашний день
      */
-    public SaveResponseDto saveClosePricesEveningSession(ClosePriceEveningSessionRequestDto request) {
-        List<String> instrumentIds = request.getInstruments();
-        
-        // Если инструменты не указаны, получаем только RUB инструменты (shares, futures) из БД
-        if (instrumentIds == null || instrumentIds.isEmpty()) {
-            List<String> allInstrumentIds = new ArrayList<>();
-            
-            // Получаем только акции в рублях из таблицы shares
-            List<ShareEntity> shares = shareRepo.findAll();
-            for (ShareEntity share : shares) {
-                if ("RUB".equalsIgnoreCase(share.getCurrency())) {
-                    allInstrumentIds.add(share.getFigi());
+    public CompletableFuture<SaveResponseDto> loadEveningSessionPricesAsync(String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                LocalDate yesterday = LocalDate.now().minusDays(1);
+                logger.info("[" + taskId + "] Начало асинхронной загрузки цен вечерней сессии за " + yesterday);
+                
+                return processEveningSessionPricesForDate(yesterday, taskId);
+                
+            } catch (Exception e) {
+                logger.error("[" + taskId + "] Ошибка асинхронной загрузки цен вечерней сессии: " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД (синхронно, как в InstrumentService)
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/evening-session-prices");
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронной загрузки цен вечерней сессии: " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                    logger.info("[" + taskId + "] Лог ошибки сохранен в БД");
+                } catch (Exception logException) {
+                    logger.error("[" + taskId + "] Ошибка сохранения лога ошибки: " + logException.getMessage());
                 }
+                
+                return new SaveResponseDto(
+                    false,
+                    "Ошибка загрузки цен вечерней сессии: " + e.getMessage(),
+                    0, 0, 0, 0, 0, new ArrayList<>()
+                );
             }
-            
-            // Получаем только фьючерсы в рублях из таблицы futures
-            List<FutureEntity> futures = futureRepo.findAll();
-            for (FutureEntity future : futures) {
-                if ("RUB".equalsIgnoreCase(future.getCurrency())) {
-                    allInstrumentIds.add(future.getFigi());
-                }
-            }
-            
-            instrumentIds = allInstrumentIds;
-        }
-        
-        // Если после получения из БД список все еще пуст, возвращаем пустой результат
-        if (instrumentIds.isEmpty()) {
-            return new SaveResponseDto(
-                false,
-                "Нет инструментов для загрузки цен вечерней сессии. В базе данных нет акций в рублях или фьючерсов в рублях.",
-                0, 0, 0, 0, 0, new ArrayList<>()
-            );
-        }
+        });
+    }
 
-        // Получаем цены закрытия из API по частям (только shares+futures)
-        List<ClosePriceDto> closePricesFromApi = new ArrayList<>();
-        int requestedInstrumentsCount = instrumentIds.size();
-        
-        try {
-            // Батчим запросы по 100 инструментов, чтобы избежать лимитов API
-            int batchSize = 100;
-            System.out.println("Запрашиваем цены закрытия для evening session для " + instrumentIds.size() + " инструментов батчами по " + batchSize);
-            for (int i = 0; i < instrumentIds.size(); i += batchSize) {
-                int toIndex = Math.min(i + batchSize, instrumentIds.size());
-                List<String> batch = instrumentIds.subList(i, toIndex);
-                List<ClosePriceDto> prices = mainSessionPriceService.getClosePrices(batch, null);
-                closePricesFromApi.addAll(prices);
-                System.out.println("Получено цен для батча evening session (" + batch.size() + "): " + prices.size());
-                try { Thread.sleep(200); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+    /**
+     * Асинхронная загрузка цен вечерней сессии за конкретную дату
+     */
+    public CompletableFuture<SaveResponseDto> loadEveningSessionPricesForDateAsync(LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                logger.info("[{}] === СЕРВИС: Начало асинхронной загрузки цен вечерней сессии за {} ===", taskId, date);
+                
+                return processEveningSessionPricesForDate(date, taskId);
+                
+            } catch (Exception e) {
+                logger.error("[{}] Ошибка асинхронной загрузки цен вечерней сессии за {}: {}", taskId, date, e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД (синхронно, как в InstrumentService)
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/evening-session-prices/by-date/" + date);
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронной загрузки цен вечерней сессии за " + date + ": " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                    logger.info("[" + taskId + "] Лог ошибки сохранен в БД");
+                } catch (Exception logException) {
+                    logger.error("[" + taskId + "] Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                return new SaveResponseDto(
+                    false,
+                    "Ошибка загрузки цен вечерней сессии за " + date + ": " + e.getMessage(),
+                    0, 0, 0, 0, 0, new ArrayList<>()
+                );
             }
+        });
+    }
+
+    /**
+     * Асинхронная загрузка цен вечерней сессии для акций за дату
+     */
+    public CompletableFuture<SaveResponseDto> loadSharesEveningSessionPricesAsync(LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                logger.info("[" + taskId + "] Начало асинхронной загрузки цен вечерней сессии для акций за " + date);
+                
+                return processSharesEveningSessionPricesForDate(date, taskId);
+                
+            } catch (Exception e) {
+                logger.error("[" + taskId + "] Ошибка асинхронной загрузки цен вечерней сессии для акций за " + date + ": " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД (синхронно, как в InstrumentService)
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/evening-session-prices/shares/" + date);
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронной загрузки цен вечерней сессии для акций за " + date + ": " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                    logger.info("[" + taskId + "] Лог ошибки сохранен в БД");
+                } catch (Exception logException) {
+                    logger.error("[" + taskId + "] Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                return new SaveResponseDto(
+                    false,
+                    "Ошибка загрузки цен вечерней сессии для акций за " + date + ": " + e.getMessage(),
+                    0, 0, 0, 0, 0, new ArrayList<>()
+                );
+            }
+        });
+    }
+
+    /**
+     * Асинхронная загрузка цен вечерней сессии для фьючерсов за дату
+     */
+    public CompletableFuture<SaveResponseDto> loadFuturesEveningSessionPricesAsync(LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                logger.info("[" + taskId + "] Начало асинхронной загрузки цен вечерней сессии для фьючерсов за " + date);
+                
+                return processFuturesEveningSessionPricesForDate(date, taskId);
+                
+            } catch (Exception e) {
+                logger.error("[" + taskId + "] Ошибка асинхронной загрузки цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД (синхронно, как в InstrumentService)
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/evening-session-prices/futures/" + date);
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронной загрузки цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                    logger.info("[" + taskId + "] Лог ошибки сохранен в БД");
+                } catch (Exception logException) {
+                    logger.error("[" + taskId + "] Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                return new SaveResponseDto(
+                    false,
+                    "Ошибка загрузки цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage(),
+                    0, 0, 0, 0, 0, new ArrayList<>()
+                );
+            }
+        });
+    }
+
+    /**
+     * Асинхронная загрузка цены вечерней сессии по инструменту за дату
+     */
+    public CompletableFuture<SaveResponseDto> loadEveningSessionPriceByFigiAsync(String figi, LocalDate date, String taskId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                logger.info("[" + taskId + "] Начало асинхронной загрузки цены вечерней сессии для " + figi + " за " + date);
+                
+                return processEveningSessionPriceByFigi(figi, date, taskId);
+                
+            } catch (Exception e) {
+                logger.error("[" + taskId + "] Ошибка асинхронной загрузки цены вечерней сессии для " + figi + " за " + date + ": " + e.getMessage());
+                e.printStackTrace();
+                
+                // Логируем ошибку в БД (синхронно, как в InstrumentService)
+                try {
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint("/api/evening-session-prices/by-figi-date/" + figi + "/" + date);
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка асинхронной загрузки цены вечерней сессии для " + figi + " за " + date + ": " + e.getMessage());
+                    errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    errorLog.setEndTime(Instant.now());
+                    systemLogRepository.save(errorLog);
+                    logger.info("[" + taskId + "] Лог ошибки сохранен в БД");
+                } catch (Exception logException) {
+                    logger.error("[" + taskId + "] Ошибка сохранения лога ошибки: " + logException.getMessage());
+                }
+                
+                return new SaveResponseDto(
+                    false,
+                    "Ошибка загрузки цены вечерней сессии для " + figi + " за " + date + ": " + e.getMessage(),
+                    0, 0, 0, 0, 0, new ArrayList<>()
+                );
+            }
+        });
+    }
+
+    /**
+     * Обработка цен вечерней сессии для всех инструментов за дату
+     */
+    private SaveResponseDto processEveningSessionPricesForDate(LocalDate date, String taskId) {
+        try {
+            logger.info("[" + taskId + "] Начинаем загрузку данных из БД...");
+            
+            // Получаем все акции и фьючерсы из БД (блокирующий запрос)
+            long startTime = System.currentTimeMillis();
+            List<ShareEntity> shares = shareRepository.findAll();
+            long sharesTime = System.currentTimeMillis();
+            logger.info("[" + taskId + "] Загрузка акций заняла: " + (sharesTime - startTime) + "мс");
+            
+            List<FutureEntity> futures = futureRepository.findAll();
+            long futuresTime = System.currentTimeMillis();
+            logger.info("[" + taskId + "] Загрузка фьючерсов заняла: " + (futuresTime - sharesTime) + "мс");
+            
+            logger.info("[" + taskId + "] Найдено акций: " + shares.size() + ", фьючерсов: " + futures.size());
+            
+            int totalRequested = shares.size() + futures.size();
+            AtomicInteger newItemsSaved = new AtomicInteger(0);
+            AtomicInteger existingItemsSkipped = new AtomicInteger(0);
+            AtomicInteger invalidItemsFiltered = new AtomicInteger(0);
+            AtomicInteger missingFromApi = new AtomicInteger(0);
+            List<Map<String, Object>> savedItems = Collections.synchronizedList(new ArrayList<>());
+            
+            logger.info("[" + taskId + "] Начинаем параллельную обработку " + shares.size() + " акций и " + futures.size() + " фьючерсов...");
+            
+            // Параллельная обработка акций с обработкой ошибок
+            List<CompletableFuture<Void>> shareFutures = shares.stream()
+                .map(share -> CompletableFuture.runAsync(() -> {
+                    try {
+                        processShareEveningSessionPrice(share, date, newItemsSaved, existingItemsSkipped, 
+                            invalidItemsFiltered, missingFromApi, savedItems, taskId);
+                    } catch (Exception e) {
+                        logger.error("[" + taskId + "] Ошибка обработки акции " + share.getTicker() + ": " + e.getMessage());
+                        missingFromApi.incrementAndGet();
+                    }
+                }, executorService))
+                .collect(Collectors.toList());
+            
+            // Параллельная обработка фьючерсов с обработкой ошибок
+            List<CompletableFuture<Void>> futureFutures = futures.stream()
+                .map(future -> CompletableFuture.runAsync(() -> {
+                    try {
+                        processFutureEveningSessionPrice(future, date, newItemsSaved, existingItemsSkipped, 
+                            invalidItemsFiltered, missingFromApi, savedItems, taskId);
+                    } catch (Exception e) {
+                        logger.error("[" + taskId + "] Ошибка обработки фьючерса " + future.getTicker() + ": " + e.getMessage());
+                        missingFromApi.incrementAndGet();
+                    }
+                }, executorService))
+                .collect(Collectors.toList());
+            
+            // Ждем завершения всех операций
+            CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                shareFutures.toArray(new CompletableFuture[0])
+            ).thenCompose(v -> CompletableFuture.allOf(
+                futureFutures.toArray(new CompletableFuture[0])
+            ));
+            
+            logger.info("[" + taskId + "] Ждем завершения всех операций...");
+            long processingStartTime = System.currentTimeMillis();
+            allFutures.join();
+            long processingEndTime = System.currentTimeMillis();
+            logger.info("[" + taskId + "] Обработка завершена за: " + (processingEndTime - processingStartTime) + "мс");
+            
+            // Логируем успешное завершение в БД (синхронно, как в InstrumentService)
+            try {
+                SystemLogEntity successLog = new SystemLogEntity();
+                successLog.setTaskId(taskId);
+                successLog.setEndpoint("/api/evening-session-prices/by-date/" + date);
+                successLog.setMethod("POST");
+                successLog.setStatus("COMPLETED");
+                successLog.setMessage("Успешно загружено " + newItemsSaved.get() + " новых цен вечерней сессии из " + totalRequested + " найденных.");
+                successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                successLog.setEndTime(Instant.now());
+                systemLogRepository.save(successLog);
+                logger.info("[" + taskId + "] Лог успешного завершения сохранен в БД");
+            } catch (Exception logException) {
+                logger.error("[" + taskId + "] Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+            }
+            
+            return new SaveResponseDto(
+                true,
+                "Успешно загружено " + newItemsSaved.get() + " новых цен вечерней сессии из " + totalRequested + " найденных.",
+                totalRequested,
+                newItemsSaved.get(),
+                existingItemsSkipped.get(),
+                invalidItemsFiltered.get(),
+                missingFromApi.get(),
+                savedItems
+            );
+            
+        } catch (Exception e) {
+            logger.error("[" + taskId + "] Ошибка обработки цен вечерней сессии за " + date + ": " + e.getMessage());
+            e.printStackTrace();
+            
+            // Логируем ошибку в БД (синхронно, как в InstrumentService)
+            try {
+                SystemLogEntity errorLog = new SystemLogEntity();
+                errorLog.setTaskId(taskId);
+                errorLog.setEndpoint("/api/evening-session-prices/by-date/" + date);
+                errorLog.setMethod("POST");
+                errorLog.setStatus("FAILED");
+                errorLog.setMessage("Ошибка обработки цен вечерней сессии за " + date + ": " + e.getMessage());
+                errorLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                errorLog.setEndTime(Instant.now());
+                systemLogRepository.save(errorLog);
+                logger.info("[" + taskId + "] Лог ошибки сохранен в БД");
+            } catch (Exception logException) {
+                logger.error("[" + taskId + "] Ошибка сохранения лога ошибки: " + logException.getMessage());
+            }
+            
+            throw new RuntimeException("Ошибка обработки цен вечерней сессии за " + date + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Обработка цен вечерней сессии для акций за дату
+     */
+    private SaveResponseDto processSharesEveningSessionPricesForDate(LocalDate date, String taskId) {
+        try {
+            // Получаем все акции из БД (блокирующий запрос)
+            List<ShareEntity> shares = shareRepository.findAll();
+            
+            logger.info("[" + taskId + "] Найдено акций: " + shares.size());
+            
+            int totalRequested = shares.size();
+            AtomicInteger newItemsSaved = new AtomicInteger(0);
+            AtomicInteger existingItemsSkipped = new AtomicInteger(0);
+            AtomicInteger invalidItemsFiltered = new AtomicInteger(0);
+            AtomicInteger missingFromApi = new AtomicInteger(0);
+            List<Map<String, Object>> savedItems = Collections.synchronizedList(new ArrayList<>());
+            
+            // Параллельная обработка акций
+            List<CompletableFuture<Void>> shareFutures = shares.stream()
+                .map(share -> CompletableFuture.runAsync(() -> 
+                    processShareEveningSessionPrice(share, date, newItemsSaved, existingItemsSkipped, 
+                        invalidItemsFiltered, missingFromApi, savedItems, taskId), executorService))
+                .collect(Collectors.toList());
+            
+            // Ждем завершения всех операций
+            CompletableFuture.allOf(shareFutures.toArray(new CompletableFuture[0])).join();
+            
+            // Логируем успешное завершение в БД (синхронно, как в InstrumentService)
+            try {
+                SystemLogEntity successLog = new SystemLogEntity();
+                successLog.setTaskId(taskId);
+                successLog.setEndpoint("/api/evening-session-prices/shares/" + date);
+                successLog.setMethod("POST");
+                successLog.setStatus("COMPLETED");
+                successLog.setMessage("Успешно загружено " + newItemsSaved.get() + " новых цен вечерней сессии для акций из " + totalRequested + " найденных.");
+                successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                successLog.setEndTime(Instant.now());
+                systemLogRepository.save(successLog);
+                logger.info("[" + taskId + "] Лог успешного завершения для акций сохранен в БД");
+            } catch (Exception logException) {
+                logger.error("[" + taskId + "] Ошибка сохранения лога успешного завершения для акций: " + logException.getMessage());
+            }
+            
+            return new SaveResponseDto(
+                true,
+                "Успешно загружено " + newItemsSaved.get() + " новых цен вечерней сессии для акций из " + totalRequested + " найденных.",
+                totalRequested,
+                newItemsSaved.get(),
+                existingItemsSkipped.get(),
+                invalidItemsFiltered.get(),
+                missingFromApi.get(),
+                savedItems
+            );
 
         } catch (Exception e) {
-            System.err.println("Ошибка при получении цен закрытия из API для evening session: " + e.getMessage());
-            System.err.println("Количество инструментов в запросе: " + instrumentIds.size());
-            
-            return new SaveResponseDto(
-                false,
-                "Ошибка при получении цен закрытия из API для evening session: " + e.getMessage() + 
-                ". Количество инструментов: " + instrumentIds.size(),
-                0, 0, 0, 0, 0, new ArrayList<>()
-            );
+            logger.error("[" + taskId + "] Ошибка обработки цен вечерней сессии для акций за " + date + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Ошибка обработки цен вечерней сессии для акций за " + date + ": " + e.getMessage(), e);
         }
-        
-        // Фильтруем неверные цены и получаем статистику
-        ClosePriceProcessingResult processingResult = filterValidPricesWithStats(closePricesFromApi);
-        List<ClosePriceDto> closePrices = processingResult.getValidPrices();
-        int invalidPricesFiltered = processingResult.getInvalidPricesFiltered();
-        
-        List<ClosePriceEveningSessionDto> savedPrices = new ArrayList<>();
-        int existingCount = 0;
-        int failedSavesCount = 0;
-        
-        System.out.println("=== НАЧАЛО ОБРАБОТКИ ЦЕН ВЕЧЕРНЕЙ СЕССИИ ===");
-        System.out.println("Всего получено цен из API: " + closePricesFromApi.size());
-        System.out.println("Отфильтровано неверных цен (1970-01-01): " + invalidPricesFiltered);
-        System.out.println("Валидных цен для обработки: " + closePrices.size());
-        System.out.println("Запрашивалось инструментов: " + requestedInstrumentsCount);
-        
-        for (ClosePriceDto closePriceDto : closePrices) {
-            // Используем eveningSessionPrice, если она есть, иначе closePrice
-            BigDecimal eveningPrice = closePriceDto.eveningSessionPrice() != null ? 
-                closePriceDto.eveningSessionPrice() : closePriceDto.closePrice();
-            
-            if (eveningPrice == null) {
-                System.out.println("Пропускаем " + closePriceDto.figi() + " - нет цены вечерней сессии");
-                continue;
-            }
-            
-            LocalDate priceDate = LocalDate.parse(closePriceDto.tradingDate());
-            
-            System.out.println("Обрабатываем evening session: " + closePriceDto.figi() + " на дату: " + priceDate + " цена: " + eveningPrice);
-
-            // Определяем тип инструмента и получаем дополнительную информацию
-            String instrumentType = "UNKNOWN";
-            String currency = "UNKNOWN";
-            String exchange = "UNKNOWN";
-
-            // Проверяем в таблице shares
-            ShareEntity share = shareRepo.findById(closePriceDto.figi()).orElse(null);
-            if (share != null) {
-                instrumentType = "SHARE";
-                currency = share.getCurrency();
-                exchange = share.getExchange();
-            } else {
-                // Проверяем в таблице futures
-                FutureEntity future = futureRepo.findById(closePriceDto.figi()).orElse(null);
-                if (future != null) {
-                    instrumentType = "FUTURE";
-                    currency = future.getCurrency();
-                    exchange = future.getExchange();
-                }
-            }
-
-            // Проверяем, существует ли уже запись
-            if (closePriceEveningSessionRepo.existsByPriceDateAndFigi(priceDate, closePriceDto.figi())) {
-                System.out.println("Запись evening session уже существует для " + closePriceDto.figi() + " на дату " + priceDate + ", пропускаем");
-                existingCount++;
-                continue;
-            }
-
-            try {
-                // Создаем новую запись
-                ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
-                entity.setPriceDate(priceDate);
-                entity.setFigi(closePriceDto.figi());
-                entity.setClosePrice(eveningPrice);
-                entity.setInstrumentType(instrumentType);
-                entity.setCurrency(currency);
-                entity.setExchange(exchange);
-
-                closePriceEveningSessionRepo.save(entity);
-                
-                ClosePriceEveningSessionDto dto = new ClosePriceEveningSessionDto(
-                    priceDate,
-                    closePriceDto.figi(),
-                    eveningPrice,
-                    instrumentType,
-                    currency,
-                    exchange
-                );
-                savedPrices.add(dto);
-                
-                System.out.println("Сохранена цена вечерней сессии для " + closePriceDto.figi() + ": " + eveningPrice);
-
-            } catch (DataIntegrityViolationException e) {
-                System.err.println("Ошибка целостности данных при сохранении evening session для " + closePriceDto.figi() + ": " + e.getMessage());
-                failedSavesCount++;
-            } catch (Exception e) {
-                System.err.println("Неожиданная ошибка при сохранении evening session для " + closePriceDto.figi() + ": " + e.getMessage());
-                failedSavesCount++;
-            }
-        }
-
-        int newItemsSaved = savedPrices.size();
-        int totalRequested = requestedInstrumentsCount;
-        int missingFromApi = totalRequested - closePrices.size();
-        
-        System.out.println("=== ИТОГИ ОБРАБОТКИ ЦЕН ВЕЧЕРНЕЙ СЕССИИ ===");
-        System.out.println("Запрашивалось инструментов: " + totalRequested);
-        System.out.println("Получено из API: " + closePrices.size());
-        System.out.println("Отфильтровано неверных: " + invalidPricesFiltered);
-        System.out.println("Новых записей сохранено: " + newItemsSaved);
-        System.out.println("Уже существовало: " + existingCount);
-        System.out.println("Ошибок сохранения: " + failedSavesCount);
-        System.out.println("Не получено из API: " + missingFromApi);
-
-        boolean success = failedSavesCount == 0;
-        String message = success ? 
-            "Цены вечерней сессии успешно сохранены" : 
-            "Цены вечерней сессии сохранены с ошибками";
-
-        return new SaveResponseDto(
-            success,
-            message,
-            totalRequested,
-            newItemsSaved,
-            existingCount,
-            invalidPricesFiltered,
-            missingFromApi,
-            savedPrices
-        );
     }
 
     /**
-     * Фильтрация валидных цен закрытия с детальной статистикой
+     * Обработка цен вечерней сессии для фьючерсов за дату
      */
-    private ClosePriceProcessingResult filterValidPricesWithStats(List<ClosePriceDto> prices) {
-        List<ClosePriceDto> validPrices = new ArrayList<>();
-        int invalidPricesCount = 0;
-        
-        for (ClosePriceDto price : prices) {
-            if ("1970-01-01".equals(price.tradingDate())) {
-                invalidPricesCount++;
-                System.out.println("Фильтруем неверную цену с датой 1970-01-01 для FIGI: " + price.figi());
-            } else {
-                validPrices.add(price);
+    private SaveResponseDto processFuturesEveningSessionPricesForDate(LocalDate date, String taskId) {
+        try {
+            // Получаем все фьючерсы из БД (блокирующий запрос)
+            List<FutureEntity> futures = futureRepository.findAll();
+            
+            logger.info("[" + taskId + "] Найдено фьючерсов: " + futures.size());
+            
+            int totalRequested = futures.size();
+            AtomicInteger newItemsSaved = new AtomicInteger(0);
+            AtomicInteger existingItemsSkipped = new AtomicInteger(0);
+            AtomicInteger invalidItemsFiltered = new AtomicInteger(0);
+            AtomicInteger missingFromApi = new AtomicInteger(0);
+            List<Map<String, Object>> savedItems = Collections.synchronizedList(new ArrayList<>());
+            
+            // Параллельная обработка фьючерсов
+            List<CompletableFuture<Void>> futureFutures = futures.stream()
+                .map(future -> CompletableFuture.runAsync(() -> 
+                    processFutureEveningSessionPrice(future, date, newItemsSaved, existingItemsSkipped, 
+                        invalidItemsFiltered, missingFromApi, savedItems, taskId), executorService))
+                .collect(Collectors.toList());
+            
+            // Ждем завершения всех операций
+            CompletableFuture.allOf(futureFutures.toArray(new CompletableFuture[0])).join();
+            
+            // Логируем успешное завершение в БД (синхронно, как в InstrumentService)
+            try {
+                SystemLogEntity successLog = new SystemLogEntity();
+                successLog.setTaskId(taskId);
+                successLog.setEndpoint("/api/evening-session-prices/futures/" + date);
+                successLog.setMethod("POST");
+                successLog.setStatus("COMPLETED");
+                successLog.setMessage("Успешно загружено " + newItemsSaved.get() + " новых цен вечерней сессии для фьючерсов из " + totalRequested + " найденных.");
+                successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                successLog.setEndTime(Instant.now());
+                systemLogRepository.save(successLog);
+                logger.info("[" + taskId + "] Лог успешного завершения для фьючерсов сохранен в БД");
+            } catch (Exception logException) {
+                logger.error("[" + taskId + "] Ошибка сохранения лога успешного завершения для фьючерсов: " + logException.getMessage());
             }
+            
+            return new SaveResponseDto(
+                true,
+                "Успешно загружено " + newItemsSaved.get() + " новых цен вечерней сессии для фьючерсов из " + totalRequested + " найденных.",
+                totalRequested,
+                newItemsSaved.get(),
+                existingItemsSkipped.get(),
+                invalidItemsFiltered.get(),
+                missingFromApi.get(),
+                savedItems
+            );
+            
+        } catch (Exception e) {
+            logger.error("[" + taskId + "] Ошибка обработки цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Ошибка обработки цен вечерней сессии для фьючерсов за " + date + ": " + e.getMessage(), e);
         }
-        
-        if (invalidPricesCount > 0) {
-            System.out.println("Отфильтровано " + invalidPricesCount + " неверных цен с датой 1970-01-01");
-        }
-        
-        return new ClosePriceProcessingResult(validPrices, invalidPricesCount, prices.size());
     }
+
+    /**
+     * Обработка цены вечерней сессии по инструменту за дату
+     */
+    private SaveResponseDto processEveningSessionPriceByFigi(String figi, LocalDate date, String taskId) {
+        try {
+            // Получаем последнюю свечу за день для инструмента (блокирующий запрос)
+            var lastCandle = minuteCandleRepository.findLastCandleForDate(figi, date);
+            
+            if (lastCandle == null) {
+                return new SaveResponseDto(
+                    false,
+                    "Цена вечерней сессии не найдена для инструмента " + figi + " за " + date,
+                    1, 0, 0, 0, 1, new ArrayList<>()
+                );
+            }
+            
+            BigDecimal lastClosePrice = lastCandle.getClose();
+            
+            // Проверяем, что цена не равна 0 (невалидная цена)
+            if (lastClosePrice.compareTo(BigDecimal.ZERO) <= 0) {
+                return new SaveResponseDto(
+                    false,
+                    "Невалидная цена закрытия для инструмента " + figi + " за " + date,
+                    1, 0, 0, 1, 0, new ArrayList<>()
+                );
+            }
+            
+            // Проверяем, есть ли уже запись для этой даты и FIGI
+            if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, figi)) {
+                return new SaveResponseDto(
+                    false,
+                    "Запись уже существует для инструмента " + figi + " за " + date,
+                    1, 0, 1, 0, 0, new ArrayList<>()
+                );
+            }
+            
+            // Определяем тип инструмента
+            String instrumentType = "UNKNOWN";
+            boolean isShare = shareRepository.findAll().stream()
+                    .anyMatch(share -> share.getFigi().equals(figi));
+            boolean isFuture = futureRepository.findAll().stream()
+                    .anyMatch(future -> future.getFigi().equals(figi));
+            
+            if (isShare) {
+                instrumentType = "SHARE";
+            } else if (isFuture) {
+                    instrumentType = "FUTURE";
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
+            entity.setFigi(figi);
+            entity.setPriceDate(date);
+            entity.setClosePrice(lastClosePrice);
+            entity.setInstrumentType(instrumentType);
+            entity.setCurrency("RUB");
+            entity.setExchange("MOEX");
+            
+            closePriceEveningSessionRepository.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", figi);
+            savedItem.put("priceDate", date.toString());
+            savedItem.put("closePrice", lastClosePrice);
+            savedItem.put("instrumentType", instrumentType);
+            savedItem.put("currency", "RUB");
+            savedItem.put("exchange", "MOEX");
+            
+            // Логируем успешное завершение в БД (синхронно, как в InstrumentService)
+            try {
+                SystemLogEntity successLog = new SystemLogEntity();
+                successLog.setTaskId(taskId);
+                successLog.setEndpoint("/api/evening-session-prices/by-figi-date/" + figi + "/" + date);
+                successLog.setMethod("POST");
+                successLog.setStatus("COMPLETED");
+                successLog.setMessage("Цена вечерней сессии для инструмента " + figi + " за " + date + " сохранена успешно");
+                successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                successLog.setEndTime(Instant.now());
+                systemLogRepository.save(successLog);
+                logger.info("[" + taskId + "] Лог успешного завершения для инструмента сохранен в БД");
+            } catch (Exception logException) {
+                logger.error("[" + taskId + "] Ошибка сохранения лога успешного завершения для инструмента: " + logException.getMessage());
+            }
+            
+            return new SaveResponseDto(
+                true,
+                "Цена вечерней сессии для инструмента " + figi + " за " + date + " сохранена успешно",
+                1, 1, 0, 0, 0, List.of(savedItem)
+            );
+            
+        } catch (Exception e) {
+            logger.error("[" + taskId + "] Ошибка обработки цены вечерней сессии для " + figi + " за " + date + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Ошибка обработки цены вечерней сессии для " + figi + " за " + date + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Обработка цены вечерней сессии для акции
+     */
+    private void processShareEveningSessionPrice(ShareEntity share, LocalDate date, 
+            AtomicInteger newItemsSaved, AtomicInteger existingItemsSkipped, 
+            AtomicInteger invalidItemsFiltered, AtomicInteger missingFromApi, 
+            List<Map<String, Object>> savedItems, String taskId) {
+        try {
+            // Получаем последнюю свечу за день для акции (блокирующий запрос)
+            var lastCandle = minuteCandleRepository.findLastCandleForDate(share.getFigi(), date);
+            
+            if (lastCandle == null) {
+                missingFromApi.incrementAndGet();
+                return;
+            }
+            
+            BigDecimal lastClosePrice = lastCandle.getClose();
+            
+            // Проверяем, есть ли уже запись для этой даты и FIGI
+            if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, share.getFigi())) {
+                existingItemsSkipped.incrementAndGet();
+                return;
+            }
+            
+            // Проверяем, что цена не равна 0 (невалидная цена)
+            if (lastClosePrice.compareTo(BigDecimal.ZERO) <= 0) {
+                invalidItemsFiltered.incrementAndGet();
+                return;
+            }
+            
+            // Создаем запись для сохранения
+                ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
+            entity.setFigi(share.getFigi());
+            entity.setPriceDate(date);
+            entity.setClosePrice(lastClosePrice);
+            entity.setInstrumentType("SHARE");
+            entity.setCurrency("RUB");
+            entity.setExchange("MOEX");
+            
+            closePriceEveningSessionRepository.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", share.getFigi());
+            savedItem.put("ticker", share.getTicker());
+            savedItem.put("name", share.getName());
+            savedItem.put("priceDate", date.toString());
+            savedItem.put("closePrice", lastClosePrice);
+            savedItem.put("instrumentType", "SHARE");
+            savedItem.put("currency", "RUB");
+            savedItem.put("exchange", "MOEX");
+            
+            savedItems.add(savedItem);
+            newItemsSaved.incrementAndGet();
+            
+            } catch (Exception e) {
+            logger.error("[" + taskId + "] Ошибка обработки акции " + share.getTicker() + ": " + e.getMessage());
+            missingFromApi.incrementAndGet();
+        }
+    }
+
+    /**
+     * Обработка цены вечерней сессии для фьючерса
+     */
+    private void processFutureEveningSessionPrice(FutureEntity future, LocalDate date, 
+            AtomicInteger newItemsSaved, AtomicInteger existingItemsSkipped, 
+            AtomicInteger invalidItemsFiltered, AtomicInteger missingFromApi, 
+            List<Map<String, Object>> savedItems, String taskId) {
+        try {
+            // Получаем последнюю свечу за день для фьючерса (блокирующий запрос)
+            var lastCandle = minuteCandleRepository.findLastCandleForDate(future.getFigi(), date);
+            
+            if (lastCandle == null) {
+                missingFromApi.incrementAndGet();
+                return;
+            }
+            
+            BigDecimal lastClosePrice = lastCandle.getClose();
+            
+            // Проверяем, есть ли уже запись для этой даты и FIGI
+            if (closePriceEveningSessionRepository.existsByPriceDateAndFigi(date, future.getFigi())) {
+                existingItemsSkipped.incrementAndGet();
+                return;
+            }
+            
+            // Проверяем, что цена не равна 0 (невалидная цена)
+            if (lastClosePrice.compareTo(BigDecimal.ZERO) <= 0) {
+                invalidItemsFiltered.incrementAndGet();
+                return;
+            }
+            
+            // Создаем запись для сохранения
+            ClosePriceEveningSessionEntity entity = new ClosePriceEveningSessionEntity();
+            entity.setFigi(future.getFigi());
+            entity.setPriceDate(date);
+            entity.setClosePrice(lastClosePrice);
+            entity.setInstrumentType("FUTURE");
+            entity.setCurrency("RUB");
+            entity.setExchange("MOEX");
+            
+            closePriceEveningSessionRepository.save(entity);
+            
+            Map<String, Object> savedItem = new HashMap<>();
+            savedItem.put("figi", future.getFigi());
+            savedItem.put("ticker", future.getTicker());
+            savedItem.put("name", future.getTicker());
+            savedItem.put("priceDate", date.toString());
+            savedItem.put("closePrice", lastClosePrice);
+            savedItem.put("instrumentType", "FUTURE");
+            savedItem.put("currency", "RUB");
+            savedItem.put("exchange", "MOEX");
+            
+            savedItems.add(savedItem);
+            newItemsSaved.incrementAndGet();
+            
+        } catch (Exception e) {
+            logger.error("[" + taskId + "] Ошибка обработки фьючерса " + future.getTicker() + ": " + e.getMessage());
+            missingFromApi.incrementAndGet();
+        }
+    }
+
 }

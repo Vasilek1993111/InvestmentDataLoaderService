@@ -1,5 +1,7 @@
 package com.example.InvestmentDataLoaderService.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -15,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class RateLimitService {
 
+    private static final Logger log = LoggerFactory.getLogger(RateLimitService.class);
+    
     // Семафор для ограничения количества одновременных запросов
     private final Semaphore apiSemaphore;
     

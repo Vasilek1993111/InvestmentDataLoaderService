@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Определяем переменные для путей -->
+    <property name="LOG_DIR" value="logs"/>
+    <property name="CURRENT_LOG_DIR" value="logs/current"/>
+    <property name="ARCHIVE_LOG_DIR" value="logs/archive"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    
+    <!-- Консольный аппендер для разработки -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder charset="UTF-8">
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Вечерняя сессия -->
+    <appender name="EVENING_SESSION" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/evening-session.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/evening-session.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Утренняя сессия -->
+    <appender name="MORNING_SESSION" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/morning-session.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/morning-session.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Основная сессия -->
+    <appender name="MAIN_SESSION" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/main-session.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/main-session.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Инструменты -->
+    <appender name="INSTRUMENTS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/instruments.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/instruments.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Системные логи -->
+    <appender name="SYSTEM" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/system.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/system.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Ошибки -->
+    <appender name="ERRORS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/errors.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/errors.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!-- Свечи (дневные и минутные) -->
+    <appender name="CANDLES" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/candles.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/candles.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Торговля -->
+    <appender name="TRADING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/trading.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/trading.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Дивиденды -->
+    <appender name="DIVIDENDS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/dividends.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/dividends.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Фундаментальные показатели -->
+    <appender name="FUNDAMENTALS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/fundamentals.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/fundamentals.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Последние сделки -->
+    <appender name="LAST_TRADES" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/last-trades.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/last-trades.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Кэш -->
+    <appender name="CACHE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/cache.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/cache.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Планировщики -->
+    <appender name="SCHEDULERS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/schedulers.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/schedulers.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Клиенты API -->
+    <appender name="API_CLIENTS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CURRENT_LOG_DIR}/api-clients.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/api-clients.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Логгеры для контроллеров -->
+    <logger name="com.example.InvestmentDataLoaderService.controller.EveningSessionController" level="INFO" additivity="false">
+        <appender-ref ref="EVENING_SESSION"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.MorningSessionController" level="INFO" additivity="false">
+        <appender-ref ref="MORNING_SESSION"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.MainSessionPricesController" level="INFO" additivity="false">
+        <appender-ref ref="MAIN_SESSION"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.InstrumentsController" level="INFO" additivity="false">
+        <appender-ref ref="INSTRUMENTS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Системные контроллеры -->
+    <logger name="com.example.InvestmentDataLoaderService.controller.SystemController" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.StatusController" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.CacheController" level="INFO" additivity="false">
+        <appender-ref ref="CACHE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Остальные контроллеры -->
+    <logger name="com.example.InvestmentDataLoaderService.controller.TradingController" level="INFO" additivity="false">
+        <appender-ref ref="TRADING"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.DividendController" level="INFO" additivity="false">
+        <appender-ref ref="DIVIDENDS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.CandlesDailyController" level="INFO" additivity="false">
+        <appender-ref ref="CANDLES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.CandlesMinuteController" level="INFO" additivity="false">
+        <appender-ref ref="CANDLES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.CandlesInstrumentController" level="INFO" additivity="false">
+        <appender-ref ref="CANDLES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.AssetFundamentalsController" level="INFO" additivity="false">
+        <appender-ref ref="FUNDAMENTALS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.LastTradesController" level="INFO" additivity="false">
+        <appender-ref ref="LAST_TRADES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.VolumeAggregationController" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.controller.RateLimitController" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Логгеры для сервисов -->
+    <logger name="com.example.InvestmentDataLoaderService.service.EveningSessionService" level="INFO" additivity="false">
+        <appender-ref ref="EVENING_SESSION"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.MorningSessionService" level="INFO" additivity="false">
+        <appender-ref ref="MORNING_SESSION"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.MainSessionPriceService" level="INFO" additivity="false">
+        <appender-ref ref="MAIN_SESSION"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.InstrumentService" level="INFO" additivity="false">
+        <appender-ref ref="INSTRUMENTS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Остальные сервисы -->
+    <logger name="com.example.InvestmentDataLoaderService.service.TradingService" level="INFO" additivity="false">
+        <appender-ref ref="TRADING"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.DividendService" level="INFO" additivity="false">
+        <appender-ref ref="DIVIDENDS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.DailyCandleService" level="INFO" additivity="false">
+        <appender-ref ref="CANDLES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.MinuteCandleService" level="INFO" additivity="false">
+        <appender-ref ref="CANDLES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.LastTradesService" level="INFO" additivity="false">
+        <appender-ref ref="LAST_TRADES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.LastTradeService" level="INFO" additivity="false">
+        <appender-ref ref="LAST_TRADES"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.AssetFundamentalService" level="INFO" additivity="false">
+        <appender-ref ref="FUNDAMENTALS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.CacheWarmupService" level="INFO" additivity="false">
+        <appender-ref ref="CACHE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.CachedInstrumentService" level="INFO" additivity="false">
+        <appender-ref ref="INSTRUMENTS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.RetryService" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="com.example.InvestmentDataLoaderService.service.RateLimitService" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Планировщики -->
+    <logger name="com.example.InvestmentDataLoaderService.scheduler" level="INFO" additivity="false">
+        <appender-ref ref="SCHEDULERS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Клиенты -->
+    <logger name="com.example.InvestmentDataLoaderService.client" level="INFO" additivity="false">
+        <appender-ref ref="API_CLIENTS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Системные логгеры -->
+    <logger name="com.example.InvestmentDataLoaderService" level="INFO" additivity="false">
+        <appender-ref ref="SYSTEM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Все ошибки в отдельный файл -->
+    <logger name="ROOT" level="ERROR" additivity="false">
+        <appender-ref ref="ERRORS"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Корневой логгер -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

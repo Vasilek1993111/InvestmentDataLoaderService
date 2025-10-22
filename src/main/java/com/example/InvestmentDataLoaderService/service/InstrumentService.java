@@ -11,6 +11,8 @@ import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.client.TinkoffRestClient;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.*;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.concurrent.CompletableFuture;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Сервис для работы с финансовыми инструментами
@@ -61,6 +64,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class InstrumentService {
 
+    private static final Logger log = LoggerFactory.getLogger(InstrumentService.class);
     private final InstrumentsServiceBlockingStub instrumentsService;
     private final ShareRepository shareRepo;
     private final FutureRepository futureRepo;
@@ -118,11 +122,24 @@ public class InstrumentService {
             key = "T(java.util.Objects).toString(#status,'') + '|' + T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#figi,'')")
     public List<ShareDto> getShares(String status, String exchange, String currency, String ticker, String figi) {
         // Получаем данные из T-Bank API через REST
-        var response = restClient.getShares();
-             
+        JsonNode response = restClient.getShares();
+        log.info("response: {}", response);
         
         List<ShareDto> shares = new ArrayList<>();
-        for (var instrument : response.get("instruments")) {
+        
+        // Проверяем структуру ответа
+        JsonNode instrumentsList = response.get("instruments");
+        if (instrumentsList == null) {
+            // Если instrumentsList отсутствует, возможно массив находится в корне
+            if (response.isArray()) {
+                instrumentsList = response;
+            } else {
+                log.warn("Неожиданная структура ответа API: {}", response);
+                return shares;
+            }
+        }
+        
+        for (JsonNode instrument : instrumentsList) {
             // Применяем фильтры
             boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
                                      instrument.get("exchange").asText().equalsIgnoreCase(exchange));
@@ -154,7 +171,7 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
-        
+        log.info("shares: {}", shares);
         return shares;
     }
 
@@ -172,7 +189,7 @@ public class InstrumentService {
     public List<ShareDto> getSharesFromDatabase(ShareFilterDto filter) {
         List<ShareEntity> entities = shareRepo.findAll();
         List<ShareDto> result = new ArrayList<>();
-        
+        log.info("entities: {}", entities);
         for (ShareEntity entity : entities) {
             // Применяем фильтры
             boolean matchesExchange = (filter.getExchange() == null || filter.getExchange().isEmpty() || 
@@ -207,6 +224,7 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         result.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
+        log.info("result: {}", result);
         return result;
     }
 
@@ -217,6 +235,7 @@ public class InstrumentService {
      * @return акция, если найдена, иначе null
      */
     public ShareDto getShareByFigi(String figi) {
+        log.info("getShareByFigi: figi: {}", figi);
         return shareRepo.findById(figi)
                 .map(entity -> new ShareDto(
                     entity.getFigi(),
@@ -382,15 +401,15 @@ public class InstrumentService {
     public List<IndicativeDto> getIndicatives(String exchange, String currency, String ticker, String figi) {
         try {
             // Используем REST API для получения индикативных инструментов
-            var response = restClient.getIndicatives();
+            JsonNode response = restClient.getIndicatives();
             
             List<IndicativeDto> indicatives = new ArrayList<>();
             
             // Парсим JSON ответ
             if (response.has("instruments")) {
-                var instruments = response.get("instruments");
-                if (instruments.isArray()) {
-                    for (var instrument : instruments) {
+                JsonNode instruments = response.get("instruments");
+                if (instruments != null && instruments.isArray()) {
+                    for (JsonNode instrument : instruments) {
                         // Применяем фильтры
                         boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
                                                  instrument.get("exchange").asText().equalsIgnoreCase(exchange));
@@ -422,9 +441,9 @@ public class InstrumentService {
                 }
             } else if (response.has("instrumentsList")) {
                 // Альтернативная структура ответа
-                var instruments = response.get("instrumentsList");
-                if (instruments.isArray()) {
-                    for (var instrument : instruments) {
+                JsonNode instruments = response.get("instrumentsList");
+                if (instruments != null && instruments.isArray()) {
+                    for (JsonNode instrument : instruments) {
                         // Применяем фильтры
                         boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
                                                  instrument.get("exchange").asText().equalsIgnoreCase(exchange));
@@ -456,13 +475,46 @@ public class InstrumentService {
                 }
             }
             
+            // Если ни один из вариантов не сработал, проверяем, не является ли ответ массивом напрямую
+            if (response.isArray()) {
+                for (JsonNode instrument : response) {
+                    // Применяем фильтры
+                    boolean matchesExchange = (exchange == null || exchange.isEmpty() || 
+                                             instrument.get("exchange").asText().equalsIgnoreCase(exchange));
+                    boolean matchesCurrency = (currency == null || currency.isEmpty() || 
+                                             instrument.get("currency").asText().equalsIgnoreCase(currency));
+                    boolean matchesTicker = (ticker == null || ticker.isEmpty() || 
+                                           instrument.get("ticker").asText().equalsIgnoreCase(ticker));
+                    boolean matchesFigi = (figi == null || figi.isEmpty() || 
+                                         instrument.get("figi").asText().equalsIgnoreCase(figi));
+                    
+                    if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
+                        String figiValue = instrument.get("figi").asText();
+                        // Пропускаем индикативы с пустым или null figi
+                        if (figiValue != null && !figiValue.trim().isEmpty()) {
+                            indicatives.add(new IndicativeDto(
+                                figiValue,
+                                instrument.get("ticker").asText(),
+                                instrument.get("name").asText(),
+                                instrument.get("currency").asText(),
+                                instrument.get("exchange").asText(),
+                                instrument.has("classCode") ? instrument.get("classCode").asText() : null,
+                                instrument.has("uid") ? instrument.get("uid").asText() : null,
+                                instrument.has("sellAvailableFlag") ? instrument.get("sellAvailableFlag").asBoolean() : null,
+                                instrument.has("buyAvailableFlag") ? instrument.get("buyAvailableFlag").asBoolean() : null
+                            ));
+                        }
+                    }
+                }
+            }
+            
             // Сортируем по тикеру
             indicatives.sort(Comparator.comparing(IndicativeDto::ticker, String.CASE_INSENSITIVE_ORDER));
             return indicatives;
             
         } catch (Exception e) {
             // Если REST API не доступен, используем данные из БД
-            System.err.println("REST API method indicatives not available, using database: " + e.getMessage());
+            log.warn("REST API method indicatives not available, using database: {}", e.getMessage());
             
             List<IndicativeDto> indicatives = new ArrayList<>();
             
@@ -507,10 +559,10 @@ public class InstrumentService {
     public IndicativeDto getIndicativeBy(String figi) {
         try {
             // Используем REST API для получения индикативного инструмента по FIGI
-            var response = restClient.getIndicativeBy(figi);
+            JsonNode response = restClient.getIndicativeBy(figi);
             
             if (response.has("instrument")) {
-                var instrument = response.get("instrument");
+                JsonNode instrument = response.get("instrument");
                 
                 return new IndicativeDto(
                     instrument.get("figi").asText(),
@@ -529,7 +581,7 @@ public class InstrumentService {
             
         } catch (Exception e) {
             // Если REST API не доступен, ищем в БД
-            System.err.println("REST API method getIndicativeBy not available, using database: " + e.getMessage());
+            log.warn("REST API method getIndicativeBy not available, using database: {}", e.getMessage());
             
             return indicativeRepo.findById(figi)
                 .map(entity -> new IndicativeDto(
@@ -562,7 +614,7 @@ public class InstrumentService {
             // Если инструменты не найдены, возвращаем null
             return null;
         } catch (Exception e) {
-            System.err.println("Error getting indicative by ticker: " + e.getMessage());
+            log.error("Error getting indicative by ticker: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -761,7 +813,7 @@ public class InstrumentService {
                 return new ShareProcessingResult(shareDto, false, true, false, null);
             }
         } catch (Exception e) {
-            System.err.println("Error processing share " + shareDto.figi() + ": " + e.getMessage());
+            log.error("Error processing share {}: {}", shareDto.figi(), e.getMessage(), e);
             return new ShareProcessingResult(shareDto, false, false, true, e.getMessage());
         }
     }
@@ -817,7 +869,7 @@ public class InstrumentService {
                 return new FutureProcessingResult(futureDto, false, true, false, null);
             }
         } catch (Exception e) {
-            System.err.println("Error processing future " + futureDto.figi() + ": " + e.getMessage());
+            log.error("Error processing future {}: {}", futureDto.figi(), e.getMessage(), e);
             return new FutureProcessingResult(futureDto, false, false, true, e.getMessage());
         }
     }
@@ -853,7 +905,7 @@ public class InstrumentService {
                 return new IndicativeProcessingResult(indicativeDto, false, true, false, null);
             }
         } catch (Exception e) {
-            System.err.println("Error processing indicative " + indicativeDto.figi() + ": " + e.getMessage());
+            log.error("Error processing indicative {}: {}", indicativeDto.figi(), e.getMessage(), e);
             return new IndicativeProcessingResult(indicativeDto, false, false, true, e.getMessage());
         }
     }
@@ -871,14 +923,14 @@ public class InstrumentService {
     public CompletableFuture<SaveResponseDto> saveSharesAsync(ShareFilterDto filter, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ АКЦИЙ ===");
-                System.out.println("Task ID: " + taskId);
-                System.out.println("Фильтр: " + filter);
+                log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ АКЦИЙ ===");
+                log.info("Task ID: {}", taskId);
+                log.info("Фильтр: {}", filter);
                 
                 // Получаем акции из API (блокирующий запрос остается)
                 List<ShareDto> sharesFromApi = getShares(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getFigi());
                 
-                System.out.println("Получено " + sharesFromApi.size() + " акций из API, начинаем параллельную обработку...");
+                log.info("Получено {} акций из API, начинаем параллельную обработку...", sharesFromApi.size());
                 
                 // Параллельная обработка акций
                 List<CompletableFuture<ShareProcessingResult>> futures = sharesFromApi.parallelStream()
@@ -937,8 +989,8 @@ public class InstrumentService {
                     savedShares
                 );
                 
-                System.out.println("Асинхронное сохранение акций завершено для taskId: " + taskId);
-                System.out.println("Результат: " + result.getMessage());
+                log.info("Асинхронное сохранение акций завершено для taskId: {}", taskId);
+                log.info("Результат: {}", result.getMessage());
                 
                 // Логируем успешное завершение в БД
                 try {
@@ -952,13 +1004,12 @@ public class InstrumentService {
                     successLog.setEndTime(Instant.now());
                     systemLogRepository.save(successLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога успешного завершения: {}", logException.getMessage(), logException);
                 }
                 
                 return result;
             } catch (Exception e) {
-                System.err.println("Ошибка асинхронного сохранения акций для taskId " + taskId + ": " + e.getMessage());
-                e.printStackTrace();
+                log.error("Ошибка асинхронного сохранения акций для taskId {}: {}", taskId, e.getMessage(), e);
                 
                 // Логируем ошибку в БД
                 try {
@@ -972,7 +1023,7 @@ public class InstrumentService {
                     errorLog.setEndTime(Instant.now());
                     systemLogRepository.save(errorLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога ошибки: {}", logException.getMessage(), logException);
                 }
                 
                 throw new RuntimeException("Ошибка асинхронного сохранения акций: " + e.getMessage(), e);
@@ -993,14 +1044,14 @@ public class InstrumentService {
     public CompletableFuture<SaveResponseDto> saveFuturesAsync(FutureFilterDto filter, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ФЬЮЧЕРСОВ ===");
-                System.out.println("Task ID: " + taskId);
-                System.out.println("Фильтр: " + filter);
+                log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ ФЬЮЧЕРСОВ ===");
+                log.info("Task ID: {}", taskId);
+                log.info("Фильтр: {}", filter);
                 
                 // Получаем фьючерсы из API (блокирующий запрос остается)
                 List<FutureDto> futuresFromApi = getFutures(filter.getStatus(), filter.getExchange(), filter.getCurrency(), filter.getTicker(), filter.getAssetType());
                 
-                System.out.println("Получено " + futuresFromApi.size() + " фьючерсов из API, начинаем параллельную обработку...");
+                log.info("Получено {} фьючерсов из API, начинаем параллельную обработку...", futuresFromApi.size());
                 
                 // Параллельная обработка фьючерсов
                 List<CompletableFuture<FutureProcessingResult>> futures = futuresFromApi.parallelStream()
@@ -1059,8 +1110,8 @@ public class InstrumentService {
                     savedFutures
                 );
                 
-                System.out.println("Асинхронное сохранение фьючерсов завершено для taskId: " + taskId);
-                System.out.println("Результат: " + result.getMessage());
+                log.info("Асинхронное сохранение фьючерсов завершено для taskId: {}", taskId);
+                log.info("Результат: {}", result.getMessage());
                 
                 // Логируем успешное завершение в БД
                 try {
@@ -1074,13 +1125,12 @@ public class InstrumentService {
                     successLog.setEndTime(Instant.now());
                     systemLogRepository.save(successLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога успешного завершения: {}", logException.getMessage(), logException);
                 }
                 
                 return result;
             } catch (Exception e) {
-                System.err.println("Ошибка асинхронного сохранения фьючерсов для taskId " + taskId + ": " + e.getMessage());
-                e.printStackTrace();
+                log.error("Ошибка асинхронного сохранения фьючерсов для taskId {}: {}", taskId, e.getMessage(), e);
                 
                 // Логируем ошибку в БД
                 try {
@@ -1094,7 +1144,7 @@ public class InstrumentService {
                     errorLog.setEndTime(Instant.now());
                     systemLogRepository.save(errorLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога ошибки: {}", logException.getMessage(), logException);
                 }
                 
                 throw new RuntimeException("Ошибка асинхронного сохранения фьючерсов: " + e.getMessage(), e);
@@ -1115,9 +1165,9 @@ public class InstrumentService {
     public CompletableFuture<SaveResponseDto> saveIndicativesAsync(IndicativeFilterDto filter, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ИНДИКАТИВОВ ===");
-                System.out.println("Task ID: " + taskId);
-                System.out.println("Фильтр: " + filter);
+                log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ ИНДИКАТИВОВ ===");
+                log.info("Task ID: {}", taskId);
+                log.info("Фильтр: {}", filter);
                 
                 // Получаем индикативные инструменты из API (блокирующий запрос остается)
                 List<IndicativeDto> indicativesFromApi = getIndicatives(
@@ -1127,7 +1177,7 @@ public class InstrumentService {
                     filter.getFigi()
                 );
                 
-                System.out.println("Получено " + indicativesFromApi.size() + " индикативов из API, начинаем параллельную обработку...");
+                log.info("Получено {} индикативов из API, начинаем параллельную обработку...", indicativesFromApi.size());
                 
                 // Параллельная обработка индикативов
                 List<CompletableFuture<IndicativeProcessingResult>> futures = indicativesFromApi.parallelStream()
@@ -1186,8 +1236,8 @@ public class InstrumentService {
                     savedIndicatives
                 );
                 
-                System.out.println("Асинхронное сохранение индикативов завершено для taskId: " + taskId);
-                System.out.println("Результат: " + result.getMessage());
+                log.info("Асинхронное сохранение индикативов завершено для taskId: {}", taskId);
+                log.info("Результат: {}", result.getMessage());
                 
                 // Логируем успешное завершение в БД
                 try {
@@ -1201,13 +1251,12 @@ public class InstrumentService {
                     successLog.setEndTime(Instant.now());
                     systemLogRepository.save(successLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога успешного завершения: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога успешного завершения: {}", logException.getMessage(), logException);
                 }
                 
                 return result;
             } catch (Exception e) {
-                System.err.println("Ошибка асинхронного сохранения индикативов для taskId " + taskId + ": " + e.getMessage());
-                e.printStackTrace();
+                log.error("Ошибка асинхронного сохранения индикативов для taskId {}: {}", taskId, e.getMessage(), e);
                 
                 // Логируем ошибку в БД
                 try {
@@ -1221,7 +1270,7 @@ public class InstrumentService {
                     errorLog.setEndTime(Instant.now());
                     systemLogRepository.save(errorLog);
                 } catch (Exception logException) {
-                    System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                    log.error("Ошибка сохранения лога ошибки: {}", logException.getMessage(), logException);
                 }
                 
                 throw new RuntimeException("Ошибка асинхронного сохранения индикативов: " + e.getMessage(), e);

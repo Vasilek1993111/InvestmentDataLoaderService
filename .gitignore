@@ -65,3 +65,14 @@ python-mcp-server/
 .cursor/
 .allure/
 .vscode/
+
+### Logs ###
+# Игнорируем все логи
+logs/current/
+logs/archive/
+*.log
+*.log.*
+
+# Но сохраняем документацию по логам
+!logs/README.md
+!logs/STRUCTURE.md

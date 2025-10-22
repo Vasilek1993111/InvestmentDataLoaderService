@@ -7,6 +7,8 @@ import com.example.InvestmentDataLoaderService.exception.ValidationException;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.service.InstrumentService;
 import com.example.InvestmentDataLoaderService.util.QueryParamValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +56,7 @@ import java.util.UUID;
 @RequestMapping("/api/instruments")
 public class InstrumentsController {
 
+    private static final Logger log = LoggerFactory.getLogger(InstrumentsController.class);
     private final InstrumentService instrumentService;
     private final SystemLogRepository systemLogRepository;
 
@@ -282,15 +285,15 @@ public class InstrumentsController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ АКЦИЙ ===");
-            System.out.println("Фильтр: " + filter);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ АКЦИЙ ===");
+            log.info("Фильтр: {}", filter);
+            log.info("Task ID: {}", taskId);
 
             // Валидация параметров фильтра
             ShareFilterRequestParams params = ShareFilterRequestParams.create(
@@ -329,8 +332,7 @@ public class InstrumentsController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронного сохранения акций: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронного сохранения акций: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -345,7 +347,7 @@ public class InstrumentsController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -524,15 +526,15 @@ public class InstrumentsController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ФЬЮЧЕРСОВ ===");
-            System.out.println("Фильтр: " + filter);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ ФЬЮЧЕРСОВ ===");
+            log.info("Фильтр: {}", filter);
+            log.info("Task ID: {}", taskId);
 
             // Валидация параметров фильтра
             FutureFilterRequestParams params = FutureFilterRequestParams.create(
@@ -567,8 +569,7 @@ public class InstrumentsController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронного сохранения фьючерсов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронного сохранения фьючерсов: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -583,7 +584,7 @@ public class InstrumentsController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -694,15 +695,15 @@ public class InstrumentsController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННОЕ СОХРАНЕНИЕ ИНДИКАТИВОВ ===");
-            System.out.println("Фильтр: " + filter);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННОЕ СОХРАНЕНИЕ ИНДИКАТИВОВ ===");
+            log.info("Фильтр: {}", filter);
+            log.info("Task ID: {}", taskId);
 
             // Валидация параметров фильтра
             IndicativeFilterRequestParams params = IndicativeFilterRequestParams.create(
@@ -735,8 +736,7 @@ public class InstrumentsController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронного сохранения индикативов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронного сохранения индикативов: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -751,7 +751,7 @@ public class InstrumentsController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(

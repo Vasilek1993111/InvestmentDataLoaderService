@@ -1,6 +1,7 @@
 package com.example.InvestmentDataLoaderService.controller;
 
 import com.example.InvestmentDataLoaderService.service.RateLimitService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import java.util.Map;
 @RequestMapping("/api/rate-limit")
 public class RateLimitController {
 
+    
     private final RateLimitService rateLimitService;
 
     public RateLimitController(RateLimitService rateLimitService) {

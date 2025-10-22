@@ -10,6 +10,8 @@ import com.example.InvestmentDataLoaderService.entity.FutureEntity;
 import com.example.InvestmentDataLoaderService.repository.LastPriceRepository;
 import com.example.InvestmentDataLoaderService.repository.ShareRepository;
 import com.example.InvestmentDataLoaderService.repository.FutureRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class LastTradesService {
 
+    private static final Logger log = LoggerFactory.getLogger(LastTradesService.class);
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
     private final LastPriceRepository lastPriceRepository;
@@ -53,25 +56,24 @@ public class LastTradesService {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
             String taskId = "LAST_TRADES_" + UUID.randomUUID().toString().substring(0, 8);
             
-            System.out.println("=== НАЧАЛО ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
-            System.out.println("[" + taskId + "] Дата: " + previousDay);
-            System.out.println("[" + taskId + "] Время запуска: " + LocalDateTime.now(ZoneId.of("Europe/Moscow")));
+            log.info("=== НАЧАЛО ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
+            log.info("[{}] Дата: {}", taskId, previousDay);
+            log.info("[{}] Время запуска: {}", taskId, LocalDateTime.now(ZoneId.of("Europe/Moscow")));
             
             // Торги проводятся в выходные дни, поэтому проверку убираем
             
             SaveResponseDto response = processLastTrades(previousDay, taskId);
             
-            System.out.println("[" + taskId + "] Загрузка завершена:");
-            System.out.println("[" + taskId + "] - Успех: " + response.isSuccess());
-            System.out.println("[" + taskId + "] - Сообщение: " + response.getMessage());
-            System.out.println("[" + taskId + "] - Всего запрошено: " + response.getTotalRequested());
-            System.out.println("[" + taskId + "] - Сохранено новых: " + response.getNewItemsSaved());
-            System.out.println("[" + taskId + "] - Пропущено существующих: " + response.getExistingItemsSkipped());
-            System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
+            log.info("[{}] Загрузка завершена:", taskId);
+            log.info("[{}] - Успех: {}", taskId, response.isSuccess());
+            log.info("[{}] - Сообщение: {}", taskId, response.getMessage());
+            log.info("[{}] - Всего запрошено: {}", taskId, response.getTotalRequested());
+            log.info("[{}] - Сохранено новых: {}", taskId, response.getNewItemsSaved());
+            log.info("[{}] - Пропущено существующих: {}", taskId, response.getExistingItemsSkipped());
+            log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в загрузке обезличенных сделок: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Критическая ошибка в загрузке обезличенных сделок: {}", e.getMessage(), e);
         }
     }
 
@@ -81,13 +83,13 @@ public class LastTradesService {
     @Transactional(readOnly = true)
     public SaveResponseDto processLastTrades(LocalDate date, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Начало обработки обезличенных сделок за " + date);
+            log.info("[{}] Начало обработки обезличенных сделок за {}", taskId, date);
             
             // Получаем все акции и фьючерсы из кэша (с fallback на БД)
             List<ShareEntity> shares = cachedInstrumentService.getAllShares();
             List<FutureEntity> futures = cachedInstrumentService.getAllFutures();
-            System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
-            System.out.println("[" + taskId + "] Найдено " + shares.size() + " акций и " + futures.size() + " фьючерсов для обработки");
+            log.info("[{}] {}", taskId, cachedInstrumentService.getCacheInfo());
+            log.info("[{}] Найдено {} акций и {} фьючерсов для обработки", taskId, shares.size(), futures.size());
             
             List<LastTradesResponseDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
@@ -99,7 +101,7 @@ public class LastTradesService {
             for (ShareEntity share : shares) {
                 try {
                     processedInstruments++;
-                    System.out.println("[" + taskId + "] Обработка акции " + processedInstruments + "/" + (shares.size() + futures.size()) + ": " + share.getTicker() + " (" + share.getFigi() + ")");
+                    log.info("[{}] Обработка акции {}/{}: {} ({})", taskId, processedInstruments, (shares.size() + futures.size()), share.getTicker(), share.getFigi());
                     
                     List<LastTradesResponseDto> trades = fetchLastTradesForInstrument(share.getFigi(), date, "moex_mrng_evng_e_wknd_dlr", taskId);
                     
@@ -127,7 +129,7 @@ public class LastTradesService {
                     }
                     
                 } catch (Exception e) {
-                    System.err.println("[" + taskId + "] Ошибка обработки акции " + share.getTicker() + ": " + e.getMessage());
+                    log.error("[{}] Ошибка обработки акции {}: {}", taskId, share.getTicker(), e.getMessage(), e);
                 }
             }
             
@@ -135,7 +137,7 @@ public class LastTradesService {
             for (FutureEntity future : futures) {
                 try {
                     processedInstruments++;
-                    System.out.println("[" + taskId + "] Обработка фьючерса " + processedInstruments + "/" + (shares.size() + futures.size()) + ": " + future.getTicker() + " (" + future.getFigi() + ")");
+                    log.info("[{}] Обработка фьючерса {}/{}: {} ({})", taskId, processedInstruments, (shares.size() + futures.size()), future.getTicker(), future.getFigi());
                     
                     List<LastTradesResponseDto> trades = fetchLastTradesForInstrument(future.getFigi(), date, "FORTS_EVENING", taskId);
                     
@@ -163,15 +165,15 @@ public class LastTradesService {
                     }
                     
                 } catch (Exception e) {
-                    System.err.println("[" + taskId + "] Ошибка обработки фьючерса " + future.getTicker() + ": " + e.getMessage());
+                    log.error("[{}] Ошибка обработки фьючерса {}: {}", taskId, future.getTicker(), e.getMessage(), e);
                 }
             }
             
-            System.out.println("[" + taskId + "] Обработка завершена:");
-            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments + " (акций: " + shares.size() + ", фьючерсов: " + futures.size() + ")");
-            System.out.println("[" + taskId + "] - Запрошено сделок: " + totalRequested);
-            System.out.println("[" + taskId + "] - Сохранено новых: " + savedCount);
-            System.out.println("[" + taskId + "] - Пропущено существующих: " + existingCount);
+            log.info("[{}] Обработка завершена:", taskId);
+            log.info("[{}] - Обработано инструментов: {} (акций: {}, фьючерсов: {})", taskId, processedInstruments, shares.size(), futures.size());
+            log.info("[{}] - Запрошено сделок: {}", taskId, totalRequested);
+            log.info("[{}] - Сохранено новых: {}", taskId, savedCount);
+            log.info("[{}] - Пропущено существующих: {}", taskId, existingCount);
             
             return new SaveResponseDto(
                 true,
@@ -185,8 +187,7 @@ public class LastTradesService {
             );
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Критическая ошибка в обработке обезличенных сделок: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[{}] Критическая ошибка в обработке обезличенных сделок: {}", taskId, e.getMessage(), e);
             return new SaveResponseDto(
                 false,
                 "Ошибка загрузки обезличенных сделок: " + e.getMessage(),
@@ -205,7 +206,7 @@ public class LastTradesService {
      */
     private List<LastTradesResponseDto> fetchLastTradesForInstrument(String figi, LocalDate date, String exchange, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Загрузка обезличенных сделок для " + figi + " за дату: " + date);
+            log.info("[{}] Загрузка обезличенных сделок для {} за дату: {}", taskId, figi, date);
             
             // Вызываем T-Invest API для получения обезличенных сделок
             List<LastTradeDto> tradesFromApi = lastTradeService.getLastTrades(figi, date, "TRADE_SOURCE_ALL");
@@ -246,7 +247,7 @@ public class LastTradesService {
                     }
                 }
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка получения валюты из кэша, используем БД: " + e.getMessage());
+                log.error("[{}] Ошибка получения валюты из кэша, используем БД: {}", taskId, e.getMessage(), e);
                 // Fallback на БД
                 ShareEntity share = shareRepository.findById(figi).orElse(null);
                 if (share != null) {
@@ -271,18 +272,18 @@ public class LastTradesService {
                 ));
             }
             
-            System.out.println("[" + taskId + "] Загружено " + trades.size() + " сделок для " + figi);
+            log.info("[{}] Загружено {} сделок для {}", taskId, trades.size(), figi);
             return trades;
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка загрузки обезличенных сделок для " + figi + ": " + e.getMessage());
+            log.error("[{}] Ошибка загрузки обезличенных сделок для {}: {}", taskId, figi, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
     private List<LastTradesResponseDto> fetchLastTradesForLastHour(String figi, String exchange, String taskId) {
         try {
-            System.out.println("[" + taskId + "] Загрузка обезличенных сделок за последний час для " + figi);
+            log.info("[{}] Загрузка обезличенных сделок за последний час для {}", taskId, figi);
             
             // Вызываем T-Invest API для получения обезличенных сделок за последний час
             List<LastTradeDto> tradesFromApi = lastTradeService.getLastTradesForLastHour(figi, "TRADE_SOURCE_ALL");
@@ -323,7 +324,7 @@ public class LastTradesService {
                     }
                 }
             } catch (Exception e) {
-                System.err.println("[" + taskId + "] Ошибка получения валюты из кэша, используем БД: " + e.getMessage());
+                log.error("[{}] Ошибка получения валюты из кэша, используем БД: {}", taskId, e.getMessage(), e);
                 // Fallback на БД
                 ShareEntity share = shareRepository.findById(figi).orElse(null);
                 if (share != null) {
@@ -348,11 +349,11 @@ public class LastTradesService {
                 ));
             }
             
-            System.out.println("[" + taskId + "] Загружено " + trades.size() + " сделок за последний час для " + figi);
+            log.info("[{}] Загружено {} сделок за последний час для {}", taskId, trades.size(), figi);
             return trades;
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Ошибка загрузки обезличенных сделок за последний час для " + figi + ": " + e.getMessage());
+            log.error("[{}] Ошибка загрузки обезличенных сделок за последний час для {}: {}", taskId, figi, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
@@ -378,7 +379,7 @@ public class LastTradesService {
         // Торги проводятся в выходные дни, поэтому проверку убираем
         
         try {
-            System.out.println("[" + taskId + "] Начало обработки обезличенных сделок для " + figi + " за " + date);
+            log.info("[{}] Начало обработки обезличенных сделок для {} за {}", taskId, figi, date);
             
             List<LastTradesResponseDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
@@ -413,10 +414,10 @@ public class LastTradesService {
                 savedCount++;
             }
             
-            System.out.println("[" + taskId + "] Обработка завершена:");
-            System.out.println("[" + taskId + "] - Запрошено сделок: " + totalRequested);
-            System.out.println("[" + taskId + "] - Сохранено новых: " + savedCount);
-            System.out.println("[" + taskId + "] - Пропущено существующих: " + existingCount);
+            log.info("[{}] Обработка завершена:", taskId);
+            log.info("[{}] - Запрошено сделок: {}", taskId, totalRequested);
+            log.info("[{}] - Сохранено новых: {}", taskId, savedCount);
+            log.info("[{}] - Пропущено существующих: {}", taskId, existingCount);
             
             return new SaveResponseDto(
                 true,
@@ -430,8 +431,7 @@ public class LastTradesService {
             );
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Критическая ошибка в обработке обезличенных сделок для " + figi + ": " + e.getMessage());
-            e.printStackTrace();
+            log.error("[{}] Критическая ошибка в обработке обезличенных сделок для {}: {}", taskId, figi, e.getMessage(), e);
             return new SaveResponseDto(
                 false,
                 "Ошибка загрузки обезличенных сделок для " + figi + ": " + e.getMessage(),
@@ -454,7 +454,7 @@ public class LastTradesService {
         // Проверяем обязательные параметры
         if (request.getFigis() == null || request.getFigis().isEmpty()) {
             String message = "Параметр 'figis' является обязательным и не может быть пустым";
-            System.out.println("[" + taskId + "] " + message);
+            log.info("[{}] {}", taskId, message);
             return new SaveResponseDto(
                 false,
                 message,
@@ -468,7 +468,7 @@ public class LastTradesService {
         }
         
         try {
-            System.out.println("[" + taskId + "] Начало обработки обезличенных сделок за последний час для " + request.getFigis().size() + " инструментов");
+            log.info("[{}] Начало обработки обезличенных сделок за последний час для {} инструментов", taskId, request.getFigis().size());
             
             List<LastTradesResponseDto> savedItems = new ArrayList<>();
             int totalRequested = 0;
@@ -479,7 +479,7 @@ public class LastTradesService {
             // Определяем список инструментов для обработки
             List<String> instrumentsToProcess;
             if (request.isLoadAll()) {
-                System.out.println("[" + taskId + "] Загружаем обезличенные сделки для всех инструментов");
+                log.info("[{}] Загружаем обезличенные сделки для всех инструментов", taskId);
                 instrumentsToProcess = new ArrayList<>();
                 
                 // Добавляем все акции из кэша
@@ -494,10 +494,10 @@ public class LastTradesService {
                     instrumentsToProcess.add(future.getFigi());
                 }
                 
-                System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
-                System.out.println("[" + taskId + "] Найдено " + instrumentsToProcess.size() + " инструментов для обработки");
+                log.info("[{}] {}", taskId, cachedInstrumentService.getCacheInfo());
+                log.info("[{}] Найдено {} инструментов для обработки", taskId, instrumentsToProcess.size());
             } else if (request.isLoadAllShares()) {
-                System.out.println("[" + taskId + "] Загружаем обезличенные сделки для всех акций");
+                log.info("[{}] Загружаем обезличенные сделки для всех акций", taskId);
                 instrumentsToProcess = new ArrayList<>();
                 
                 // Добавляем только акции из кэша
@@ -506,10 +506,10 @@ public class LastTradesService {
                     instrumentsToProcess.add(share.getFigi());
                 }
                 
-                System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
-                System.out.println("[" + taskId + "] Найдено " + instrumentsToProcess.size() + " акций для обработки");
+                log.info("[{}] {}", taskId, cachedInstrumentService.getCacheInfo());
+                log.info("[{}] Найдено {} акций для обработки", taskId, instrumentsToProcess.size());
             } else if (request.isLoadAllFutures()) {
-                System.out.println("[" + taskId + "] Загружаем обезличенные сделки для всех фьючерсов");
+                log.info("[{}] Загружаем обезличенные сделки для всех фьючерсов", taskId);
                 instrumentsToProcess = new ArrayList<>();
                 
                 // Добавляем только фьючерсы из кэша
@@ -518,8 +518,8 @@ public class LastTradesService {
                     instrumentsToProcess.add(future.getFigi());
                 }
                 
-                System.out.println("[" + taskId + "] " + cachedInstrumentService.getCacheInfo());
-                System.out.println("[" + taskId + "] Найдено " + instrumentsToProcess.size() + " фьючерсов для обработки");
+                log.info("[{}] {}", taskId, cachedInstrumentService.getCacheInfo());
+                log.info("[{}] Найдено {} фьючерсов для обработки", taskId, instrumentsToProcess.size());
             } else {
                 instrumentsToProcess = request.getFigis();
             }
@@ -528,7 +528,7 @@ public class LastTradesService {
             for (String figi : instrumentsToProcess) {
                 try {
                     processedInstruments++;
-                    System.out.println("[" + taskId + "] Обработка инструмента " + processedInstruments + "/" + instrumentsToProcess.size() + ": " + figi);
+                    log.info("[{}] Обработка инструмента {}/{}: {}", taskId, processedInstruments, instrumentsToProcess.size(), figi);
                     
                     // Определяем тип инструмента и биржу
                     String exchange = "moex_mrng_evng_e_wknd_dlr"; // По умолчанию для акций
@@ -565,15 +565,15 @@ public class LastTradesService {
                         }
                         
                 } catch (Exception e) {
-                    System.err.println("[" + taskId + "] Ошибка обработки инструмента " + figi + ": " + e.getMessage());
+                    log.error("[{}] Ошибка обработки инструмента {}: {}", taskId, figi, e.getMessage(), e);
                 }
             }
             
-            System.out.println("[" + taskId + "] Обработка завершена:");
-            System.out.println("[" + taskId + "] - Обработано инструментов: " + processedInstruments);
-            System.out.println("[" + taskId + "] - Запрошено сделок: " + totalRequested);
-            System.out.println("[" + taskId + "] - Сохранено новых: " + savedCount);
-            System.out.println("[" + taskId + "] - Пропущено существующих: " + existingCount);
+            log.info("[{}] Обработка завершена:", taskId);
+            log.info("[{}] - Обработано инструментов: {}", taskId, processedInstruments);
+            log.info("[{}] - Запрошено сделок: {}", taskId, totalRequested);
+            log.info("[{}] - Сохранено новых: {}", taskId, savedCount);
+            log.info("[{}] - Пропущено существующих: {}", taskId, existingCount);
             
             return new SaveResponseDto(
                 true,
@@ -587,8 +587,7 @@ public class LastTradesService {
             );
             
         } catch (Exception e) {
-            System.err.println("[" + taskId + "] Критическая ошибка в обработке обезличенных сделок по запросу: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[{}] Критическая ошибка в обработке обезличенных сделок по запросу: {}", taskId, e.getMessage(), e);
             return new SaveResponseDto(
                 false,
                 "Ошибка загрузки обезличенных сделок по запросу: " + e.getMessage(),
@@ -608,14 +607,13 @@ public class LastTradesService {
     public void fetchAndStoreLastTradesByRequestAsync(LastTradesRequestDto request) {
         CompletableFuture.runAsync(() -> {
             try {
-                System.out.println("=== НАЧАЛО АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
+                log.info("=== НАЧАЛО АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
                 SaveResponseDto result = fetchAndStoreLastTradesByRequest(request);
-                System.out.println("=== ЗАВЕРШЕНИЕ АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
-                System.out.println("Результат: " + result.getMessage());
+                log.info("=== ЗАВЕРШЕНИЕ АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
+                log.info("Результат: {}", result.getMessage());
             } catch (Exception e) {
-                System.err.println("=== ОШИБКА АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
-                System.err.println("Ошибка: " + e.getMessage());
-                e.printStackTrace();
+                log.error("=== ОШИБКА АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ===");
+                log.error("Ошибка: {}", e.getMessage(), e);
             }
         });
     }
@@ -634,7 +632,7 @@ public class LastTradesService {
     public void fetchAndStoreLastTradesSharesAsync() {
         CompletableFuture.runAsync(() -> {
             try {
-                System.out.println("=== НАЧАЛО АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ПО АКЦИЯМ ===");
+                log.info("=== НАЧАЛО АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ПО АКЦИЯМ ===");
                 
                 // Создаем запрос только для акций
                 LastTradesRequestDto request = new LastTradesRequestDto();
@@ -642,15 +640,14 @@ public class LastTradesService {
                 request.setTradeSource("TRADE_SOURCE_ALL");
                 
                 SaveResponseDto result = fetchAndStoreLastTradesByRequest(request);
-                System.out.println("=== ЗАВЕРШЕНИЕ АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ПО АКЦИЯМ ===");
-                System.out.println("Результат: " + result.getMessage());
-                System.out.println("Обработано инструментов: " + result.getTotalRequested());
-                System.out.println("Сохранено новых: " + result.getNewItemsSaved());
-                System.out.println("Пропущено существующих: " + result.getExistingItemsSkipped());
+                log.info("=== ЗАВЕРШЕНИЕ АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ПО АКЦИЯМ ===");
+                log.info("Результат: {}", result.getMessage());
+                log.info("Обработано инструментов: {}", result.getTotalRequested());
+                log.info("Сохранено новых: {}", result.getNewItemsSaved());
+                log.info("Пропущено существующих: {}", result.getExistingItemsSkipped());
             } catch (Exception e) {
-                System.err.println("=== ОШИБКА АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ПО АКЦИЯМ ===");
-                System.err.println("Ошибка: " + e.getMessage());
-                e.printStackTrace();
+                log.error("=== ОШИБКА АСИНХРОННОЙ ЗАГРУЗКИ ОБЕЗЛИЧЕННЫХ СДЕЛОК ПО АКЦИЯМ ===");
+                log.error("Ошибка: {}", e.getMessage(), e);
             }
         });
     }

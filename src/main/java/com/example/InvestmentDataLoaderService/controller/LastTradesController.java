@@ -5,6 +5,8 @@ import com.example.InvestmentDataLoaderService.service.LastTradesService;
 import com.example.InvestmentDataLoaderService.service.CachedInstrumentService;
 import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,6 +27,7 @@ import java.util.UUID;
 @RequestMapping("/api/last-trades")
 public class LastTradesController {
 
+    private static final Logger log = LoggerFactory.getLogger(LastTradesController.class);
     private final LastTradesService lastTradesService;
     private final CachedInstrumentService cachedInstrumentService;
     private final SystemLogRepository systemLogRepository;
@@ -129,8 +132,8 @@ public class LastTradesController {
             // Запускаем загрузку сделок с оптимизированными executor'ами
             CompletableFuture.runAsync(() -> {
                 try {
-                    System.out.println("=== ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА LAST TRADES ===");
-                    System.out.println("Используем специализированные executor'ы для максимальной производительности");
+                    log.info("=== ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА LAST TRADES ===");
+                    log.info("Используем специализированные executor'ы для максимальной производительности");
                     
                     // Логируем начало обработки каждого FIGI
                     for (String figi : request.getFigis()) {
@@ -145,9 +148,9 @@ public class LastTradesController {
                         logFigiProcessing(taskId, figi, "COMPLETED", "Обработка FIGI завершена", Instant.now());
                     }
                     
-                    System.out.println("=== ЗАВЕРШЕНИЕ ОПТИМИЗИРОВАННОЙ ЗАГРУЗКИ ===");
+                    log.info("=== ЗАВЕРШЕНИЕ ОПТИМИЗИРОВАННОЙ ЗАГРУЗКИ ===");
                 } catch (Exception e) {
-                    System.err.println("Ошибка оптимизированной загрузки: " + e.getMessage());
+                    log.error("Ошибка оптимизированной загрузки: {}", e.getMessage(), e);
                     e.printStackTrace();
                     
                     // Логируем ошибку для каждого FIGI
@@ -357,10 +360,10 @@ public class LastTradesController {
             log.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
             
             systemLogRepository.save(log);
-            System.out.println("Системный лог сохранен: " + taskId + " (" + status + ") - " + message);
+            
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения системного лога: " + e.getMessage());
+            log.error("Ошибка сохранения системного лога: {}", e.getMessage(), e);
             e.printStackTrace();
         }
     }
@@ -381,10 +384,10 @@ public class LastTradesController {
             figiLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
             
             systemLogRepository.save(figiLog);
-            System.out.println("Лог обработки FIGI сохранен: " + figi + " (" + status + ")");
+            log.info("Лог обработки FIGI сохранен: {} ({})", figi, status);
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения лога обработки FIGI " + figi + ": " + e.getMessage());
+            log.error("Ошибка сохранения лога обработки FIGI {}: {}", figi, e.getMessage(), e);
             e.printStackTrace();
         }
     }

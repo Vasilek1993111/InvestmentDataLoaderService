@@ -5,6 +5,8 @@ import com.example.InvestmentDataLoaderService.entity.SystemLogEntity;
 import com.example.InvestmentDataLoaderService.exception.DataLoadException;
 import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/main-session-prices")
 public class MainSessionPricesController {
 
+    private static final Logger log = LoggerFactory.getLogger(MainSessionPricesController.class);
     private final MainSessionPriceService mainSessionPriceService;
     private final SystemLogRepository systemLogRepository;
 
@@ -59,14 +62,14 @@ public class MainSessionPricesController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ И ФЬЮЧЕРСОВ ===");
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ И ФЬЮЧЕРСОВ ===");
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронное сохранение
             mainSessionPriceService.saveClosePricesAsync(taskId);
@@ -83,8 +86,7 @@ public class MainSessionPricesController {
             return ResponseEntity.accepted().body(response);
 
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронной загрузки цен закрытия основной сессии: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронной загрузки цен закрытия основной сессии: {}", e.getMessage(), e);
 
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -99,7 +101,7 @@ public class MainSessionPricesController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -161,14 +163,14 @@ public class MainSessionPricesController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ ===");
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ АКЦИЙ ===");
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронное сохранение
             mainSessionPriceService.saveSharesClosePricesAsync(taskId);
@@ -185,8 +187,7 @@ public class MainSessionPricesController {
             return ResponseEntity.accepted().body(response);
             
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронной загрузки цен закрытия для акций: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронной загрузки цен закрытия для акций: {}", e.getMessage(), e);
             
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -201,7 +202,7 @@ public class MainSessionPricesController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -263,14 +264,14 @@ public class MainSessionPricesController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ ФЬЮЧЕРСОВ ===");
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ЗАКРЫТИЯ ДЛЯ ФЬЮЧЕРСОВ ===");
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронное сохранение
             mainSessionPriceService.saveFuturesClosePricesAsync(taskId);
@@ -287,8 +288,7 @@ public class MainSessionPricesController {
             return ResponseEntity.accepted().body(response);
             
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронной загрузки цен закрытия для фьючерсов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронной загрузки цен закрытия для фьючерсов: {}", e.getMessage(), e);
             
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -303,7 +303,7 @@ public class MainSessionPricesController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -376,15 +376,15 @@ public class MainSessionPricesController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕНЫ ЗАКРЫТИЯ ДЛЯ ИНСТРУМЕНТА ===");
-            System.out.println("FIGI: " + figi);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕНЫ ЗАКРЫТИЯ ДЛЯ ИНСТРУМЕНТА ===");
+            log.info("FIGI: {}", figi);
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронное сохранение
             mainSessionPriceService.saveInstrumentClosePriceAsync(figi, taskId);
@@ -402,8 +402,7 @@ public class MainSessionPricesController {
             return ResponseEntity.accepted().body(response);
             
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронной загрузки цены закрытия для инструмента " + figi + ": " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронной загрузки цены закрытия для инструмента {}: {}", figi, e.getMessage(), e);
             
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -418,7 +417,7 @@ public class MainSessionPricesController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -457,15 +456,15 @@ public class MainSessionPricesController {
 
         try {
             systemLogRepository.save(startLog);
-            System.out.println("Лог начала работы сохранен для taskId: " + taskId);
+            log.info("Лог начала работы сохранен для taskId: {}", taskId);
         } catch (Exception logException) {
-            System.err.println("Ошибка сохранения лога начала работы: " + logException.getMessage());
+            log.error("Ошибка сохранения лога начала работы для taskId: {}: {}", taskId, logException.getMessage(), logException);
         }
 
         try {
-            System.out.println("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ОСНОВНОЙ СЕССИИ ===");
-            System.out.println("Дата: " + date);
-            System.out.println("Task ID: " + taskId);
+            log.info("=== АСИНХРОННАЯ ЗАГРУЗКА ЦЕН ОСНОВНОЙ СЕССИИ ===");
+            log.info("Дата: {}", date);
+            log.info("Task ID: {}", taskId);
 
             // Запускаем асинхронное сохранение
             mainSessionPriceService.saveMainSessionPricesForDateAsync(date, taskId);
@@ -483,8 +482,7 @@ public class MainSessionPricesController {
             return ResponseEntity.accepted().body(response);
             
         } catch (Exception e) {
-            System.err.println("Ошибка запуска асинхронной загрузки цен основной сессии за дату " + date + ": " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка запуска асинхронной загрузки цен основной сессии за дату {}: {}", date, e.getMessage(), e);
             
             // Логируем ошибку
             SystemLogEntity errorLog = new SystemLogEntity();
@@ -499,7 +497,7 @@ public class MainSessionPricesController {
             try {
                 systemLogRepository.save(errorLog);
             } catch (Exception logException) {
-                System.err.println("Ошибка сохранения лога ошибки: " + logException.getMessage());
+                log.error("Ошибка сохранения лога ошибки для taskId: {}: {}", taskId, logException.getMessage(), logException);
             }
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(

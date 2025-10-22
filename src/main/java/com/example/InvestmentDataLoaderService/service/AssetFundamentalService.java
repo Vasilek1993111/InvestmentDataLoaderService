@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,6 +23,7 @@ import com.example.InvestmentDataLoaderService.util.AssetFundamentalMapper;
 
 @Service
 public class AssetFundamentalService {
+    private static final Logger log = LoggerFactory.getLogger(AssetFundamentalService.class);
     private final AssetFundamentalsRepository assetFundamentalsRepository;
     private final TinkoffApiClient tinkoffApiClient;
     private final AssetFundamentalMapper mapper;
@@ -50,19 +53,19 @@ public class AssetFundamentalService {
         }
         
         try {
-            System.out.println("Запрос фундаментальных показателей для актива: " + assetUid);
+            log.info("Запрос фундаментальных показателей для актива: " + assetUid);
             List<AssetFundamentalDto> result = tinkoffApiClient.getAssetFundamentals(List.of(assetUid));
             
             if (result == null) {
-                System.out.println("API вернул null для актива: " + assetUid);
+                log.info("API вернул null для актива: " + assetUid);
                 return new ArrayList<>();
             }
             
-            System.out.println("Получено " + result.size() + " записей для актива: " + assetUid);
+            log.info("Получено " + result.size() + " записей для актива: " + assetUid);
             return result;
             
         } catch (Exception e) {
-            System.err.println("Ошибка при получении фундаментальных показателей для актива " + assetUid + ": " + e.getMessage());
+            log.error("Ошибка при получении фундаментальных показателей для актива " + assetUid + ": " + e.getMessage());
             e.printStackTrace();
             return new ArrayList<>();
         }
@@ -76,7 +79,7 @@ public class AssetFundamentalService {
     public List<AssetFundamentalDto> getFundamentalsForAssets(List<String> assetUids) {
         // Валидация входных параметров
         if (assetUids == null || assetUids.isEmpty()) {
-            System.out.println("Получен пустой список активов");
+            log.info("Получен пустой список активов");
             return new ArrayList<>();
         }
         
@@ -86,16 +89,16 @@ public class AssetFundamentalService {
             // Обработка специального случая "shares"
             for (String assetUid : assetUids) {
                 if (assetUid == null) {
-                    System.out.println("Пропущен null assetUid");
+                    log.info("Пропущен null assetUid");
                     continue;
                 }
                 
                 if ("shares".equalsIgnoreCase(assetUid.trim())) {
-                    System.out.println("Обработка специального случая 'shares'");
+                    log.info("Обработка специального случая 'shares'");
                     List<ShareEntity> shares = sharesRepo.findAll();
                     
                     if (shares == null || shares.isEmpty()) {
-                        System.out.println("Не найдено акций в базе данных");
+                        log.info("Не найдено акций в базе данных");
                         continue;
                     }
                     
@@ -105,18 +108,18 @@ public class AssetFundamentalService {
                             allAssetIds.add(assetId.trim());
                         }
                     }
-                    System.out.println("Добавлено " + shares.size() + " акций для обработки");
+                    log.info("Добавлено " + shares.size() + " акций для обработки");
                 } else if (StringUtils.hasText(assetUid)) {
                     allAssetIds.add(assetUid.trim());
                 }
             }
             
             if (allAssetIds.isEmpty()) {
-                System.out.println("Не найдено активов для обработки");
+                log.info("Не найдено активов для обработки");
                 return new ArrayList<>();
             }
             
-            System.out.println("Всего активов для обработки: " + allAssetIds.size());
+            log.info("Всего активов для обработки: " + allAssetIds.size());
             
             List<AssetFundamentalDto> allFundamentals = new ArrayList<>();
             
@@ -130,17 +133,17 @@ public class AssetFundamentalService {
                 int batchNumber = (i / batchSize) + 1;
                 
                 try {
-                    System.out.println("Обработка батча " + batchNumber + " из " + totalBatches + 
+                    log.info("Обработка батча " + batchNumber + " из " + totalBatches + 
                         " (элементов: " + batch.size() + ")");
                     
                     List<AssetFundamentalDto> batchFundamentals = tinkoffApiClient.getAssetFundamentals(batch);
                     
                     if (batchFundamentals != null && !batchFundamentals.isEmpty()) {
                         allFundamentals.addAll(batchFundamentals);
-                        System.out.println("Батч " + batchNumber + " успешно обработан: получено " + 
+                        log.info("Батч " + batchNumber + " успешно обработан: получено " + 
                             batchFundamentals.size() + " записей");
                     } else {
-                        System.out.println("Батч " + batchNumber + " не вернул данных");
+                        log.info("Батч " + batchNumber + " не вернул данных");
                     }
                     
                     // Небольшая задержка между батчами для соблюдения лимитов API
@@ -150,20 +153,20 @@ public class AssetFundamentalService {
                     
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    System.err.println("Прервана обработка батча " + batchNumber);
+                    log.error("Прервана обработка батча " + batchNumber);
                     break;
                 } catch (Exception e) {
-                    System.err.println("Ошибка при обработке батча " + batchNumber + ": " + e.getMessage());
+                    log.error("Ошибка при обработке батча " + batchNumber + ": " + e.getMessage());
                     e.printStackTrace();
                     // Продолжаем обработку следующих батчей
                 }
             }
             
-            System.out.println("Обработка завершена. Всего получено записей: " + allFundamentals.size());
+            log.info("Обработка завершена. Всего получено записей: " + allFundamentals.size());
             return allFundamentals;
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка в getFundamentalsForAssets: " + e.getMessage());
+            log.error("Критическая ошибка в getFundamentalsForAssets: " + e.getMessage());
             e.printStackTrace();
             return new ArrayList<>();
         }
@@ -178,18 +181,18 @@ public class AssetFundamentalService {
     public void saveAssetFundamentals(List<AssetFundamentalDto> allFundamentals) {
         // Валидация входных параметров
         if (allFundamentals == null || allFundamentals.isEmpty()) {
-            System.out.println("Получен пустой список фундаментальных показателей для сохранения");
+            log.info("Получен пустой список фундаментальных показателей для сохранения");
             return;
         }
         
-        System.out.println("Начало сохранения " + allFundamentals.size() + " записей фундаментальных показателей");
+        log.info("Начало сохранения " + allFundamentals.size() + " записей фундаментальных показателей");
         
         try {
             // Конвертируем DTO в Entity
             List<AssetFundamentalEntity> listEntities = mapper.toEntityList(allFundamentals);
             
             if (listEntities == null || listEntities.isEmpty()) {
-                System.out.println("Не удалось конвертировать DTO в Entity");
+                log.info("Не удалось конвертировать DTO в Entity");
                 return;
             }
             
@@ -204,7 +207,7 @@ public class AssetFundamentalService {
                     
                     // Валидация assetUid
                     if (!StringUtils.hasText(assetUid)) {
-                        System.err.println("Пропущена запись с пустым assetUid");
+                        log.error("Пропущена запись с пустым assetUid");
                         errorCount++;
                         continue;
                     }
@@ -221,7 +224,7 @@ public class AssetFundamentalService {
                         updatedCount++;
                         
                         if (updatedCount % 100 == 0) {
-                            System.out.println("Обновлено записей: " + updatedCount);
+                            log.info("Обновлено записей: " + updatedCount);
                         }
                     } else {
                         // Создаем новую запись
@@ -229,30 +232,30 @@ public class AssetFundamentalService {
                         createdCount++;
                         
                         if (createdCount % 100 == 0) {
-                            System.out.println("Создано записей: " + createdCount);
+                            log.info("Создано записей: " + createdCount);
                         }
                     }
                     
                 } catch (DataIntegrityViolationException e) {
-                    System.err.println("Ошибка целостности данных для актива " + entity.getAssetUid() + ": " + e.getMessage());
+                    log.error("Ошибка целостности данных для актива " + entity.getAssetUid() + ": " + e.getMessage());
                     errorCount++;
                 } catch (DataAccessException e) {
-                    System.err.println("Ошибка доступа к данным для актива " + entity.getAssetUid() + ": " + e.getMessage());
+                    log.error("Ошибка доступа к данным для актива " + entity.getAssetUid() + ": " + e.getMessage());   
                     errorCount++;
                 } catch (Exception e) {
-                    System.err.println("Неожиданная ошибка для актива " + entity.getAssetUid() + ": " + e.getMessage());
+                    log.error("Неожиданная ошибка для актива " + entity.getAssetUid() + ": " + e.getMessage());
                     errorCount++;
                 }
             }
             
-            System.out.println("Сохранение завершено:");
-            System.out.println("- Обновлено записей: " + updatedCount);
-            System.out.println("- Создано записей: " + createdCount);
-            System.out.println("- Ошибок: " + errorCount);
-            System.out.println("- Всего обработано: " + (updatedCount + createdCount + errorCount));
+            log.info("Сохранение завершено:");
+            log.info("- Обновлено записей: " + updatedCount);
+            log.info("- Создано записей: " + createdCount);
+            log.info("- Ошибок: " + errorCount);
+            log.info("- Всего обработано: " + (updatedCount + createdCount + errorCount));
             
         } catch (Exception e) {
-            System.err.println("Критическая ошибка при сохранении фундаментальных показателей: " + e.getMessage());
+            log.error("Критическая ошибка при сохранении фундаментальных показателей: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Не удалось сохранить фундаментальные показатели", e);
         }
@@ -343,7 +346,7 @@ public class AssetFundamentalService {
             existing.setTotalDebtChangeFiveYears(newEntity.getTotalDebtChangeFiveYears());
             
         } catch (Exception e) {
-            System.err.println("Ошибка при обновлении полей для актива " + existing.getAssetUid() + ": " + e.getMessage());
+            log.error("Ошибка при обновлении полей для актива " + existing.getAssetUid() + ": " + e.getMessage());
             throw e;
         }
     }

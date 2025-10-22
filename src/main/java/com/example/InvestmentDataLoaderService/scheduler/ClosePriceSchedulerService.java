@@ -3,6 +3,8 @@ package com.example.InvestmentDataLoaderService.scheduler;
 import com.example.InvestmentDataLoaderService.dto.ClosePriceRequestDto;
 import com.example.InvestmentDataLoaderService.dto.SaveResponseDto;
 import com.example.InvestmentDataLoaderService.service.MainSessionPriceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -11,6 +13,7 @@ import java.time.ZoneId;
 @Service
 public class ClosePriceSchedulerService {
 
+    private static final Logger log = LoggerFactory.getLogger(ClosePriceSchedulerService.class);
     private final MainSessionPriceService mainSessionPriceService;
 
     public ClosePriceSchedulerService(MainSessionPriceService mainSessionPriceService) {
@@ -22,7 +25,7 @@ public class ClosePriceSchedulerService {
         try {
             LocalDate previousDay = LocalDate.now(ZoneId.of("Europe/Moscow")).minusDays(1);
             
-            System.out.println("Starting scheduled close prices fetch for " + previousDay + " (shares, futures only)");
+            log.info("Starting scheduled close prices fetch for {} (shares, futures only)", previousDay);
             
             // Создаем пустой запрос для загрузки только RUB инструментов (акции, фьючерсы)
             ClosePriceRequestDto request = new ClosePriceRequestDto();
@@ -31,19 +34,18 @@ public class ClosePriceSchedulerService {
             SaveResponseDto response = mainSessionPriceService.saveClosePrices(request);
             
             if (response.isSuccess()) {
-                System.out.println("Scheduled close prices fetch completed successfully:");
-                System.out.println("- Date: " + previousDay);
-                System.out.println("- Message: " + response.getMessage());
-                System.out.println("- Total requested: " + response.getTotalRequested());
-                System.out.println("- New items saved: " + response.getNewItemsSaved());
-                System.out.println("- Existing items skipped: " + response.getExistingItemsSkipped());
+                log.info("Scheduled close prices fetch completed successfully:");
+                log.info("- Date: {}", previousDay);
+                log.info("- Message: {}", response.getMessage());
+                log.info("- Total requested: {}", response.getTotalRequested());
+                log.info("- New items saved: {}", response.getNewItemsSaved());
+                log.info("- Existing items skipped: {}", response.getExistingItemsSkipped());
             } else {
-                System.err.println("Scheduled close prices fetch failed: " + response.getMessage());
+                log.error("Scheduled close prices fetch failed: {}", response.getMessage());
             }
             
         } catch (Exception e) {
-            System.err.println("Error in scheduled close prices fetch: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error in scheduled close prices fetch", e);
         }
     }
 
@@ -53,7 +55,7 @@ public class ClosePriceSchedulerService {
      */
     public void fetchAndUpdateClosePricesForDate(LocalDate date) {
         try {
-            System.out.println("Starting manual close prices fetch for date: " + date + " (shares, futures only)");
+            log.info("Starting manual close prices fetch for date: {} (shares, futures only)", date);
             
             // Создаем пустой запрос для загрузки только RUB инструментов (акции, фьючерсы)
             ClosePriceRequestDto request = new ClosePriceRequestDto();
@@ -62,19 +64,18 @@ public class ClosePriceSchedulerService {
             SaveResponseDto response = mainSessionPriceService.saveClosePrices(request);
             
             if (response.isSuccess()) {
-                System.out.println("Manual close prices fetch completed successfully:");
-                System.out.println("- Date: " + date);
-                System.out.println("- Message: " + response.getMessage());
-                System.out.println("- Total requested: " + response.getTotalRequested());
-                System.out.println("- New items saved: " + response.getNewItemsSaved());
-                System.out.println("- Existing items skipped: " + response.getExistingItemsSkipped());
+                log.info("Manual close prices fetch completed successfully:");
+                log.info("- Date: {}", date);
+                log.info("- Message: {}", response.getMessage());
+                log.info("- Total requested: {}", response.getTotalRequested());
+                log.info("- New items saved: {}", response.getNewItemsSaved());
+                log.info("- Existing items skipped: {}", response.getExistingItemsSkipped());
             } else {
-                System.err.println("Manual close prices fetch failed: " + response.getMessage());
+                log.error("Manual close prices fetch failed: {}", response.getMessage());
             }
             
         } catch (Exception e) {
-            System.err.println("Error in manual close prices fetch for date " + date + ": " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error in manual close prices fetch for date {}", date, e);
         }
     }
 }

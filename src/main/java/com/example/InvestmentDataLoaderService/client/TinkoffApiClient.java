@@ -3,6 +3,8 @@ package com.example.InvestmentDataLoaderService.client;
 import com.example.InvestmentDataLoaderService.dto.CandleDto;
 import com.example.InvestmentDataLoaderService.entity.DividendEntity;
 import com.google.protobuf.Timestamp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import ru.tinkoff.piapi.contract.v1.*;
 import ru.tinkoff.piapi.contract.v1.MarketDataServiceGrpc.MarketDataServiceBlockingStub;
@@ -25,6 +27,7 @@ import java.util.List;
 @Component
 public class TinkoffApiClient {
 
+    private static final Logger log = LoggerFactory.getLogger(TinkoffApiClient.class);
     private final MarketDataServiceBlockingStub marketDataService;
     private final InstrumentsServiceBlockingStub instrumentsService;
 
@@ -108,6 +111,7 @@ public class TinkoffApiClient {
                 return candles;
             
             } catch (Exception e) {
+                log.warn("Ошибка при получении свечей, попытка {} из {}", attempt, maxRetries, e);
                 if (attempt < maxRetries) {
                     int retryDelay = baseRetryDelay * (int) Math.pow(2, attempt - 1);
                     try {
@@ -199,7 +203,7 @@ public List<DividendEntity> getDividends(String figi, LocalDate from, LocalDate 
             return dividends;
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения дивидендов для " + figi + " (попытка " + attempt + "/" + maxRetries + "): " + e.getMessage());
+            log.warn("Ошибка получения дивидендов для {} (попытка {}/{})", figi, attempt, maxRetries, e);
             
             if (attempt < maxRetries) {
                 int retryDelay = baseRetryDelay * (int) Math.pow(2, attempt - 1);
@@ -213,7 +217,7 @@ public List<DividendEntity> getDividends(String figi, LocalDate from, LocalDate 
         }
     }
     
-    System.err.println("Не удалось получить дивиденды для " + figi + " после " + maxRetries + " попыток");
+    log.error("Не удалось получить дивиденды для {} после {} попыток", figi, maxRetries);
     return new ArrayList<>();
 }
     
@@ -261,7 +265,7 @@ public List<DividendEntity> getDividends(String figi, LocalDate from, LocalDate 
             return null;
             
         } catch (Exception e) {
-            System.err.println("Ошибка получения фьючерса " + figi + ": " + e.getMessage());
+            log.error("Ошибка получения фьючерса {}", figi, e);
             return null;
         }
     }
@@ -297,7 +301,7 @@ public List<AssetFundamentalDto> getAssetFundamentals(List<String> assetUids) {
         return convertToAssetFundamentalDtos(response);
         
     } catch (Exception e) {
-        System.err.println("Ошибка получения фундаментальных показателей: " + e.getMessage());
+        log.error("Ошибка получения фундаментальных показателей", e);
         return new ArrayList<>();
     }
 }

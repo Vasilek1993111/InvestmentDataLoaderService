@@ -10,6 +10,8 @@ import com.example.InvestmentDataLoaderService.repository.FutureRepository;
 import com.example.InvestmentDataLoaderService.repository.IndicativeRepository;
 import com.example.InvestmentDataLoaderService.repository.SystemLogRepository;
 import com.example.InvestmentDataLoaderService.client.TinkoffApiClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 @Service
 public class DailyCandleService {
 
+    private static final Logger log = LoggerFactory.getLogger(DailyCandleService.class);
     private final DailyCandleRepository dailyCandleRepository;
     private final ShareRepository shareRepository;
     private final FutureRepository futureRepository;
@@ -66,9 +69,9 @@ public class DailyCandleService {
     public CompletableFuture<SaveResponseDto> saveDailyCandlesAsync(DailyCandleRequestDto request, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("=== НАЧАЛО ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
-                System.out.println("Task ID: " + taskId);
-                System.out.println("Request: " + request);
+                log.info("=== НАЧАЛО ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
+                log.info("Task ID: {}", taskId);
+                log.info("Request: {}", request);
 
                 List<String> instrumentIds = request.getInstruments();
                 LocalDate date = request.getDate();
@@ -86,8 +89,8 @@ public class DailyCandleService {
                     instrumentIds = getAllInstrumentIds(assetTypes);
                 }
 
-                System.out.println("Загружаем дневные свечи для " + instrumentIds.size() + " инструментов");
-                System.out.println("Дата: " + finalDate);
+                log.info("Загружаем дневные свечи для {} инструментов", instrumentIds.size());
+                log.info("Дата: {}", finalDate);
 
                 // Счетчики для статистики
                 AtomicInteger totalRequested = new AtomicInteger(0);
@@ -101,7 +104,7 @@ public class DailyCandleService {
                 int batchSize = Math.max(1, instrumentIds.size() / 8); // 8 батчей максимум для дневных свечей
                 List<List<String>> batches = partitionList(instrumentIds, batchSize);
 
-                System.out.println("Обрабатываем " + batches.size() + " батчей по " + batchSize + " инструментов");
+                log.info("Обрабатываем {} батчей по {} инструментов", batches.size(), batchSize);
 
                 // Создаем задачи для каждого батча
                 List<CompletableFuture<Void>> batchTasks = batches.stream()
@@ -116,12 +119,12 @@ public class DailyCandleService {
 
                 allBatches.join(); // Ждем завершения всех задач
 
-                System.out.println("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
-                System.out.println("Всего запрошено: " + totalRequested.get());
-                System.out.println("Новых сохранено: " + newItemsSaved.get());
-                System.out.println("Пропущено существующих: " + existingItemsSkipped.get());
-                System.out.println("Отфильтровано неверных: " + invalidItemsFiltered.get());
-                System.out.println("Отсутствует в API: " + missingFromApi.get());
+                log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
+                log.info("Всего запрошено: {}", totalRequested.get());
+                log.info("Новых сохранено: {}", newItemsSaved.get());
+                log.info("Пропущено существующих: {}", existingItemsSkipped.get());
+                log.info("Отфильтровано неверных: {}", invalidItemsFiltered.get());
+                log.info("Отсутствует в API: {}", missingFromApi.get());
 
                 return new SaveResponseDto(
                     true,
@@ -135,8 +138,7 @@ public class DailyCandleService {
                 );
 
             } catch (Exception e) {
-                System.err.println("Критическая ошибка загрузки дневных свечей: " + e.getMessage());
-                e.printStackTrace();
+                log.error("Критическая ошибка загрузки дневных свечей: {}", e.getMessage(), e);
                 return new SaveResponseDto(
                     false,
                     "Ошибка загрузки дневных свечей: " + e.getMessage(),
@@ -154,7 +156,7 @@ public class DailyCandleService {
                                                      AtomicInteger existingItemsSkipped, AtomicInteger invalidItemsFiltered,
                                                      AtomicInteger missingFromApi, List<String> savedItems) {
         return CompletableFuture.runAsync(() -> {
-            System.out.println("Обрабатываем батч из " + batch.size() + " инструментов");
+            log.info("Обрабатываем батч из {} инструментов", batch.size());
             
             // Создаем задачи для каждого инструмента в батче
             List<CompletableFuture<Void>> instrumentTasks = batch.stream()
@@ -166,7 +168,7 @@ public class DailyCandleService {
             // Ждем завершения всех инструментов в батче
             CompletableFuture.allOf(instrumentTasks.toArray(new CompletableFuture[0])).join();
             
-            System.out.println("Батч из " + batch.size() + " инструментов обработан");
+            log.info("Батч из {} инструментов обработан", batch.size());
         }, dailyCandleExecutor);
     }
 
@@ -184,7 +186,7 @@ public class DailyCandleService {
             Instant figiStartTime = Instant.now();
             
             try {
-                System.out.println("Обрабатываем инструмент: " + figi);
+                log.info("Обрабатываем инструмент: {}", figi);
                 
                 // Получаем дневные свечи из API асинхронно
                 CompletableFuture<List<com.example.InvestmentDataLoaderService.dto.CandleDto>> apiTask = 
@@ -192,7 +194,7 @@ public class DailyCandleService {
                         try {
                             return tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_DAY");
                         } catch (Exception e) {
-                            System.err.println("Ошибка получения данных из API для " + figi + ": " + e.getMessage());
+                            log.error("Ошибка получения данных из API для {}: {}", figi, e.getMessage(), e);
                             return null;
                         }
                     }, dailyApiDataExecutor);
@@ -200,7 +202,7 @@ public class DailyCandleService {
                 List<com.example.InvestmentDataLoaderService.dto.CandleDto> candles = apiTask.get();
                 
                 if (candles == null || candles.isEmpty()) {
-                    System.out.println("Нет данных для инструмента: " + figi);
+                    log.info("Нет данных для инструмента: {}", figi);
                     missingFromApi.incrementAndGet();
                     
                     // Логируем отсутствие данных для FIGI
@@ -210,7 +212,7 @@ public class DailyCandleService {
                 }
 
                 totalRequested.addAndGet(candles.size());
-                System.out.println("Получено " + candles.size() + " дневных свечей для " + figi);
+                log.info("Получено {} дневных свечей для {}", candles.size(), figi);
 
                 // Сохраняем свечи в БД пакетно
                 List<DailyCandleEntity> entitiesToSave = new ArrayList<>();
@@ -220,7 +222,7 @@ public class DailyCandleService {
                     try {
                         // Фильтруем незакрытые свечи (is_complete=false)
                         if (!candle.isComplete()) {
-                            System.out.println("Пропускаем незакрытую свечу для " + figi + " в " + candle.time());
+                            log.info("Пропускаем незакрытую свечу для {} в {}", figi, candle.time());
                             invalidItemsFiltered.incrementAndGet();
                             continue;
                         }
@@ -235,7 +237,7 @@ public class DailyCandleService {
                             existingTimes.add(entity.getTime().toString());
                         }
                     } catch (Exception e) {
-                        System.err.println("Ошибка конвертации свечи для " + figi + ": " + e.getMessage());
+                        log.error("Ошибка конвертации свечи для {}: {}", figi, e.getMessage(), e);
                         figiInvalidItems.incrementAndGet();
                         invalidItemsFiltered.incrementAndGet();
                     }
@@ -248,9 +250,9 @@ public class DailyCandleService {
                             saveDailyCandlesBatch(entitiesToSave);
                             figiNewItems.addAndGet(entitiesToSave.size());
                             newItemsSaved.addAndGet(entitiesToSave.size());
-                            System.out.println("Сохранено " + entitiesToSave.size() + " новых дневных свечей для " + figi);
+                            log.info("Сохранено {} новых дневных свечей для {}", entitiesToSave.size(), figi);
                         } catch (Exception e) {
-                            System.err.println("Ошибка пакетного сохранения для " + figi + ": " + e.getMessage());
+                            log.error("Ошибка пакетного сохранения для {}: {}", figi, e.getMessage(), e);
                         }
                     }, dailyBatchWriteExecutor).join();
                 }
@@ -264,7 +266,7 @@ public class DailyCandleService {
                     figiStartTime, candles.size(), figiNewItems.get(), figiExistingItems.get(), figiInvalidItems.get());
 
             } catch (Exception e) {
-                System.err.println("Ошибка обработки инструмента " + figi + ": " + e.getMessage());
+                log.error("Ошибка обработки инструмента {}: {}", figi, e.getMessage(), e);
                 invalidItemsFiltered.incrementAndGet();
                 
                 // Логируем ошибку обработки FIGI
@@ -362,11 +364,10 @@ public class DailyCandleService {
             figiLog.setDurationMs(Instant.now().toEpochMilli() - startTime.toEpochMilli());
             
             systemLogRepository.save(figiLog);
-            System.out.println("Лог обработки FIGI сохранен: " + figi + " (" + status + ")");
+            log.info("Лог обработки FIGI сохранен: {} ({})", figi, status);
             
         } catch (Exception e) {
-            System.err.println("Ошибка сохранения лога обработки FIGI " + figi + ": " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка сохранения лога обработки FIGI {}: {}", figi, e.getMessage(), e);
         }
     }
 }
