@@ -9,6 +9,8 @@ create table shares
     exchange       varchar(255),
     sector         varchar(255),
     trading_status varchar(255),
+    short_enabled  boolean,
+    asset_uid      varchar(255),
     created_at     timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text),
     updated_at     timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text)
 );
@@ -29,12 +31,24 @@ comment on column shares.sector is 'Сектор экономики';
 
 comment on column shares.trading_status is 'Статус торговли';
 
+comment on column shares.short_enabled is 'Флаг возможности коротких продаж';
+
+comment on column shares.asset_uid is 'Уникальный идентификатор актива';
+
 comment on column shares.created_at is 'Дата и время создания записи (московское время)';
 
 comment on column shares.updated_at is 'Дата и время последнего обновления записи (московское время)';
 
 alter table shares
     owner to postgres;
+
+-- Добавляем новые колонки в таблицу shares
+alter table shares add column short_enabled boolean;
+alter table shares add column asset_uid varchar(255);
+
+-- Добавляем комментарии для новых колонок
+comment on column shares.short_enabled is 'Флаг возможности коротких продаж';
+comment on column shares.asset_uid is 'Уникальный идентификатор актива';
 
 
 
