@@ -44,6 +44,9 @@ public class FutureEntity {
     @Column(name = "lot")
     private Integer lot;
     
+    @Column(name = "basic_asset_size", precision = 18, scale = 9)
+    private BigDecimal basicAssetSize;
+    
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
     
@@ -51,7 +54,7 @@ public class FutureEntity {
     private LocalDateTime updatedAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
 
     public FutureEntity(String figi, String ticker, String assetType, String basicAsset, 
-                       String currency, String exchange, Boolean shortEnabled, LocalDateTime expirationDate, BigDecimal minPriceIncrement, Integer lot) {
+                       String currency, String exchange, Boolean shortEnabled, LocalDateTime expirationDate, BigDecimal minPriceIncrement, Integer lot, BigDecimal basicAssetSize) {
         this.figi = figi;
         this.ticker = ticker;
         this.assetType = assetType;
@@ -62,6 +65,7 @@ public class FutureEntity {
         this.expirationDate = expirationDate;
         this.minPriceIncrement = minPriceIncrement;
         this.lot = lot;
+        this.basicAssetSize = basicAssetSize;
         this.createdAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
         this.updatedAt = LocalDateTime.now(TimeZoneUtils.getMoscowZone());
     }

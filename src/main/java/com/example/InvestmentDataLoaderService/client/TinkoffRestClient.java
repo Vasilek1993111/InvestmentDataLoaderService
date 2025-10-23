@@ -89,7 +89,7 @@ public class TinkoffRestClient {
     /**
      * Получение акций через REST API
      */
-    public JsonNode getShares() {
+    public JsonNode getShares(String status) {
         log.info("=== ПОЛУЧЕНИЕ АКЦИЙ ===");
         try {
             log.info("Проверяем конфигурацию API токена...");
@@ -106,8 +106,11 @@ public class TinkoffRestClient {
             headers.set("Authorization", "Bearer " + apiToken);
             
             Map<String, Object> requestBody = new HashMap<>();
-            //requestBody.put("instrumentStatus", "INSTRUMENT_STATUS_BASE");
-            //requestBody.put("instrumentExchange","INSTRUMENT_EXCHANGE_UNSPECIFIED");
+            
+            // Передаем статус напрямую от пользователя
+            String instrumentStatus = (status != null && !status.isEmpty()) ? status : "INSTRUMENT_STATUS_BASE";
+            requestBody.put("instrumentStatus", instrumentStatus);
+            requestBody.put("instrumentExchange","INSTRUMENT_EXCHANGE_UNSPECIFIED");
             
             log.debug("Тело запроса: {}", requestBody);
             
