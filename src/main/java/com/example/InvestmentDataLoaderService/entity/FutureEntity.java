@@ -38,7 +38,7 @@ public class FutureEntity {
     @Column(name = "expiration_date")
     private LocalDateTime expirationDate;
     
-    @Column(name = "min_price_increment")
+    @Column(name = "min_price_increment", precision = 18, scale = 9)
     private BigDecimal minPriceIncrement;
     
     @Column(name = "lot")

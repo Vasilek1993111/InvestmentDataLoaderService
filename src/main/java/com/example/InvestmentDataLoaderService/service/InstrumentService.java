@@ -167,7 +167,6 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
-        log.info("shares: {}", shares);
         return shares;
     }
 
@@ -220,7 +219,6 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         result.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
-        log.info("result: {}", result);
         return result;
     }
 

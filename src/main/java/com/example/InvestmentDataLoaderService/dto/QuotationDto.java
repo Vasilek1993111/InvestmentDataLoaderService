@@ -23,13 +23,12 @@ public record QuotationDto(
         if (price == null) {
             return new QuotationDto(0L, 0);
         }
-        // Нормализуем до 6 знаков после запятой
-        BigDecimal normalized = price.setScale(6, java.math.RoundingMode.HALF_UP);
+        // Нормализуем до 9 знаков после запятой для полной точности nano
+        BigDecimal normalized = price.setScale(9, java.math.RoundingMode.HALF_UP);
 
         long units = normalized.longValue();
         BigDecimal fractionalPart = normalized.subtract(BigDecimal.valueOf(units));
-        // Храним nano в 9-значном формате (совместимо с Quotation), но дробь уже 6
-        // знаков
+        // Храним nano в 9-значном формате (стандартный Quotation формат)
         BigDecimal nanoDecimal = fractionalPart.multiply(BigDecimal.valueOf(1_000_000_000L));
         int nano = nanoDecimal.intValue();
 
@@ -42,10 +41,12 @@ public record QuotationDto(
      * @return BigDecimal цена
      */
     public BigDecimal toBigDecimal() {
+        // Стандартный Quotation формат: nano в масштабе 10^9
         BigDecimal value = BigDecimal.valueOf(units)
                 .add(BigDecimal.valueOf(nano).divide(BigDecimal.valueOf(1_000_000_000L), 9,
                         java.math.RoundingMode.HALF_UP));
-        return value.setScale(6, java.math.RoundingMode.HALF_UP);
+        // Убираем лишние нули в конце, сохраняя полную точность для minPriceIncrement
+        return value.stripTrailingZeros();
     }
 
     /**
@@ -92,6 +93,7 @@ public record QuotationDto(
      * @return BigDecimal значение минимального шага цены
      */
     public static BigDecimal minPriceIncrementToBigDecimal(com.fasterxml.jackson.databind.JsonNode jsonNode) {
-        return fromJsonNode(jsonNode).toBigDecimal();
+        QuotationDto quotation = fromJsonNode(jsonNode);
+        return quotation.toBigDecimal();
     }
 }
