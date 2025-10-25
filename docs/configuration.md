@@ -67,7 +67,7 @@ spring.jpa.properties.hibernate.default_schema=invest
 ```properties
 spring.datasource.url=jdbc:postgresql://host.docker.internal:5434/postgres
 spring.datasource.username=postgres
-spring.datasource.password=123password123
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
 spring.jpa.properties.hibernate.default_schema=invest
 ```
 

@@ -338,7 +338,8 @@ public class CachedInstrumentService {
                     dto.shortEnabled(),
                     dto.expirationDate(),
                     dto.minPriceIncrement(),
-                    dto.lot()
+                    dto.lot(),
+                    dto.basicAssetSize()
                 ))
                 .collect(Collectors.toList());
     }

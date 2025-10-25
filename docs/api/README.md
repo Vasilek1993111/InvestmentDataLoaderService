@@ -508,11 +508,8 @@ curl "http://localhost:8083/api/last-trades/performance"
 - [Архитектура системы](../architecture.md)
 - [Конфигурация](../configuration.md)
 - [База данных](../database.md)
-- [Диаграммы](../diagrams/architecture.md)
-- [Потоки данных](../diagrams/data-flow.md)
 
 ### Быстрый старт
 - [Allure отчеты](../ALLURE_QUICK_START.md)
 - [Docker разработка](../docker-development.md)
-- [Окружения](../ENVIRONMENTS.md)
 - [Использование часовых поясов](../timezone-usage.md)

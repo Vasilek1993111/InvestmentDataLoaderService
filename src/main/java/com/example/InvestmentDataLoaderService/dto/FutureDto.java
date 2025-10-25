@@ -15,7 +15,8 @@ public record FutureDto(
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime expirationDate,
     BigDecimal minPriceIncrement,
-    Integer lot
+    Integer lot,
+    BigDecimal basicAssetSize
 ) {
     
 }

@@ -122,8 +122,7 @@ public class InstrumentService {
             key = "T(java.util.Objects).toString(#status,'') + '|' + T(java.util.Objects).toString(#exchange,'') + '|' + T(java.util.Objects).toString(#currency,'') + '|' + T(java.util.Objects).toString(#ticker,'') + '|' + T(java.util.Objects).toString(#figi,'')")
     public List<ShareDto> getShares(String status, String exchange, String currency, String ticker, String figi) {
         // Получаем данные из T-Bank API через REST
-        JsonNode response = restClient.getShares();
-        log.info("response: {}", response);
+        JsonNode response = restClient.getShares(status);
         
         List<ShareDto> shares = new ArrayList<>();
         
@@ -149,10 +148,7 @@ public class InstrumentService {
                                    instrument.get("ticker").asText().equalsIgnoreCase(ticker));
             boolean matchesFigi = (figi == null || figi.isEmpty() || 
                                  instrument.get("figi").asText().equalsIgnoreCase(figi));
-            boolean matchesStatus = (status == null || status.isEmpty() || 
-                                   instrument.get("tradingStatus").asText().equalsIgnoreCase(status));
-
-            if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi && matchesStatus) {
+            if (matchesExchange && matchesCurrency && matchesTicker && matchesFigi) {
                 shares.add(new ShareDto(
                     instrument.get("figi").asText(),
                     instrument.get("ticker").asText(),
@@ -171,7 +167,6 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         shares.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
-        log.info("shares: {}", shares);
         return shares;
     }
 
@@ -224,7 +219,6 @@ public class InstrumentService {
         
         // Сортируем по тикеру
         result.sort(Comparator.comparing(ShareDto::ticker, String.CASE_INSENSITIVE_ORDER));
-        log.info("result: {}", result);
         return result;
     }
 
@@ -337,7 +331,8 @@ public class InstrumentService {
                     true,
                     expirationDate,
                     convertQuotationToBigDecimal(instrument.getMinPriceIncrement()),
-                    instrument.getLot()
+                    instrument.getLot(),
+                    convertQuotationToBigDecimal(instrument.getBasicAssetSize())
                 ));
             }
         }
@@ -367,7 +362,8 @@ public class InstrumentService {
             entity.getShortEnabled(), 
             entity.getExpirationDate(),
             entity.getMinPriceIncrement(),
-            entity.getLot()
+            entity.getLot(),
+            entity.getBasicAssetSize()
             ))
         .orElse(null);
         
@@ -389,7 +385,8 @@ public class InstrumentService {
             entity.getShortEnabled(), 
             entity.getExpirationDate(),
             entity.getMinPriceIncrement(),
-            entity.getLot()
+            entity.getLot(),
+            entity.getBasicAssetSize()
             ))
         .orElse(null);
     }
@@ -658,7 +655,8 @@ public class InstrumentService {
                     entity.getShortEnabled(),
                     entity.getExpirationDate(),
                     entity.getMinPriceIncrement(),
-                    entity.getLot()
+                    entity.getLot(),
+                    entity.getBasicAssetSize()
                 ))
                 .collect(Collectors.toList());
     }
@@ -836,7 +834,8 @@ public class InstrumentService {
                     Boolean.TRUE,
                     futureDto.expirationDate(),
                     futureDto.minPriceIncrement(),
-                    futureDto.lot()
+                    futureDto.lot(),
+                    futureDto.basicAssetSize()
                 );
                 
                 futureRepo.save(futureEntity);
