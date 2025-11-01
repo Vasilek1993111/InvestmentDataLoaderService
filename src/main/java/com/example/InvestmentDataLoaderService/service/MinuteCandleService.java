@@ -22,6 +22,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -113,11 +115,19 @@ public class MinuteCandleService {
                         missingFromApi, savedItems))
                     .collect(Collectors.toList());
 
-                // Ждем завершения всех батчей
+                // Ждем завершения всех батчей с таймаутом
                 CompletableFuture<Void> allBatches = CompletableFuture.allOf(
                     batchTasks.toArray(new CompletableFuture[0]));
 
-                allBatches.join(); // Ждем завершения всех задач
+                try {
+                    // Таймаут 2 часа для загрузки всех свечей
+                    allBatches.get(2, TimeUnit.HOURS);
+                } catch (TimeoutException e) {
+                    log.error("Превышен таймаут ожидания завершения загрузки минутных свечей (2 часа)");
+                    // Продолжаем работу, чтобы вернуть статистику по обработанным данным
+                } catch (Exception e) {
+                    log.error("Ошибка ожидания завершения загрузки минутных свечей: {}", e.getMessage(), e);
+                }
 
                 log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
                 log.info("Всего запрошено: {}", totalRequested.get());
@@ -165,8 +175,15 @@ public class MinuteCandleService {
                     missingFromApi, savedItems))
                 .collect(Collectors.toList());
 
-            // Ждем завершения всех инструментов в батче
-            CompletableFuture.allOf(instrumentTasks.toArray(new CompletableFuture[0])).join();
+            // Ждем завершения всех инструментов в батче с таймаутом
+            try {
+                CompletableFuture.allOf(instrumentTasks.toArray(new CompletableFuture[0]))
+                    .get(1, TimeUnit.HOURS);
+            } catch (TimeoutException e) {
+                log.error("Превышен таймаут ожидания завершения обработки батча (1 час)");
+            } catch (Exception e) {
+                log.error("Ошибка ожидания завершения обработки батча: {}", e.getMessage(), e);
+            }
             
             log.info("Батч из {} инструментов обработан", batch.size());
         }, minuteCandleExecutor);
@@ -199,7 +216,17 @@ public class MinuteCandleService {
                         }
                     }, apiDataExecutor);
 
-                List<com.example.InvestmentDataLoaderService.dto.CandleDto> candles = apiTask.get();
+                List<com.example.InvestmentDataLoaderService.dto.CandleDto> candles;
+                try {
+                    // Таймаут 5 минут для получения данных из API
+                    candles = apiTask.get(5, TimeUnit.MINUTES);
+                } catch (TimeoutException e) {
+                    log.error("Превышен таймаут получения данных из API для {} (5 минут)", figi);
+                    candles = null;
+                } catch (Exception e) {
+                    log.error("Ошибка получения данных из API для {}: {}", figi, e.getMessage(), e);
+                    candles = null;
+                }
                 
                 if (candles == null || candles.isEmpty()) {
                     log.info("Нет данных для инструмента: {}", figi);
@@ -245,16 +272,25 @@ public class MinuteCandleService {
 
                 // Пакетная запись в БД
                 if (!entitiesToSave.isEmpty()) {
-                    CompletableFuture.runAsync(() -> {
-                        try {
-                            saveMinuteCandlesBatch(entitiesToSave);
-                            figiNewItems.addAndGet(entitiesToSave.size());
-                            newItemsSaved.addAndGet(entitiesToSave.size());
-                            log.info("Сохранено {} новых свечей для {}", entitiesToSave.size(), figi);
-                        } catch (Exception e) {
-                            log.error("Ошибка пакетного сохранения для {}: {}", figi, e.getMessage(), e);
-                        }
-                    }, batchWriteExecutor).join();
+                    try {
+                        CompletableFuture<Void> saveTask = CompletableFuture.runAsync(() -> {
+                            try {
+                                saveMinuteCandlesBatch(entitiesToSave);
+                                figiNewItems.addAndGet(entitiesToSave.size());
+                                newItemsSaved.addAndGet(entitiesToSave.size());
+                                log.info("Сохранено {} новых свечей для {}", entitiesToSave.size(), figi);
+                            } catch (Exception e) {
+                                log.error("Ошибка пакетного сохранения для {}: {}", figi, e.getMessage(), e);
+                            }
+                        }, batchWriteExecutor);
+                        
+                        // Таймаут 10 минут для сохранения батча
+                        saveTask.get(10, TimeUnit.MINUTES);
+                    } catch (TimeoutException e) {
+                        log.error("Превышен таймаут сохранения батча для {} (10 минут)", figi);
+                    } catch (Exception e) {
+                        log.error("Ошибка ожидания сохранения батча для {}: {}", figi, e.getMessage(), e);
+                    }
                 }
 
                 figiExistingItems.addAndGet(existingTimes.size());

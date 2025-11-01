@@ -22,6 +22,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -113,11 +115,19 @@ public class DailyCandleService {
                         missingFromApi, savedItems))
                     .collect(Collectors.toList());
 
-                // Ждем завершения всех батчей
+                // Ждем завершения всех батчей с таймаутом
                 CompletableFuture<Void> allBatches = CompletableFuture.allOf(
                     batchTasks.toArray(new CompletableFuture[0]));
 
-                allBatches.join(); // Ждем завершения всех задач
+                try {
+                    // Таймаут 2 часа для загрузки всех свечей
+                    allBatches.get(2, TimeUnit.HOURS);
+                } catch (TimeoutException e) {
+                    log.error("Превышен таймаут ожидания завершения загрузки дневных свечей (2 часа)");
+                    // Продолжаем работу, чтобы вернуть статистику по обработанным данным
+                } catch (Exception e) {
+                    log.error("Ошибка ожидания завершения загрузки дневных свечей: {}", e.getMessage(), e);
+                }
 
                 log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
                 log.info("Всего запрошено: {}", totalRequested.get());
@@ -155,31 +165,30 @@ public class DailyCandleService {
                                                      AtomicInteger totalRequested, AtomicInteger newItemsSaved,
                                                      AtomicInteger existingItemsSkipped, AtomicInteger invalidItemsFiltered,
                                                      AtomicInteger missingFromApi, List<String> savedItems) {
-        return CompletableFuture.runAsync(() -> {
-            log.info("Обрабатываем батч из {} инструментов", batch.size());
-            
-            // Создаем задачи для каждого инструмента в батче
-            List<CompletableFuture<Void>> instrumentTasks = batch.stream()
-                .map(figi -> processInstrumentAsync(figi, date, taskId, totalRequested, 
-                    newItemsSaved, existingItemsSkipped, invalidItemsFiltered, 
-                    missingFromApi, savedItems))
-                .collect(Collectors.toList());
+        // Создаем задачи для каждого инструмента в батче напрямую через dailyApiDataExecutor
+        // чтобы избежать вложенности executor'ов и блокировок
+        List<CompletableFuture<Void>> instrumentTasks = batch.stream()
+            .map(figi -> processInstrumentAsync(figi, date, taskId, totalRequested, 
+                newItemsSaved, existingItemsSkipped, invalidItemsFiltered, 
+                missingFromApi, savedItems))
+            .collect(Collectors.toList());
 
-            // Ждем завершения всех инструментов в батче
-            CompletableFuture.allOf(instrumentTasks.toArray(new CompletableFuture[0])).join();
-            
-            log.info("Батч из {} инструментов обработан", batch.size());
-        }, dailyCandleExecutor);
+        // Возвращаем CompletableFuture, который завершится когда все инструменты обработаны
+        // Не блокируем поток executor'а
+        return CompletableFuture.allOf(instrumentTasks.toArray(new CompletableFuture[0]))
+            .thenRun(() -> log.info("Батч из {} инструментов обработан", batch.size()));
     }
 
     /**
      * Обрабатывает один инструмент асинхронно
+     * Использует dailyApiDataExecutor напрямую для избежания вложенности executor'ов
      */
     private CompletableFuture<Void> processInstrumentAsync(String figi, LocalDate date, String taskId,
                                                           AtomicInteger totalRequested, AtomicInteger newItemsSaved,
                                                           AtomicInteger existingItemsSkipped, AtomicInteger invalidItemsFiltered,
                                                           AtomicInteger missingFromApi, List<String> savedItems) {
-        return CompletableFuture.runAsync(() -> {
+        // Используем dailyApiDataExecutor напрямую, чтобы избежать вложенности и блокировок
+        return CompletableFuture.supplyAsync(() -> {
             AtomicInteger figiNewItems = new AtomicInteger(0);
             AtomicInteger figiExistingItems = new AtomicInteger(0);
             AtomicInteger figiInvalidItems = new AtomicInteger(0);
@@ -188,18 +197,14 @@ public class DailyCandleService {
             try {
                 log.info("Обрабатываем инструмент: {}", figi);
                 
-                // Получаем дневные свечи из API асинхронно
-                CompletableFuture<List<com.example.InvestmentDataLoaderService.dto.CandleDto>> apiTask = 
-                    CompletableFuture.supplyAsync(() -> {
-                        try {
-                            return tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_DAY");
-                        } catch (Exception e) {
-                            log.error("Ошибка получения данных из API для {}: {}", figi, e.getMessage(), e);
-                            return null;
-                        }
-                    }, dailyApiDataExecutor);
-
-                List<com.example.InvestmentDataLoaderService.dto.CandleDto> candles = apiTask.get();
+                // Получаем дневные свечи из API синхронно (executor уже обрабатывает параллелизм)
+                List<com.example.InvestmentDataLoaderService.dto.CandleDto> candles;
+                try {
+                    candles = tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_DAY");
+                } catch (Exception e) {
+                    log.error("Ошибка получения данных из API для {}: {}", figi, e.getMessage(), e);
+                    candles = null;
+                }
                 
                 if (candles == null || candles.isEmpty()) {
                     log.info("Нет данных для инструмента: {}", figi);
@@ -208,7 +213,7 @@ public class DailyCandleService {
                     // Логируем отсутствие данных для FIGI
                     logFigiProcessing(taskId, figi, "NO_DATA", "Нет данных в API для инструмента " + figi, 
                         figiStartTime, 0, 0, 0, 0);
-                    return;
+                    return null;
                 }
 
                 totalRequested.addAndGet(candles.size());
@@ -222,7 +227,7 @@ public class DailyCandleService {
                     try {
                         // Фильтруем незакрытые свечи (is_complete=false)
                         if (!candle.isComplete()) {
-                            log.info("Пропускаем незакрытую свечу для {} в {}", figi, candle.time());
+                            log.debug("Пропускаем незакрытую свечу для {} в {}", figi, candle.time());
                             invalidItemsFiltered.incrementAndGet();
                             continue;
                         }
@@ -243,7 +248,7 @@ public class DailyCandleService {
                     }
                 }
 
-                // Пакетная запись в БД
+                // Пакетная запись в БД асинхронно (не блокируем текущий поток)
                 if (!entitiesToSave.isEmpty()) {
                     CompletableFuture.runAsync(() -> {
                         try {
@@ -254,7 +259,8 @@ public class DailyCandleService {
                         } catch (Exception e) {
                             log.error("Ошибка пакетного сохранения для {}: {}", figi, e.getMessage(), e);
                         }
-                    }, dailyBatchWriteExecutor).join();
+                    }, dailyBatchWriteExecutor);
+                    // Не ждем завершения сохранения - оно произойдет асинхронно
                 }
 
                 figiExistingItems.addAndGet(existingTimes.size());
@@ -265,6 +271,9 @@ public class DailyCandleService {
                     "Успешно обработан инструмент " + figi + ". Получено " + candles.size() + " свечей", 
                     figiStartTime, candles.size(), figiNewItems.get(), figiExistingItems.get(), figiInvalidItems.get());
 
+                // Убрана задержка - она уже есть в TinkoffApiClient (300ms перед каждым запросом)
+                return null;
+
             } catch (Exception e) {
                 log.error("Ошибка обработки инструмента {}: {}", figi, e.getMessage(), e);
                 invalidItemsFiltered.incrementAndGet();
@@ -273,8 +282,9 @@ public class DailyCandleService {
                 logFigiProcessing(taskId, figi, "ERROR", 
                     "Ошибка обработки инструмента " + figi + ": " + e.getMessage(), 
                     figiStartTime, 0, 0, 0, 0);
+                return null;
             }
-        }, dailyCandleExecutor);
+        }, dailyApiDataExecutor).thenRun(() -> {}); // Преобразуем в CompletableFuture<Void>
     }
 
     /**

@@ -4,7 +4,6 @@ import com.example.InvestmentDataLoaderService.dto.LastTradesRequestDto;
 import com.example.InvestmentDataLoaderService.service.LastTradesService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,8 +24,9 @@ public class LastTradesSchedulerService {
      * Планировщик обезличенных сделок
      * Запускается каждые 30 минут с 2:00 до 00:00 по московскому времени
      * Сначала загружает акции, затем фьючерсы
+     * ВРЕМЕННО ОТКЛЮЧЕН
      */
-    @Scheduled(cron = "0 0,30 2-23 * * *", zone = "Europe/Moscow")
+    // @Scheduled(cron = "0 0,30 2-23 * * *", zone = "Europe/Moscow")
     public void scheduledLastTradesLoading() {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Moscow"));
         String taskId = "SCHEDULED_LAST_TRADES_" + now.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmm"));

@@ -162,12 +162,11 @@ public class AsyncConfig {
     @Bean("dailyApiDataExecutor")
     public Executor dailyApiDataExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        int processors = Runtime.getRuntime().availableProcessors();
         
-        // Настройки для API запросов (учитываем ограничения API)
-        executor.setCorePoolSize(Math.max(3, processors / 2));
-        executor.setMaxPoolSize(Math.max(6, processors));
-        executor.setQueueCapacity(300);
+        // Настройки для API запросов (уменьшено количество потоков для соблюдения лимитов Tinkoff API)
+        executor.setCorePoolSize(2); // Уменьшено до 2 потоков
+        executor.setMaxPoolSize(4); // Уменьшено до 4 потоков максимум
+        executor.setQueueCapacity(500); // Увеличена очередь для накопления задач
         executor.setThreadNamePrefix("DailyApiData-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(180);
@@ -176,7 +175,7 @@ public class AsyncConfig {
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         
         // Настройки для оптимизации API запросов
-        executor.setKeepAliveSeconds(30);
+        executor.setKeepAliveSeconds(60);
         executor.setAllowCoreThreadTimeOut(true);
         
         executor.initialize();

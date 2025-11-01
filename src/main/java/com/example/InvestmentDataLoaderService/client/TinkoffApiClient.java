@@ -11,6 +11,8 @@ import ru.tinkoff.piapi.contract.v1.MarketDataServiceGrpc.MarketDataServiceBlock
 import ru.tinkoff.piapi.contract.v1.InstrumentsServiceGrpc.InstrumentsServiceBlockingStub;
 import com.example.InvestmentDataLoaderService.dto.AssetFundamentalDto;
 import java.time.format.DateTimeFormatter;
+import io.grpc.StatusRuntimeException;
+import io.grpc.Status;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -69,13 +71,13 @@ public class TinkoffApiClient {
 
         // Задержка для соблюдения лимитов API
         try {
-            Thread.sleep(200);
+            Thread.sleep(300); // Увеличена задержка до 300ms
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
         // Повторные попытки при ошибках
-        int maxRetries = 3;
+        int maxRetries = 5; // Увеличено количество попыток
         int baseRetryDelay = 2000;
         
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -110,8 +112,42 @@ public class TinkoffApiClient {
                 
                 return candles;
             
+            } catch (StatusRuntimeException e) {
+                // Специальная обработка RESOURCE_EXHAUSTED
+                if (e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+                    int retryDelay;
+                    if (attempt < maxRetries) {
+                        // Для RESOURCE_EXHAUSTED используем экспоненциальную задержку с большим начальным значением
+                        retryDelay = baseRetryDelay * (int) Math.pow(2, attempt) + 5000; // Минимум 5 секунд + экспоненциальная задержка
+                        log.warn("RESOURCE_EXHAUSTED при получении свечей для {}, попытка {} из {}. Задержка {}ms", 
+                            instrumentId, attempt, maxRetries, retryDelay);
+                        try {
+                            Thread.sleep(retryDelay);
+                            continue; // Продолжаем попытки
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    } else {
+                        log.error("Превышено максимальное количество попыток при RESOURCE_EXHAUSTED для {}", instrumentId);
+                        return new ArrayList<>();
+                    }
+                } else {
+                    log.warn("Ошибка при получении свечей для {}, попытка {} из {}: {}", 
+                        instrumentId, attempt, maxRetries, e.getMessage());
+                    if (attempt < maxRetries) {
+                        int retryDelay = baseRetryDelay * (int) Math.pow(2, attempt - 1);
+                        try {
+                            Thread.sleep(retryDelay);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
             } catch (Exception e) {
-                log.warn("Ошибка при получении свечей, попытка {} из {}", attempt, maxRetries, e);
+                log.warn("Ошибка при получении свечей для {}, попытка {} из {}: {}", 
+                    instrumentId, attempt, maxRetries, e.getMessage());
                 if (attempt < maxRetries) {
                     int retryDelay = baseRetryDelay * (int) Math.pow(2, attempt - 1);
                     try {
