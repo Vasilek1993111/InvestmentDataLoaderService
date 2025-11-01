@@ -1,8 +1,199 @@
--- Таблица для хранения фундаментальных показателей в схеме invest_ref
+--Схема invest_ref - схема для хранения справочников (акции, фьючерсы, дивиденты и другие)
+--Все таблицы дублируются через view в схеме invest
+CREATE SCHEMA IF NOT EXISTS invest_ref;
+
+--Справочник акций
+create table shares
+(
+    figi           varchar(255) not null primary key,
+    ticker         varchar(255),
+    name           varchar(255),
+    currency       varchar(255),
+    exchange       varchar(255),
+    sector         varchar(255),
+    trading_status varchar(255),
+    short_enabled  boolean,
+    asset_uid      varchar(255),
+    created_at     timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text),
+    updated_at     timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text),
+    short_enabled boolean,
+    asset_uid character varying(255),
+    min_price_increment numeric,
+    lot integer,
+    CONSTRAINT shares_pkey PRIMARY KEY (figi)
+);
+
+comment on table shares is 'Справочник акций';
+
+comment on column invest_ref.   shares.figi is 'Уникальный идентификатор инструмента (Financial Instrument Global Identifier)';
+
+comment on column invest_ref.shares.ticker is 'Тикер акции';
+
+comment on column invest_ref.shares.name is 'Название компании';
+
+comment on column invest_ref.shares.currency is 'Валюта торговли';
+
+comment on column invest_ref.shares.exchange is 'Биржа, на которой торгуется акция';
+
+comment on column invest_ref.shares.sector is 'Сектор экономики';
+
+comment on column invest_ref.shares.trading_status is 'Статус торговли';
+
+comment on column invest_ref.shares.short_enabled is 'Флаг возможности коротких продаж';
+
+comment on column invest_ref.shares.asset_uid is 'Уникальный идентификатор актива';
+
+comment on column invest_ref.shares.created_at is 'Дата и время создания записи (московское время)';
+
+comment on column invest_ref.shares.updated_at is 'Дата и время последнего обновления записи (московское время)';
+
+-- Добавляем комментарии для новых колонок
+comment on column shares.short_enabled is 'Флаг доступности для коротких продаж (short)';
+
+comment on column shares.asset_uid is 'Уникальный идентификатор актива';
+
+comment on column shares.min_price_increment is 'Минимальный шаг цены инструмента';
+
+comment on column shares.lot is 'Лотность инструмента';
+
+alter table shares
+    owner to postgres;
+
+
+--Справочник фьючерсов
+create table futures
+(
+    figi        varchar(255) not null primary key,
+    asset_type  varchar(255),
+    basic_asset varchar(255),
+    currency    varchar(255),
+    exchange    varchar(255),
+    ticker      varchar(255),
+    created_at  timestamp(6) not null,
+    updated_at  timestamp(6) not null,
+    short_enabled boolean,
+    expiration_date timestamp without time zone,
+    min_price_increment numeric,
+    lot integer,
+    basic_asset_size numeric(18,9)
+);
+
+comment on table invest_ref.futures is 'Справочник фьючерсов';
+
+comment on column invest_ref.futures.figi is 'Уникальный идентификатор инструмента';
+
+comment on column invest_ref.futures.asset_type is 'Тип базового актива (TYPE_SECURITY, TYPE_COMMODITY, TYPE_CURRENCY, TYPE_INDEX)';
+
+comment on column invest_ref.futures.basic_asset is 'Базовый актив фьючерса';
+
+comment on column invest_ref.futures.currency is 'Валюта инструмента';
+
+comment on column invest_ref.futures.exchange is 'Биржа, на которой торгуется инструмент';
+
+comment on column invest_ref.futures.ticker is 'Тикер инструмента';
+
+comment on column invest_ref.futures.created_at is 'Дата и время создания записи';
+
+comment on column invest_ref.futures.updated_at is 'Дата и время последнего обновления записи';
+-- Добавляем комментарии для новых колонок
+comment on column invest_ref.futures.short_enabled is 'Флаг доступности для коротких продаж (short)';
+
+comment on column invest_ref.futures.expiration_date is 'Дата экспирации фьючерса';
+
+comment on column invest_ref.futures.min_price_increment is 'Минимальный шаг цены инструмента';
+
+comment on column invest_ref.futures.lot is 'Лотность инструмента';
+
+comment on column invest_ref.futures.basic_asset_size is 'Размер базового актива фьючерса (basicAssetSize из T-Invest API)';
+
+
+
+alter table futures
+    owner to postgres;
+
+
+--Справочник индикативов
+create table indicatives
+(
+    figi                varchar(255) not null
+        primary key,
+    ticker              varchar(255) not null,
+    name                varchar(255) not null,
+    currency            varchar(255) not null,
+    exchange            varchar(255) not null,
+    class_code          varchar(255),
+    uid                 varchar(255),
+    sell_available_flag boolean                  default false,
+    buy_available_flag  boolean                  default false,
+    created_at          timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text),
+    updated_at          timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text)
+);
+
+comment on table invest_ref.indicatives is 'Справочник индикативов';
+
+comment on column invest_ref.indicatives.figi is 'FIGI инструмента (уникальный идентификатор)';
+
+comment on column invest_ref.indicatives.ticker is 'Тикер инструмента';
+
+comment on column invest_ref.indicatives.name is 'Название инструмента';
+
+comment on column invest_ref.indicatives.currency is 'Валюта инструмента';
+
+comment on column invest_ref.indicatives.exchange is 'Биржа/площадка';
+
+comment on column invest_ref.indicatives.class_code is 'Код класса инструмента';
+
+comment on column invest_ref.indicatives.uid is 'Уникальный идентификатор';
+
+comment on column invest_ref.indicatives.sell_available_flag is 'Флаг доступности для продажи';
+
+comment on column invest_ref.indicatives.buy_available_flag is 'Флаг доступности для покупки';
+
+comment on column invest_ref.indicatives.created_at is 'Дата создания записи (UTC+3)';
+
+comment on column invest_ref.indicatives.updated_at is 'Дата последнего обновления записи (UTC+3)';
+
+alter table indicatives
+    owner to postgres;
+
+
+--Справочник дивидендных событий
+create table invest_ref.dividends
+(
+    id              bigserial primary key,
+    figi            varchar(255) not null,
+    declared_date   date,
+    record_date     date not null,
+    payment_date    date,
+    dividend_value  numeric(18, 9),
+    currency        varchar(10) not null,
+    dividend_type   varchar(50),
+    created_at      timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text),
+    updated_at      timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text)
+);
+
+comment on table invest_ref.dividends is 'Справочник дивидендных событий';
+
+comment on column invest_ref.dividends.id is 'Уникальный идентификатор записи';
+comment on column invest_ref.dividends.figi is 'Уникальный идентификатор инструмента (FIGI)';
+comment on column invest_ref.dividends.declared_date is 'Дата объявления дивидендов';
+comment on column invest_ref.dividends.record_date is 'Дата фиксации реестра';
+comment on column invest_ref.dividends.payment_date is 'Дата выплаты дивидендов';
+comment on column invest_ref.dividends.dividend_value is 'Размер дивиденда на одну акцию';
+comment on column invest_ref.dividends.currency is 'Валюта дивиденда';
+comment on column invest_ref.dividends.dividend_type is 'Тип дивиденда (обычный, специальный и т.д.)';
+comment on column invest_ref.dividends.created_at is 'Дата и время создания записи (московское время)';
+comment on column invest_ref.dividends.updated_at is 'Дата и время последнего обновления записи (московское время)';
+
+alter table invest_ref.dividends
+    owner to postgres;
+
+
+--Справочник фундаментальных показателей
+
 create table invest_ref.fundamentals
 (
-    id                              bigserial
-        primary key,
+    id                              bigserial primary key,
     figi                            varchar(255) not null,
     asset_uid                       varchar(255),
     domicile_indicator_code         varchar(10),
@@ -89,6 +280,8 @@ create table invest_ref.fundamentals
     created_at                      timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text),
     updated_at                      timestamp with time zone default (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow'::text)
 );
+
+
 
 comment on table invest_ref.fundamentals is 'Таблица для хранения фундаментальных показателей инструментов';
 
@@ -177,19 +370,4 @@ comment on column invest_ref.fundamentals.ex_dividend_date is 'Дата отсе
 
 -- Индексы для оптимизации запросов
 create index idx_fundamentals_figi on invest_ref.fundamentals (figi);
-create index idx_fundamentals_asset_uid on invest_ref.fundamentals (asset_uid);
-create index idx_fundamentals_currency on invest_ref.fundamentals (currency);
-create index idx_fundamentals_created_at on invest_ref.fundamentals (created_at);
-create index idx_fundamentals_updated_at on invest_ref.fundamentals (updated_at);
 
--- Права доступа
-alter table invest_ref.fundamentals owner to postgres;
-grant select on invest_ref.fundamentals to tester;
-grant delete, insert, references, select, trigger, truncate, update on invest_ref.fundamentals to admin;
-
--- Создание представления в схеме invest
-create view invest.fundamentals as
-select * from invest_ref.fundamentals;
-
--- Комментарий для представления
-comment on view invest.fundamentals is 'Представление для таблицы фундаментальных показателей из схемы invest_ref';

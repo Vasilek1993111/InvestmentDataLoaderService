@@ -16,8 +16,8 @@ RUN mvn dependency:go-offline -B
 # Копируем исходный код
 COPY src ./src
 
-# Собираем приложение
-RUN mvn clean package -Dmaven.test.skip=true
+# Собираем приложение без тестов и их компиляции
+RUN mvn clean package -Dmaven.test.skip=true -DskipTests=true -Dmaven.main.skip=false
 
 # Финальный образ для запуска
 FROM eclipse-temurin:21-jre
@@ -30,6 +30,10 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Копируем собранный JAR файл из builder образа
 COPY --from=builder /app/target/*.jar app.jar
+
+# Создаем директории для логов и меняем владельца
+RUN mkdir -p /app/logs/current /app/logs/archive && \
+    chown -R appuser:appuser /app/logs
 
 # Меняем владельца файла
 RUN chown appuser:appuser app.jar

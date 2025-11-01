@@ -9,6 +9,12 @@ init-scripts/
 .idea/
 .vscode/
 *.iml
+
+# Исключаем тестовые исходники и ресурсы
+src/test/
+src/**/test/
+**/*Test.java
+**/*Tests.java
 # НЕ исключаем .env - он нужен для загрузки переменных
 # .env
 .env.local

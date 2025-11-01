@@ -35,6 +35,15 @@ services:
       # Копируем .env файл для загрузки переменных
       - ./.env.test:/app/.env:ro
     restart: unless-stopped
+    # Лимит памяти: 4 ГБ
+    mem_limit: 4g
+    mem_reservation: 4g
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 4G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
       interval: 30s
@@ -70,6 +79,15 @@ services:
       # Копируем .env файл для загрузки переменных
       - ./.env.prod:/app/.env:ro
     restart: unless-stopped
+    # Лимит памяти: 4 ГБ
+    mem_limit: 4g
+    mem_reservation: 4g
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 4G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
