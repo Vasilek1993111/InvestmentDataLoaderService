@@ -51,8 +51,6 @@ Investment Data Loader Service - это микросервис для загру
 - **DailyCandleRepository** - дневные свечи
 - **LastPriceRepository** - последние цены
 - **ClosePriceEveningSessionRepository** - цены вечерней сессии
-- **SharesAggregatedDataRepository** - агрегированные данные акций
-- **FuturesAggregatedDataRepository** - агрегированные данные фьючерсов
 - **SystemLogRepository** - системные логи
 
 ### 4. Schedulers (Планировщики)
@@ -108,15 +106,12 @@ Investment Data Loader Service - это микросервис для загру
 - **DailyCandleEntity** - дневные свечи
 - **LastPriceEntity** - последние цены
 - **ClosePriceEveningSessionEntity** - цены вечерней сессии
-- **SharesAggregatedDataEntity** - агрегированные данные акций
-- **FuturesAggregatedDataEntity** - агрегированные данные фьючерсов
 - **SystemLogEntity** - системные логи
 
 ### Связи между сущностями
 - Инструменты связаны с ценами через FIGI
 - Свечи связаны с инструментами через FIGI
 - Временные ряды данных индексированы по дате и времени
-- Агрегированные данные связаны с инструментами через FIGI
 
 ## ⚡ Производительность
 

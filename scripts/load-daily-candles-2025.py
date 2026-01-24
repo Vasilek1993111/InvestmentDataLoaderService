@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """
-Скрипт для автоматической загрузки дневных свечей акций, индикативов и фьючерсов.
+Скрипт для автоматической загрузки дневных и минутных свечей акций, индикативов и фьючерсов.
 
 Использование:
-    python scripts/load-daily-candles-2025.py [--base-url BASE_URL] [--test] [--instrument-type TYPE] [--instrument-types TYPES] [--start-date DATE] [--end-date DATE] [--year YEAR] [--exclude-weekends] [--poll-interval SECONDS] [--timeout SECONDS]
+    python scripts/load-daily-candles-2025.py [--base-url BASE_URL] [--test] [--candle-type TYPE] [--instrument-type TYPE] [--instrument-types TYPES] [--start-date DATE] [--end-date DATE] [--year YEAR] [--exclude-weekends] [--poll-interval SECONDS] [--timeout SECONDS]
 
 Примеры:
-    # Тестовое окружение для акций за год
+    # Тестовое окружение для дневных свечей акций за год
     python scripts/load-daily-candles-2025.py --test
 
-    # Загрузка индикативов за произвольный период
-    python scripts/load-daily-candles-2025.py --test --instrument-type indicatives --start-date 2026-01-15 --end-date 2026-01-20
+    # Загрузка минутных свечей акций за дату
+    python scripts/load-daily-candles-2025.py --test --candle-type minute --instrument-type shares --start-date 2026-01-22 --end-date 2026-01-22
 
-    # Загрузка фьючерсов за произвольный период
-    python scripts/load-daily-candles-2025.py --test --instrument-type futures --start-date 2026-01-19 --end-date 2026-01-25
+    # Загрузка минутных свечей фьючерсов за период
+    python scripts/load-daily-candles-2025.py --test --candle-type minute --instrument-type futures --start-date 2026-01-20 --end-date 2026-01-25
+
+    # Загрузка минутных свечей индикативов за период
+    python scripts/load-daily-candles-2025.py --test --candle-type minute --instrument-type indicatives --start-date 2026-01-15 --end-date 2026-01-20
+
+    # Загрузка дневных индикативов за произвольный период
+    python scripts/load-daily-candles-2025.py --test --candle-type daily --instrument-type indicatives --start-date 2026-01-15 --end-date 2026-01-20
 
     # Загрузка нескольких типов инструментов одновременно за период
-    python scripts/load-daily-candles-2025.py --test --instrument-types shares,indicatives,futures --start-date 2026-01-15 --end-date 2026-01-20
+    python scripts/load-daily-candles-2025.py --test --candle-type daily --instrument-types shares,indicatives,futures --start-date 2026-01-15 --end-date 2026-01-20
 
     # Продакшн окружение с кастомным URL
     python scripts/load-daily-candles-2025.py --base-url http://localhost:8083
@@ -35,7 +41,7 @@ import sys
 
 
 class DailyCandlesLoader:
-    """Класс для автоматической загрузки дневных свечей за период."""
+    """Класс для автоматической загрузки дневных и минутных свечей за период."""
     
     # Поддерживаемые типы инструментов
     INSTRUMENT_TYPES = {
@@ -44,17 +50,26 @@ class DailyCandlesLoader:
         'futures': 'futures'
     }
     
-    def __init__(self, base_url: str, instrument_types: List[str] = None, poll_interval: int = 3, timeout: int = 600):
+    # Поддерживаемые типы свечей
+    CANDLE_TYPES = {
+        'daily': 'daily',
+        'minute': 'minute'
+    }
+    
+    def __init__(self, base_url: str, candle_type: str = 'daily', instrument_types: List[str] = None, poll_interval: int = 3, timeout: int = 600):
         """
         Инициализация загрузчика.
         
         Args:
             base_url: Базовый URL API (например, http://localhost:8083)
+            candle_type: Тип свечей (daily или minute). По умолчанию 'daily'
             instrument_types: Список типов инструментов (shares, indicatives, futures). Если None, используется ['shares']
             poll_interval: Интервал проверки статуса в секундах (по умолчанию 3)
             timeout: Максимальное время ожидания завершения задачи в секундах (по умолчанию 600)
         """
         self.base_url = base_url.rstrip('/')
+        # Валидация типа свечей
+        self.candle_type = self.CANDLE_TYPES.get(candle_type.lower(), 'daily')
         if instrument_types is None:
             instrument_types = ['shares']
         # Валидация и нормализация типов инструментов
@@ -115,7 +130,7 @@ class DailyCandlesLoader:
     
     def start_loading(self, date: str, instrument_type: str) -> Optional[str]:
         """
-        Запускает загрузку дневных свечей для указанной даты и типа инструмента.
+        Запускает загрузку свечей для указанной даты и типа инструмента.
         
         Args:
             date: Дата в формате YYYY-MM-DD
@@ -124,7 +139,7 @@ class DailyCandlesLoader:
         Returns:
             taskId или None в случае ошибки
         """
-        url = f"{self.base_url}/api/candles/daily/{instrument_type}/{date}"
+        url = f"{self.base_url}/api/candles/{self.candle_type}/{instrument_type}/{date}"
         
         try:
             instrument_name = {
@@ -133,7 +148,12 @@ class DailyCandlesLoader:
                 'futures': 'фьючерсов'
             }.get(instrument_type, 'инструментов')
             
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Запуск загрузки {instrument_name} для {date}...")
+            candle_name = {
+                'daily': 'дневных',
+                'minute': 'минутных'
+            }.get(self.candle_type, 'свечей')
+            
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Запуск загрузки {candle_name} {instrument_name} для {date}...")
             response = requests.post(url, timeout=30)
             response.raise_for_status()
             
@@ -310,10 +330,16 @@ class DailyCandlesLoader:
         
         instrument_types_str = ', '.join([instrument_names.get(it, it) for it in self.instrument_types])
         
+        candle_name = {
+            'daily': 'дневных',
+            'minute': 'минутных'
+        }.get(self.candle_type, 'свечей')
+        
         period_str = f"{start_date} - {end_date}" if start_date and end_date else f"{year} год"
         
         print(f"\n{'='*60}")
-        print(f"Начало загрузки дневных свечей: {instrument_types_str}")
+        print(f"Начало загрузки {candle_name} свечей: {instrument_types_str}")
+        print(f"Тип свечей: {self.candle_type}")
         print(f"Период: {period_str}")
         print(f"Типы инструментов: {', '.join(self.instrument_types)}")
         print(f"Всего дат: {total_dates}")
@@ -401,7 +427,7 @@ class DailyCandlesLoader:
 def main():
     """Основная функция."""
     parser = argparse.ArgumentParser(
-        description='Автоматическая загрузка дневных свечей акций, индикативов и фьючерсов',
+        description='Автоматическая загрузка дневных и минутных свечей акций, индикативов и фьючерсов',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
@@ -417,6 +443,14 @@ def main():
         '--test',
         action='store_true',
         help='Использовать тестовое окружение (http://localhost:8087)'
+    )
+    
+    parser.add_argument(
+        '--candle-type',
+        type=str,
+        default='daily',
+        choices=['daily', 'minute'],
+        help='Тип свечей: daily (дневные) или minute (минутные). По умолчанию: daily'
     )
     
     parser.add_argument(
@@ -512,6 +546,7 @@ def main():
     # Создаем загрузчик и запускаем обработку
     loader = DailyCandlesLoader(
         base_url=base_url,
+        candle_type=args.candle_type,
         instrument_types=instrument_types,
         poll_interval=args.poll_interval,
         timeout=args.timeout
