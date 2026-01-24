@@ -46,13 +46,37 @@ mvn spring-boot:run
 ### 2. Свечи (`/api/candles`)
 Работа с историческими свечами (минутные и дневные).
 
+#### Минутные свечи (`/api/candles/minute`)
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| POST | `/candles/minute` | Загрузка минутных свечей |
-| GET | `/candles/minute` | Получение минутных свечей |
-| POST | `/candles/daily` | Загрузка дневных свечей |
-| GET | `/candles/daily` | Получение дневных свечей |
-| GET | `/candles/instrument` | Свечи по инструменту |
+| POST | `/candles/minute` | Асинхронная загрузка минутных свечей за сегодня |
+| POST | `/candles/minute/{date}` | Асинхронная загрузка минутных свечей за дату |
+| POST | `/candles/minute/shares/{date}` | Асинхронная загрузка минутных свечей акций |
+| POST | `/candles/minute/futures/{date}` | Асинхронная загрузка минутных свечей фьючерсов |
+| POST | `/candles/minute/indicatives/{date}` | Асинхронная загрузка минутных свечей индикативов |
+| GET | `/candles/minute/shares/{date}` | Получение минутных свечей акций за дату |
+| GET | `/candles/minute/futures/{date}` | Получение минутных свечей фьючерсов за дату |
+| GET | `/candles/minute/indicatives/{date}` | Получение минутных свечей индикативов за дату |
+
+#### Дневные свечи (`/api/candles/daily`)
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| POST | `/candles/daily` | Асинхронная загрузка дневных свечей за сегодня |
+| POST | `/candles/daily/{date}` | Асинхронная загрузка дневных свечей за дату |
+| POST | `/candles/daily/shares/{date}` | Асинхронная загрузка дневных свечей акций |
+| POST | `/candles/daily/futures/{date}` | Асинхронная загрузка дневных свечей фьючерсов |
+| POST | `/candles/daily/indicatives/{date}` | Асинхронная загрузка дневных свечей индикативов |
+| GET | `/candles/daily/shares/{date}` | Получение дневных свечей акций за дату |
+| GET | `/candles/daily/futures/{date}` | Получение дневных свечей фьючерсов за дату |
+| GET | `/candles/daily/indicatives/{date}` | Получение дневных свечей индикативов за дату |
+
+#### Свечи инструментов (`/api/candles/instrument`)
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/candles/instrument/minute/{figi}/{date}` | Получение минутных свечей конкретного инструмента |
+| POST | `/candles/instrument/minute/{figi}/{date}` | Асинхронная загрузка минутных свечей инструмента |
+| GET | `/candles/instrument/daily/{figi}/{date}` | Получение дневных свечей конкретного инструмента |
+| POST | `/candles/instrument/daily/{figi}/{date}` | Асинхронная загрузка дневных свечей инструмента |
 
 ### 3. Торговые данные (`/api/trading`)
 Торговые расписания, статусы и счета.
@@ -68,23 +92,57 @@ mvn spring-boot:run
 ### 4. Цены сессий
 Цены открытия и закрытия торговых сессий.
 
+#### Утренняя сессия (`/api/morning-session`)
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| GET | `/morning-session` | Цены утренней сессии |
-| POST | `/morning-session` | Загрузка цен утренней сессии |
-| GET | `/main-session-prices` | Цены основной сессии |
-| POST | `/main-session-prices` | Загрузка цен основной сессии |
-| GET | `/evening-session-prices` | Цены вечерней сессии |
+| POST | `/morning-session` | Загрузка цен утренней сессии за сегодня |
+| GET | `/morning-session` | Предпросмотр цен утренней сессии за сегодня |
+| POST | `/morning-session/by-date/{date}` | Загрузка цен утренней сессии за дату |
+| GET | `/morning-session/by-date/{date}` | Получение цен утренней сессии за дату |
+| POST | `/morning-session/shares/{date}` | Загрузка цен утренней сессии акций |
+| GET | `/morning-session/shares/{date}` | Получение цен утренней сессии акций |
+| POST | `/morning-session/futures/{date}` | Загрузка цен утренней сессии фьючерсов |
+| GET | `/morning-session/futures/{date}` | Получение цен утренней сессии фьючерсов |
+| POST | `/morning-session/by-figi-date/{figi}/{date}` | Загрузка цены утренней сессии по инструменту |
+| GET | `/morning-session/by-figi-date/{figi}/{date}` | Получение цены утренней сессии по инструменту |
+
+#### Основная сессия (`/api/main-session-prices`)
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| POST | `/main-session-prices/` | Загрузка цен закрытия за сегодня |
+| GET | `/main-session-prices/shares` | Получение цен закрытия акций |
+| POST | `/main-session-prices/shares` | Загрузка цен закрытия акций |
+| GET | `/main-session-prices/futures` | Получение цен закрытия фьючерсов |
+| POST | `/main-session-prices/futures` | Загрузка цен закрытия фьючерсов |
+| GET | `/main-session-prices/by-figi/{figi}` | Получение цены закрытия по инструменту |
+| POST | `/main-session-prices/instrument/{figi}` | Загрузка цены закрытия по инструменту |
+| POST | `/main-session-prices/by-date/{date}` | Загрузка цен закрытия за дату |
+
+#### Вечерняя сессия (`/api/evening-session-prices`)
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| POST | `/evening-session-prices` | Загрузка цен вечерней сессии за вчера |
+| GET | `/evening-session-prices` | Получение цен вечерней сессии за вчера |
+| POST | `/evening-session-prices/by-date/{date}` | Загрузка цен вечерней сессии за дату |
+| GET | `/evening-session-prices/by-date/{date}` | Получение цен вечерней сессии за дату |
+| POST | `/evening-session-prices/shares/{date}` | Загрузка цен вечерней сессии акций |
+| GET | `/evening-session-prices/shares/{date}` | Получение цен вечерней сессии акций |
+| POST | `/evening-session-prices/futures/{date}` | Загрузка цен вечерней сессии фьючерсов |
+| GET | `/evening-session-prices/futures/{date}` | Получение цен вечерней сессии фьючерсов |
+| POST | `/evening-session-prices/by-figi-date/{figi}/{date}` | Загрузка цены вечерней сессии по инструменту |
+| GET | `/evening-session-prices/by-figi-date/{figi}/{date}` | Получение цены вечерней сессии по инструменту |
 
 ### 5. Последние сделки (`/api/last-trades`)
 Обезличенные сделки и последние цены.
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| GET | `/last-trades` | Последние сделки |
-| POST | `/last-trades` | Загрузка последних сделок |
-| GET | `/last-trades/shares` | Сделки по акциям |
-| GET | `/last-trades/futures` | Сделки по фьючерсам |
+| GET | `/last-trades` | Асинхронная загрузка последних сделок (с параметрами запроса) |
+| POST | `/last-trades` | Асинхронная загрузка последних сделок (с JSON телом) |
+| GET | `/last-trades/cache` | Информация о кэше последних сделок |
+| GET | `/last-trades/shares` | Загрузка последних сделок по акциям |
+| GET | `/last-trades/futures` | Загрузка последних сделок по фьючерсам |
+| GET | `/last-trades/performance` | Статистика производительности загрузки сделок |
 
 ### 6. Кэш (`/api/cache`)
 Управление кэшем инструментов.
@@ -96,40 +154,77 @@ mvn spring-boot:run
 | DELETE | `/cache/clear` | Очистка кэша |
 | GET | `/cache/stats` | Статистика кэша |
 
-### 7. Агрегация объемов (`/api/volume-aggregation`)
+### 7. Дивиденды (`/api/dividends`)
+Работа с дивидендами по акциям.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/dividends/load?from={from}&to={to}` | Получение дивидендов по всем акциям за период (из API) |
+| POST | `/dividends/load?from={from}&to={to}` | Загрузка дивидендов по всем акциям в БД |
+| GET | `/dividends/by-figi/{figi}` | Получение дивидендов по FIGI (из API) |
+| POST | `/dividends/by-figi/{figi}` | Загрузка дивидендов по FIGI в БД |
+
+### 8. Фундаментальные показатели (`/api/asset-fundamentals`)
+Работа с фундаментальными показателями активов.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/asset-fundamentals/{assetUid}` | Получение фундаментальных показателей актива |
+| POST | `/asset-fundamentals/{assetUid}` | Обновление фундаментальных показателей актива |
+| POST | `/asset-fundamentals` | Обновление фундаментальных показателей по списку активов |
+| POST | `/asset-fundamentals/load` | Загрузка фундаментальных показателей всех акций |
+
+### 9. Агрегация объемов (`/api/volume-aggregation`)
 Аналитические данные и агрегация объемов.
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| POST | `/volume-aggregation/refresh` | Обновление агрегации |
-| GET | `/volume-aggregation/check` | Проверка статуса агрегации |
-| GET | `/volume-aggregation/schedule-info` | Информация о расписании |
+| POST | `/volume-aggregation/refresh` | Ручное обновление материализованного представления агрегации объемов |
 
-### 8. Система (`/api/system`)
+### 10. Статус операций (`/api/status`)
+Отслеживание статуса асинхронных операций.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/status/{taskId}` | Получение статуса операции по taskId |
+| GET | `/status/active` | Список активных операций |
+| GET | `/status/stats` | Статистика операций |
+
+### 11. Rate Limiting (`/api/rate-limit`)
+Управление лимитами API запросов.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/rate-limit/stats` | Статистика использования лимитов |
+| GET | `/rate-limit/status` | Текущий статус лимитов |
+
+### 12. Система (`/api/system`)
 Системная информация и мониторинг.
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| GET | `/system/health` | Состояние системы |
+| GET | `/system/health` | Проверка здоровья системы |
 | GET | `/system/info` | Информация о системе |
 | GET | `/system/diagnostics` | Диагностика системы |
 | GET | `/system/stats` | Статистика системы |
-| GET | `/system/external-services` | Внешние сервисы |
+| GET | `/system/external-services` | Статус внешних сервисов |
+| GET | `/system/volume-aggregation/check` | Проверка статуса агрегации объемов |
+| GET | `/system/volume-aggregation/schedule-info` | Информация о расписании агрегации |
 
 ## 🔍 Детальное описание
 
 ### Инструменты
 
 #### GET /api/instruments/shares
-Получение списка акций с фильтрацией.
+Получение списка акций с фильтрацией. Использует кэш для повышения производительности.
 
 **Параметры:**
 - `source` (string, optional) - источник данных: "api" или "database" (по умолчанию: "api")
-- `status` (string, optional) - статус инструмента
-- `exchange` (string, optional) - биржа
-- `currency` (string, optional) - валюта
-- `ticker` (string, optional) - тикер
-- `figi` (string, optional) - FIGI
+- `status` (string, optional) - статус инструмента (например: "INSTRUMENT_STATUS_ACTIVE")
+- `exchange` (string, optional) - биржа (например: "MOEX")
+- `currency` (string, optional) - валюта (например: "RUB")
+- `ticker` (string, optional) - тикер (например: "SBER")
+- `figi` (string, optional) - FIGI инструмента
 
 **Пример запроса:**
 ```bash
@@ -151,8 +246,17 @@ curl "http://localhost:8083/api/instruments/shares?exchange=MOEX&currency=RUB"
 ]
 ```
 
+#### GET /api/instruments/shares/{identifier}
+Поиск акции по FIGI или тикеру.
+
+**Пример запроса:**
+```bash
+curl "http://localhost:8083/api/instruments/shares/SBER"
+curl "http://localhost:8083/api/instruments/shares/BBG004730N88"
+```
+
 #### POST /api/instruments/shares
-Сохранение акций в БД с защитой от дубликатов.
+Асинхронное сохранение акций в БД с защитой от дубликатов. Использует параллельную обработку.
 
 **Тело запроса:**
 ```json
@@ -168,26 +272,26 @@ curl "http://localhost:8083/api/instruments/shares?exchange=MOEX&currency=RUB"
 ```json
 {
   "success": true,
-  "message": "Успешно загружено 5 новых акций из 10 найденных.",
-  "totalRequested": 10,
-  "newItemsSaved": 5,
-  "existingItemsSkipped": 5,
-  "invalidItemsFiltered": 0,
-  "missingFromApi": 0,
-  "savedItems": [...]
+  "message": "Операция запущена",
+  "taskId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "STARTED",
+  "startTime": "2024-01-15T10:30:00Z"
 }
 ```
+
+Аналогичные эндпоинты доступны для `/api/instruments/futures` и `/api/instruments/indicatives`.
 
 ### Свечи
 
 #### POST /api/candles/minute
-Загрузка минутных свечей за сегодня.
+Асинхронная загрузка минутных свечей за сегодня. Использует параллельную обработку через пулы потоков.
 
 **Тело запроса:**
 ```json
 {
   "instruments": ["BBG004730N88", "BBG004730ZJ9"],
-  "assetType": ["share", "future"]
+  "assetType": ["SHARES", "FUTURES", "INDICATIVES"],
+  "date": "2024-01-15"
 }
 ```
 
@@ -202,13 +306,40 @@ curl "http://localhost:8083/api/instruments/shares?exchange=MOEX&currency=RUB"
 }
 ```
 
-#### GET /api/candles/minute
-Получение минутных свечей.
+#### POST /api/candles/minute/{date}
+Асинхронная загрузка минутных свечей за конкретную дату.
 
-**Параметры:**
-- `figi` (string) - FIGI инструмента
-- `from` (string) - начальная дата (ISO 8601)
-- `to` (string) - конечная дата (ISO 8601)
+**Пример:**
+```bash
+curl -X POST "http://localhost:8083/api/candles/minute/2024-01-15" \
+  -H "Content-Type: application/json" \
+  -d '{"assetType": ["SHARES", "FUTURES"]}'
+```
+
+#### GET /api/candles/minute/shares/{date}
+Получение минутных свечей акций за дату.
+
+**Пример:**
+```bash
+curl "http://localhost:8083/api/candles/minute/shares/2024-01-15"
+```
+
+**Ответ:**
+```json
+{
+  "date": "2024-01-15",
+  "assetType": "SHARES",
+  "candles": [...],
+  "totalCandles": 1000,
+  "totalInstruments": 150,
+  "processedInstruments": 150,
+  "successfulInstruments": 145,
+  "noDataInstruments": 3,
+  "errorInstruments": 2
+}
+```
+
+Аналогичные эндпоинты доступны для дневных свечей (`/api/candles/daily`) и свечей конкретных инструментов (`/api/candles/instrument`).
 
 ### Торговые данные
 
@@ -237,7 +368,7 @@ curl "http://localhost:8083/api/instruments/shares?exchange=MOEX&currency=RUB"
 ### Кэш
 
 #### POST /api/cache/warmup
-Прогрев кэша инструментов.
+Прогрев кэша инструментов. Автоматически выполняется при запуске приложения (00:45 МСК).
 
 **Ответ:**
 ```json
@@ -248,12 +379,41 @@ curl "http://localhost:8083/api/instruments/shares?exchange=MOEX&currency=RUB"
 }
 ```
 
-#### GET /api/cache/info
-Информация о кэше.
+#### GET /api/cache/content
+Содержимое кэша.
 
 **Параметры:**
-- `cacheName` (string, optional) - имя кэша
-- `limit` (number, optional) - лимит записей
+- `cacheName` (string, optional) - имя кэша (sharesCache, futuresCache, indicativesCache)
+- `limit` (number, optional) - лимит записей для отображения
+
+**Пример:**
+```bash
+curl "http://localhost:8083/api/cache/content?cacheName=sharesCache&limit=10"
+```
+
+#### GET /api/cache/stats
+Статистика кэша.
+
+**Ответ:**
+```json
+{
+  "totalCaches": 4,
+  "activeCaches": 4,
+  "totalEntries": 1247,
+  "cacheDetails": {
+    "sharesCache": {
+      "entryCount": 150,
+      "sampleEntries": [...]
+    }
+  }
+}
+```
+
+#### DELETE /api/cache/clear
+Очистка кэша.
+
+**Параметры:**
+- `cacheName` (string, optional) - имя кэша для очистки (если не указано, очищаются все кэши)
 
 ### Система
 
@@ -381,7 +541,13 @@ echo "T_INVEST_TEST_TOKEN=real_token" >> .env
 Для асинхронных операций используйте `taskId`:
 ```bash
 # Проверка статуса задачи
-GET /api/system/logs?taskId=550e8400-e29b-41d4-a716-446655440000
+GET /api/status/550e8400-e29b-41d4-a716-446655440000
+
+# Список активных операций
+GET /api/status/active
+
+# Статистика операций
+GET /api/status/stats
 ```
 
 ## 🔄 Кэширование
@@ -432,19 +598,29 @@ DELETE /api/cache/clear?cacheName=sharesCache
 ## 📚 Дополнительная документация
 
 ### API документация
+- [Обзор API](api/README.md) - общая документация по REST API
 - [Детальная документация по инструментам](api/instruments.md)
 - [Документация по минутным свечам](api/minute-candles.md)
 - [Документация по дневным свечам](api/daily-candles.md)
+- [Свечи инструментов](api/instrument-candles.md) - свечи конкретных инструментов
+- [Расширенные минутные свечи](api/minute-candles-extended.md) - расширенные данные свечей
+- [Утренняя сессия](api/morning-session.md) - цены открытия утренней сессии
+- [Основная сессия](api/main-session-prices.md) - цены закрытия основной сессии
+- [Вечерняя сессия](api/evening-session.md) - цены закрытия вечерней сессии
+- [Последние сделки](api/last-trades.md) - обезличенные сделки
+- [Дивиденды](api/dividends.md) - работа с дивидендами
+- [Агрегация объемов](api/volume-aggregation.md) - управление агрегацией объемов
 - [Документация по торговым данным](api/trading.md)
+- [Статус операций](api/status.md) - отслеживание статуса асинхронных операций
 - [Системная документация](api/system.md)
 - [Документация по кэшу](api/cache.md)
+- [Обработка ошибок](api/error-handling.md) - стандарты обработки ошибок
 
 ### Настройка и развертывание
-- [Быстрый старт](../QUICK_START.md)
+- [Планировщики](../schedulers.md) - автоматические задачи и расписания
 - [Архитектура системы](../architecture.md)
-- [Конфигурация базы данных](../database.md)
 - [Docker разработка](../docker-development.md)
-- [Конфигурация](../configuration.md)
+- [Rate Limiting](../rate-limiting-solution.md) - решение проблем с лимитами API
 
 ## 🚨 Важные замечания
 

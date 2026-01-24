@@ -56,7 +56,17 @@ class DailyCandlesLoader:
         'minute': 'minute'
     }
     
-    def __init__(self, base_url: str, candle_type: str = 'daily', instrument_types: List[str] = None, poll_interval: int = 3, timeout: int = 600):
+    def __init__(
+        self,
+        base_url: str,
+        candle_type: str = 'daily',
+        instrument_types: List[str] = None,
+        poll_interval: int = 3,
+        timeout: int = 600,
+        quiet: bool = False,
+        log_file: Optional[str] = None,
+        progress_every: int = 1
+    ):
         """
         Инициализация загрузчика.
         
@@ -82,7 +92,26 @@ class DailyCandlesLoader:
             self.instrument_types = ['shares']  # По умолчанию
         self.poll_interval = poll_interval
         self.timeout = timeout
+        self.quiet = quiet
+        self.progress_every = max(1, progress_every)
         self.results = []
+        self.log_file = log_file
+        self._log_handle = None
+        if self.log_file:
+            self._log_handle = open(self.log_file, 'a', encoding='utf-8')
+
+    def _write(self, message: str, to_console: bool = True) -> None:
+        """Пишет сообщение в консоль и/или файл."""
+        if to_console:
+            print(message)
+        if self._log_handle:
+            self._log_handle.write(message + "\n")
+            self._log_handle.flush()
+
+    def _log(self, message: str, force_console: bool = False) -> None:
+        """Логирование с учетом quiet режима."""
+        to_console = force_console or (not self.quiet)
+        self._write(message, to_console=to_console)
         
     def generate_dates(self, start_date: str = None, end_date: str = None, year: int = None, exclude_weekends: bool = False) -> List[str]:
         """
@@ -153,7 +182,7 @@ class DailyCandlesLoader:
                 'minute': 'минутных'
             }.get(self.candle_type, 'свечей')
             
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Запуск загрузки {candle_name} {instrument_name} для {date}...")
+            self._log(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Запуск загрузки {candle_name} {instrument_name} для {date}...")
             response = requests.post(url, timeout=30)
             response.raise_for_status()
             
@@ -161,17 +190,17 @@ class DailyCandlesLoader:
             
             if data.get('success') and data.get('taskId'):
                 task_id = data['taskId']
-                print(f"  [OK] Задача запущена: taskId={task_id}")
+                self._log(f"  [OK] Задача запущена: taskId={task_id}")
                 return task_id
             else:
-                print(f"  [ERROR] Ошибка: {data.get('message', 'Неизвестная ошибка')}")
+                self._log(f"  [ERROR] Ошибка: {data.get('message', 'Неизвестная ошибка')}", force_console=True)
                 return None
                 
         except requests.exceptions.RequestException as e:
-            print(f"  [ERROR] Ошибка запроса: {e}")
+            self._log(f"  [ERROR] Ошибка запроса: {e}", force_console=True)
             return None
         except json.JSONDecodeError as e:
-            print(f"  [ERROR] Ошибка парсинга JSON: {e}")
+            self._log(f"  [ERROR] Ошибка парсинга JSON: {e}", force_console=True)
             return None
     
     def check_status(self, task_id: str) -> Optional[Dict]:
@@ -200,14 +229,14 @@ class DailyCandlesLoader:
                     'timestamp': data.get('timestamp')
                 }
             else:
-                print(f"  [ERROR] Ошибка получения статуса: {data.get('message', 'Неизвестная ошибка')}")
+                self._log(f"  [ERROR] Ошибка получения статуса: {data.get('message', 'Неизвестная ошибка')}", force_console=True)
                 return None
                 
         except requests.exceptions.RequestException as e:
-            print(f"  [ERROR] Ошибка запроса статуса: {e}")
+            self._log(f"  [ERROR] Ошибка запроса статуса: {e}", force_console=True)
             return None
         except json.JSONDecodeError as e:
-            print(f"  [ERROR] Ошибка парсинга JSON статуса: {e}")
+            self._log(f"  [ERROR] Ошибка парсинга JSON статуса: {e}", force_console=True)
             return None
     
     def wait_for_completion(self, task_id: str, date: str) -> bool:
@@ -230,7 +259,7 @@ class DailyCandlesLoader:
             
             # Проверка таймаута
             if elapsed > self.timeout:
-                print(f"  [ERROR] Таймаут ожидания завершения задачи (>{self.timeout}с)")
+                self._log(f"  [ERROR] Таймаут ожидания завершения задачи (>{self.timeout}с)", force_console=True)
                 return False
             
             # Проверка статуса
@@ -240,7 +269,7 @@ class DailyCandlesLoader:
                 # Если не удалось получить статус, продолжаем попытки
                 poll_count += 1
                 if poll_count > 10:  # После 10 неудачных попыток считаем ошибкой
-                    print(f"  [ERROR] Не удалось получить статус после {poll_count} попыток")
+                    self._log(f"  [ERROR] Не удалось получить статус после {poll_count} попыток", force_console=True)
                     return False
                 time.sleep(self.poll_interval)
                 continue
@@ -250,22 +279,22 @@ class DailyCandlesLoader:
             
             if status == 'COMPLETED':
                 duration_str = f"{duration_ms}ms" if duration_ms else "N/A"
-                print(f"  [OK] Задача завершена успешно за {duration_str}")
+                self._log(f"  [OK] Задача завершена успешно за {duration_str}")
                 return True
             elif status == 'FAILED':
                 message = status_data.get('message', 'Неизвестная ошибка')
-                print(f"  [ERROR] Задача завершена с ошибкой: {message}")
+                self._log(f"  [ERROR] Задача завершена с ошибкой: {message}", force_console=True)
                 return False
             elif status == 'STARTED':
                 # Задача еще выполняется - выводим статус только раз в 10 секунд для предотвращения краша терминала
-                if elapsed - last_status_print >= 10:
+                if not self.quiet and elapsed - last_status_print >= 10:
                     elapsed_str = f"{int(elapsed)}с"
-                    print(f"  [INFO] Задача выполняется... (прошло {elapsed_str})")
+                    self._log(f"  [INFO] Задача выполняется... (прошло {elapsed_str})")
                     last_status_print = elapsed
                 time.sleep(self.poll_interval)
             else:
                 # Неизвестный статус
-                print(f"  [WARN] Неизвестный статус: {status}, продолжаем ожидание...")
+                self._log(f"  [WARN] Неизвестный статус: {status}, продолжаем ожидание...", force_console=True)
                 time.sleep(self.poll_interval)
     
     def process_date(self, date: str, instrument_type: str) -> Dict:
@@ -340,17 +369,17 @@ class DailyCandlesLoader:
         
         period_str = f"{start_date} - {end_date}" if start_date and end_date else f"{year} год"
         
-        print(f"\n{'='*60}")
-        print(f"Начало загрузки {candle_name} свечей: {instrument_types_str}")
-        print(f"Тип свечей: {self.candle_type}")
-        print(f"Период: {period_str}")
-        print(f"Типы инструментов: {', '.join(self.instrument_types)}")
-        print(f"Всего дат: {total_dates}")
-        print(f"Всего задач: {total_tasks}")
-        print(f"Базовый URL: {self.base_url}")
-        print(f"Интервал проверки статуса: {self.poll_interval}с")
-        print(f"Таймаут на задачу: {self.timeout}с")
-        print(f"{'='*60}\n")
+        self._log(f"\n{'='*60}")
+        self._log(f"Начало загрузки {candle_name} свечей: {instrument_types_str}")
+        self._log(f"Тип свечей: {self.candle_type}")
+        self._log(f"Период: {period_str}")
+        self._log(f"Типы инструментов: {', '.join(self.instrument_types)}")
+        self._log(f"Всего дат: {total_dates}")
+        self._log(f"Всего задач: {total_tasks}")
+        self._log(f"Базовый URL: {self.base_url}")
+        self._log(f"Интервал проверки статуса: {self.poll_interval}с")
+        self._log(f"Таймаут на задачу: {self.timeout}с")
+        self._log(f"{'='*60}\n")
         
         successful = 0
         failed = 0
@@ -359,7 +388,8 @@ class DailyCandlesLoader:
         for date in dates:
             for instrument_type in self.instrument_types:
                 task_idx += 1
-                print(f"\n[{task_idx}/{total_tasks}] Обработка: {date} ({instrument_type})")
+                if task_idx == 1 or task_idx == total_tasks or (task_idx % self.progress_every == 0):
+                    self._log(f"\n[{task_idx}/{total_tasks}] Обработка: {date} ({instrument_type})")
                 
                 result = self.process_date(date, instrument_type)
                 self.results.append(result)
@@ -401,30 +431,37 @@ class DailyCandlesLoader:
             else:
                 stats_by_type[inst_type]['failed'] += 1
         
-        print(f"\n{'='*60}")
-        print(f"ИТОГОВЫЙ ОТЧЕТ за период: {period_label}")
-        print(f"{'='*60}")
-        print(f"Всего обработано: {total}")
-        print(f"Успешно: {successful} ({successful/total*100:.1f}%)")
-        print(f"Ошибок: {failed} ({failed/total*100:.1f}%)")
-        print(f"Общее время: {int(total_duration)}с ({total_duration/60:.1f} мин)")
-        print(f"Среднее время на задачу: {avg_duration:.1f}с")
+        self._write(f"\n{'='*60}")
+        self._write(f"ИТОГОВЫЙ ОТЧЕТ за период: {period_label}")
+        self._write(f"{'='*60}")
+        self._write(f"Всего обработано: {total}")
+        self._write(f"Успешно: {successful} ({successful/total*100:.1f}%)")
+        self._write(f"Ошибок: {failed} ({failed/total*100:.1f}%)")
+        self._write(f"Общее время: {int(total_duration)}с ({total_duration/60:.1f} мин)")
+        self._write(f"Среднее время на задачу: {avg_duration:.1f}с")
         
         if len(stats_by_type) > 1:
-            print(f"\nСтатистика по типам инструментов:")
+            self._write(f"\nСтатистика по типам инструментов:")
             for inst_type, stats in stats_by_type.items():
                 type_total = stats['success'] + stats['failed']
-                print(f"  {inst_type}: успешно {stats['success']}/{type_total} ({stats['success']/type_total*100:.1f}%)")
+                self._write(f"  {inst_type}: успешно {stats['success']}/{type_total} ({stats['success']/type_total*100:.1f}%)")
         
         if failed > 0:
-            print(f"\nЗадачи с ошибками:")
+            self._write(f"\nЗадачи с ошибками:")
             for result in self.results:
                 if not result['success']:
                     error_msg = result.get('error', 'Неизвестная ошибка')
                     inst_type = result.get('instrument_type', 'unknown')
-                    print(f"  - {result['date']} ({inst_type}): {error_msg}")
+                    self._write(f"  - {result['date']} ({inst_type}): {error_msg}")
         
-        print(f"{'='*60}\n")
+        self._write(f"{'='*60}\n")
+
+    def __del__(self):
+        if self._log_handle:
+            try:
+                self._log_handle.close()
+            except Exception:
+                pass
 
 
 def main():
@@ -504,6 +541,26 @@ def main():
         default=600,
         help='Максимальное время ожидания завершения задачи в секундах (по умолчанию: 600)'
     )
+
+    parser.add_argument(
+        '--quiet',
+        action='store_true',
+        help='Минимальный вывод в консоль (ошибки и итоговый отчет). Рекомендуется для длительных запусков'
+    )
+
+    parser.add_argument(
+        '--log-file',
+        type=str,
+        default=None,
+        help='Путь к файлу лога. Если указан, лог пишется в файл и можно уменьшить вывод в консоль'
+    )
+
+    parser.add_argument(
+        '--progress-every',
+        type=int,
+        default=1,
+        help='Печатать прогресс каждые N задач (по умолчанию: 1)'
+    )
     
     parser.add_argument(
         '--year',
@@ -552,7 +609,10 @@ def main():
         candle_type=args.candle_type,
         instrument_types=instrument_types,
         poll_interval=args.poll_interval,
-        timeout=args.timeout
+        timeout=args.timeout,
+        quiet=args.quiet,
+        log_file=args.log_file,
+        progress_every=args.progress_every
     )
     
     try:

@@ -20,51 +20,108 @@ Investment Data Loader Service - это микросервис для загру
 ## 📦 Компоненты системы
 
 ### 1. Controllers (Слой представления)
-- **InstrumentsController** - REST API для работы с инструментами
+- **InstrumentsController** - REST API для работы с инструментами (акции, фьючерсы, индикативы)
 - **CandlesMinuteController** - работа с минутными свечами
 - **CandlesDailyController** - работа с дневными свечами
+- **CandlesInstrumentController** - свечи конкретных инструментов с расширенной статистикой
+- **MainSessionPricesController** - цены основной сессии (закрытия)
+- **MorningSessionController** - цены утренней сессии (открытия)
+- **EveningSessionController** - цены вечерней сессии (закрытия)
+- **LastTradesController** - обезличенные сделки (last trades)
+- **DividendController** - работа с дивидендами
+- **AssetFundamentalsController** - фундаментальные показатели активов
+- **VolumeAggregationController** - управление агрегацией объемов
+- **StatusController** - отслеживание статуса асинхронных операций
 - **TradingController** - торговые данные и расписания
 - **SystemController** - системные эндпоинты и мониторинг
 - **CacheController** - управление кэшем
-- **MainSessionPricesController** - цены основной сессии
-- **MorningSessionController** - цены утренней сессии
-- **LastTradesController** - последние сделки
+- **RateLimitController** - управление лимитами API запросов
 
 ### 2. Services (Бизнес-логика)
 - **InstrumentService** - управление инструментами (акции, фьючерсы, индикативы)
+- **CachedInstrumentService** - кэширование инструментов с fallback на БД
+- **MinuteCandleService** - работа с минутными свечами (параллельная обработка)
+- **DailyCandleService** - работа с дневными свечами (параллельная обработка)
+- **MainSessionPriceService** - цены основной сессии (закрытия)
+- **MorningSessionService** - цены утренней сессии (открытия)
+- **EveningSessionService** - цены вечерней сессии (закрытия)
+- **LastTradesService** - обезличенные сделки (last trades)
+- **LastTradeService** - работа с отдельными сделками
+- **DividendService** - работа с дивидендами
+- **AssetFundamentalService** - фундаментальные показатели активов
 - **TradingService** - торговые расписания и статусы
-- **MinuteCandleService** - работа с минутными свечами
-- **DailyCandleService** - работа с дневными свечами
-- **LastTradesService** - последние сделки
-- **MainSessionPriceService** - цены основной сессии
-- **MorningSessionService** - цены утренней сессии
 - **CacheWarmupService** - прогрев кэша при запуске
-- **CachedInstrumentService** - кэшированные инструменты
+- **RateLimitService** - управление лимитами API запросов
+- **RetryService** - повторные попытки при ошибках
 
 ### 3. Repositories (Слой данных)
 - **ShareRepository** - работа с акциями
 - **FutureRepository** - работа с фьючерсами
 - **IndicativeRepository** - работа с индикативными инструментами
-- **ClosePriceRepository** - цены закрытия
+- **ClosePriceRepository** - цены закрытия основной сессии
 - **OpenPriceRepository** - цены открытия
 - **MinuteCandleRepository** - минутные свечи
 - **DailyCandleRepository** - дневные свечи
-- **LastPriceRepository** - последние цены
-- **ClosePriceEveningSessionRepository** - цены вечерней сессии
-- **SystemLogRepository** - системные логи
+- **LastPriceRepository** - последние цены (обезличенные сделки)
+- **ClosePriceEveningSessionRepository** - цены закрытия вечерней сессии
+- **DividendRepository** - дивиденды
+- **AssetFundamentalsRepository** - фундаментальные показатели
+- **SystemLogRepository** - системные логи (отслеживание операций)
 
 ### 4. Schedulers (Планировщики)
-- **CandleSchedulerService** - загрузка свечей (1:10 МСК)
-- **MorningSessionScheduler** - цены утренней сессии (1:50 МСК)
-- **EveningSessionSchedulerService** - цены вечерней сессии (1:40 МСК)
-- **ClosePriceSchedulerService** - цены закрытия (1:30 МСК)
-- **LastTradesSchedulerService** - последние сделки (каждые 30 мин)
-- **VolumeAggregationSchedulerService** - агрегация объемов (2:00 МСК)
-- **InstrumentPreloadSchedulerService** - предзагрузка инструментов (0:45 МСК)
+- **InstrumentPreloadSchedulerService** - предзагрузка инструментов (00:45 МСК)
+- **DividendSchedulerService** - загрузка дивидендов (00:50 МСК)
+- **ClosePriceSchedulerService** - цены закрытия (01:00 МСК)
+- **CandleSchedulerService** - загрузка минутных и дневных свечей (01:10 МСК)
+- **EveningSessionSchedulerService** - цены вечерней сессии (01:40 МСК)
+- **MorningSessionScheduler** - цены утренней сессии (01:50 МСК, 02:01, 07:01, 09:01, 10:01 МСК)
+- **VolumeAggregationSchedulerService** - агрегация объемов (02:00 МСК)
+- **LastTradesService** - обезличенные сделки (03:00 МСК) - планировщик в сервисе
+- **AssetFundamentalsSchedulerService** - обновление фундаментальных показателей (03:00 МСК)
 
 ### 5. External Clients
-- **Tinkoff gRPC клиенты** - для получения инструментов и рыночных данных
-- **Tinkoff REST клиент** - для дополнительных API вызовов
+- **TinkoffApiClient** - gRPC клиент для получения инструментов и рыночных данных
+- **TinkoffRestClient** - REST клиент для дополнительных API вызовов
+
+### 6. Configuration (Конфигурация)
+- **AsyncConfig** - настройка асинхронных пулов потоков
+- **CacheConfig** - конфигурация кэширования (Caffeine)
+- **DatabaseMonitoringConfig** - мониторинг соединений с БД
+- **GrpcConfig** - настройка gRPC клиентов
+- **RateLimitConfig** - управление лимитами API запросов
+- **WebConfig** - конфигурация веб-слоя
+- **JacksonConfig** - настройка JSON сериализации
+- **DotenvConfig** - загрузка переменных окружения
+- **EnvironmentConfig** - конфигурация окружения
+
+### 7. DTOs (Data Transfer Objects)
+- **CandleDto**, **DailyCandleExtendedDto** - свечи
+- **ClosePriceDto**, **ClosePriceRequestDto** - цены
+- **AssetFundamentalDto**, **AssetFundamentalsRequestDto** - фундаментальные показатели
+- **AccountDto** - торговые счета
+- **AggregationRequestDto**, **AggregationResult** - агрегация данных
+
+### 8. Entities (Сущности)
+- **ShareEntity**, **FutureEntity**, **IndicativeEntity** - инструменты
+- **MinuteCandleEntity**, **DailyCandleEntity** - свечи
+- **ClosePriceEntity**, **ClosePriceEveningSessionEntity** - цены
+- **LastPriceEntity** - последние цены
+- **DividendEntity** - дивиденды
+- **AssetFundamentalEntity** - фундаментальные показатели
+- **SystemLogEntity** - системные логи
+
+### 9. Utilities (Утилиты)
+- **MinuteCandleMapper**, **DailyCandleMapper** - маппинг свечей
+- **AssetFundamentalMapper** - маппинг фундаментальных показателей
+- **TimeZoneUtils** - работа с часовыми поясами
+- **QueryParamValidator** - валидация параметров запросов
+
+### 10. Exception Handling (Обработка ошибок)
+- **GlobalExceptionHandler** - глобальная обработка исключений
+- **ApiException**, **DataLoadException** - специфичные исключения
+- **ValidationException** - ошибки валидации
+- **InstrumentsNotFoundException** - инструменты не найдены
+- **SchedulerException** - ошибки планировщиков
 
 ## 🔄 Поток данных
 
@@ -100,18 +157,22 @@ Investment Data Loader Service - это микросервис для загру
 - **ShareEntity** - акции
 - **FutureEntity** - фьючерсы
 - **IndicativeEntity** - индикативные инструменты
-- **ClosePriceEntity** - цены закрытия
-- **OpenPriceEntity** - цены открытия
+- **ClosePriceEntity** - цены закрытия основной сессии
+- **ClosePriceEveningSessionEntity** - цены закрытия вечерней сессии
 - **MinuteCandleEntity** - минутные свечи
 - **DailyCandleEntity** - дневные свечи
-- **LastPriceEntity** - последние цены
-- **ClosePriceEveningSessionEntity** - цены вечерней сессии
-- **SystemLogEntity** - системные логи
+- **LastPriceEntity** - последние цены (обезличенные сделки)
+- **DividendEntity** - дивиденды
+- **AssetFundamentalEntity** - фундаментальные показатели активов
+- **SystemLogEntity** - системные логи (отслеживание операций)
 
 ### Связи между сущностями
 - Инструменты связаны с ценами через FIGI
 - Свечи связаны с инструментами через FIGI
+- Дивиденды связаны с акциями через FIGI
+- Фундаментальные показатели связаны с активами через assetUid
 - Временные ряды данных индексированы по дате и времени
+- Все операции логируются в SystemLogEntity с уникальным taskId
 
 ## ⚡ Производительность
 
@@ -126,7 +187,12 @@ Investment Data Loader Service - это микросервис для загру
 - **@Async** методы для длительных операций
 - **CompletableFuture** для неблокирующих вызовов
 - **Планировщики** для автоматических задач
-- **Параллельная обработка** в сервисах
+- **Параллельная обработка** через пулы потоков (ExecutorService)
+- **Специализированные пулы** для разных типов операций:
+  - `minuteCandleExecutor` - обработка минутных свечей
+  - `dailyCandleExecutor` - обработка дневных свечей
+  - `apiDataExecutor` - запросы к внешним API
+  - `batchWriteExecutor` - пакетная запись в БД
 
 ### Оптимизация БД
 - **Индексы** по FIGI, дате, тикеру
@@ -245,16 +311,26 @@ Investment Data Loader Service - это микросервис для загру
 ### Расписание выполнения
 | Время (МСК) | Планировщик | Описание |
 |-------------|-------------|----------|
-| 00:45 | InstrumentPreloadSchedulerService | Предзагрузка инструментов |
-| 01:00 | LastTradesSchedulerService | Загрузка последних сделок |
-| 01:10 | CandleSchedulerService | Загрузка свечей |
-| 01:30 | ClosePriceSchedulerService | Загрузка цен закрытия |
-| 01:40 | EveningSessionSchedulerService | Цены вечерней сессии |
-| 01:50 | MorningSessionScheduler | Цены утренней сессии |
-| 02:00 | VolumeAggregationSchedulerService | Агрегация объемов |
+| 00:45 | InstrumentPreloadSchedulerService | Предзагрузка инструментов (акции, фьючерсы, индикативы) |
+| 00:50 | DividendSchedulerService | Загрузка дивидендов по всем акциям |
+| 01:00 | ClosePriceSchedulerService | Загрузка цен закрытия (акции, фьючерсы) |
+| 01:10 | CandleSchedulerService | Загрузка минутных и дневных свечей |
+| 01:40 | EveningSessionSchedulerService | Цены закрытия вечерней сессии |
+| 01:50 | MorningSessionScheduler | Цены открытия утренней сессии за предыдущий день |
+| 02:00 | VolumeAggregationSchedulerService | Обновление агрегации объемов |
+| 02:01 | MorningSessionScheduler | Цены открытия в выходные дни (суббота, воскресенье) |
+| 03:00 | LastTradesService | Загрузка обезличенных сделок за предыдущий день |
+| 03:00 | AssetFundamentalsSchedulerService | Обновление фундаментальных показателей всех акций |
+| 07:01 | MorningSessionScheduler | Цены открытия в рабочие дни (понедельник-пятница) |
+| 09:01 | MorningSessionScheduler | Цены открытия в рабочие дни (понедельник-пятница) |
+| 10:01 | MorningSessionScheduler | Цены открытия в рабочие дни (понедельник-пятница) |
 
 ### Особенности планировщиков
-- **Московское время** - все расписания в Europe/Moscow
+- **Московское время** - все расписания в Europe/Moscow (zone = "Europe/Moscow")
 - **Логирование** - каждая задача получает уникальный Task ID
+- **Системные логи** - все операции логируются в SystemLogEntity
 - **Обработка ошибок** - graceful handling с детальным логированием
-- **Параллельная обработка** - оптимизированная загрузка данных
+- **Параллельная обработка** - оптимизированная загрузка данных через пулы потоков
+- **Асинхронность** - большинство операций выполняется асинхронно
+- **Проверка выходных дней** - некоторые планировщики пропускают выполнение в выходные
+- **Детальная статистика** - логирование количества обработанных элементов
