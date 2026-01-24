@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <!-- Определяем переменные для путей -->
-    <property name="LOG_DIR" value="logs"/>
-    <property name="CURRENT_LOG_DIR" value="logs/current"/>
-    <property name="ARCHIVE_LOG_DIR" value="logs/archive"/>
+    <property name="LOG_DIR" value="${LOG_DIR:-${user.dir}/logs}"/>
+    <property name="CURRENT_LOG_DIR" value="${CURRENT_LOG_DIR:-${LOG_DIR}/current}"/>
+    <property name="ARCHIVE_LOG_DIR" value="${ARCHIVE_LOG_DIR:-${LOG_DIR}/archive}"/>
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
     
     <!-- Консольный аппендер для разработки -->
@@ -90,16 +90,28 @@
         </filter>
     </appender>
 
-    <!-- Свечи (дневные и минутные) -->
-    <appender name="CANDLES" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <!-- Свечи (дневные и минутные) - файловый аппендер -->
+    <appender name="CANDLES_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${CURRENT_LOG_DIR}/candles.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/candles.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIVE_LOG_DIR}/%d{yyyy-MM-dd}/candles.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
         </rollingPolicy>
         <encoder charset="UTF-8">
             <pattern>${LOG_PATTERN}</pattern>
         </encoder>
+        <immediateFlush>true</immediateFlush>
+    </appender>
+
+    <!-- Асинхронный аппендер для свечей - предотвращает переполнение буфера -->
+    <appender name="CANDLES" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="CANDLES_FILE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <includeCallerData>false</includeCallerData>
     </appender>
 
     <!-- Торговля -->
@@ -236,17 +248,17 @@
 
     <logger name="com.example.InvestmentDataLoaderService.controller.CandlesDailyController" level="INFO" additivity="false">
         <appender-ref ref="CANDLES"/>
-        <appender-ref ref="CONSOLE"/>
+        <!-- CONSOLE убран для предотвращения перегрузки терминала Cursor -->
     </logger>
 
     <logger name="com.example.InvestmentDataLoaderService.controller.CandlesMinuteController" level="INFO" additivity="false">
         <appender-ref ref="CANDLES"/>
-        <appender-ref ref="CONSOLE"/>
+        <!-- CONSOLE убран для предотвращения перегрузки терминала Cursor -->
     </logger>
 
     <logger name="com.example.InvestmentDataLoaderService.controller.CandlesInstrumentController" level="INFO" additivity="false">
         <appender-ref ref="CANDLES"/>
-        <appender-ref ref="CONSOLE"/>
+        <!-- CONSOLE убран для предотвращения перегрузки терминала Cursor -->
     </logger>
 
     <logger name="com.example.InvestmentDataLoaderService.controller.AssetFundamentalsController" level="INFO" additivity="false">
@@ -303,12 +315,12 @@
 
     <logger name="com.example.InvestmentDataLoaderService.service.DailyCandleService" level="INFO" additivity="false">
         <appender-ref ref="CANDLES"/>
-        <appender-ref ref="CONSOLE"/>
+        <!-- CONSOLE убран для предотвращения перегрузки терминала Cursor -->
     </logger>
 
     <logger name="com.example.InvestmentDataLoaderService.service.MinuteCandleService" level="INFO" additivity="false">
         <appender-ref ref="CANDLES"/>
-        <appender-ref ref="CONSOLE"/>
+        <!-- CONSOLE убран для предотвращения перегрузки терминала Cursor -->
     </logger>
 
     <logger name="com.example.InvestmentDataLoaderService.service.LastTradesService" level="INFO" additivity="false">

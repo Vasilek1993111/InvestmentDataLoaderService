@@ -161,17 +161,17 @@ class DailyCandlesLoader:
             
             if data.get('success') and data.get('taskId'):
                 task_id = data['taskId']
-                print(f"  ✓ Задача запущена: taskId={task_id}")
+                print(f"  [OK] Задача запущена: taskId={task_id}")
                 return task_id
             else:
-                print(f"  ✗ Ошибка: {data.get('message', 'Неизвестная ошибка')}")
+                print(f"  [ERROR] Ошибка: {data.get('message', 'Неизвестная ошибка')}")
                 return None
                 
         except requests.exceptions.RequestException as e:
-            print(f"  ✗ Ошибка запроса: {e}")
+            print(f"  [ERROR] Ошибка запроса: {e}")
             return None
         except json.JSONDecodeError as e:
-            print(f"  ✗ Ошибка парсинга JSON: {e}")
+            print(f"  [ERROR] Ошибка парсинга JSON: {e}")
             return None
     
     def check_status(self, task_id: str) -> Optional[Dict]:
@@ -200,14 +200,14 @@ class DailyCandlesLoader:
                     'timestamp': data.get('timestamp')
                 }
             else:
-                print(f"  ✗ Ошибка получения статуса: {data.get('message', 'Неизвестная ошибка')}")
+                print(f"  [ERROR] Ошибка получения статуса: {data.get('message', 'Неизвестная ошибка')}")
                 return None
                 
         except requests.exceptions.RequestException as e:
-            print(f"  ✗ Ошибка запроса статуса: {e}")
+            print(f"  [ERROR] Ошибка запроса статуса: {e}")
             return None
         except json.JSONDecodeError as e:
-            print(f"  ✗ Ошибка парсинга JSON статуса: {e}")
+            print(f"  [ERROR] Ошибка парсинга JSON статуса: {e}")
             return None
     
     def wait_for_completion(self, task_id: str, date: str) -> bool:
@@ -223,13 +223,14 @@ class DailyCandlesLoader:
         """
         start_time = time.time()
         poll_count = 0
+        last_status_print = 0  # Время последнего вывода статуса
         
         while True:
             elapsed = time.time() - start_time
             
             # Проверка таймаута
             if elapsed > self.timeout:
-                print(f"  ✗ Таймаут ожидания завершения задачи (>{self.timeout}с)")
+                print(f"  [ERROR] Таймаут ожидания завершения задачи (>{self.timeout}с)")
                 return False
             
             # Проверка статуса
@@ -239,7 +240,7 @@ class DailyCandlesLoader:
                 # Если не удалось получить статус, продолжаем попытки
                 poll_count += 1
                 if poll_count > 10:  # После 10 неудачных попыток считаем ошибкой
-                    print(f"  ✗ Не удалось получить статус после {poll_count} попыток")
+                    print(f"  [ERROR] Не удалось получить статус после {poll_count} попыток")
                     return False
                 time.sleep(self.poll_interval)
                 continue
@@ -249,20 +250,22 @@ class DailyCandlesLoader:
             
             if status == 'COMPLETED':
                 duration_str = f"{duration_ms}ms" if duration_ms else "N/A"
-                print(f"  ✓ Задача завершена успешно за {duration_str}")
+                print(f"  [OK] Задача завершена успешно за {duration_str}")
                 return True
             elif status == 'FAILED':
                 message = status_data.get('message', 'Неизвестная ошибка')
-                print(f"  ✗ Задача завершена с ошибкой: {message}")
+                print(f"  [ERROR] Задача завершена с ошибкой: {message}")
                 return False
             elif status == 'STARTED':
-                # Задача еще выполняется
-                elapsed_str = f"{int(elapsed)}с"
-                print(f"  ⏳ Задача выполняется... (прошло {elapsed_str})", end='\r')
+                # Задача еще выполняется - выводим статус только раз в 10 секунд для предотвращения краша терминала
+                if elapsed - last_status_print >= 10:
+                    elapsed_str = f"{int(elapsed)}с"
+                    print(f"  [INFO] Задача выполняется... (прошло {elapsed_str})")
+                    last_status_print = elapsed
                 time.sleep(self.poll_interval)
             else:
                 # Неизвестный статус
-                print(f"  ⚠ Неизвестный статус: {status}, продолжаем ожидание...")
+                print(f"  [WARN] Неизвестный статус: {status}, продолжаем ожидание...")
                 time.sleep(self.poll_interval)
     
     def process_date(self, date: str, instrument_type: str) -> Dict:

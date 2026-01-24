@@ -87,10 +87,8 @@ public class CandlesMinuteController {
                 request.setDate(LocalDate.now());
             }
             
-            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА СЕГОДНЯ ===");
-            log.info("Инструменты: {}", request.getInstruments());
-            log.info("Типы активов: {}", request.getAssetType());
-            log.info("Task ID: {}", taskId);
+            // Логируем только статус taskId, детали по инструментам не логируем
+            log.info("Запуск загрузки минутных свечей за сегодня, taskId: {}", taskId);
 
             // Запускаем асинхронную загрузку
             minuteCandleService.saveMinuteCandlesAsync(request, taskId);
@@ -178,11 +176,8 @@ public class CandlesMinuteController {
                 request.setDate(date);
             }
             
-            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ЗА ДАТУ ===");
-            log.info("Дата: {}", date);
-            log.info("Инструменты: {}", request.getInstruments());
-            log.info("Типы активов: {}", request.getAssetType());
-            log.info("Task ID: {}", taskId);
+            // Логируем только статус taskId, детали по инструментам не логируем
+            log.info("Запуск загрузки минутных свечей за дату {}, taskId: {}", date, taskId);
 
             // Запускаем асинхронную загрузку
             minuteCandleService.saveMinuteCandlesAsync(request, taskId);
@@ -264,12 +259,11 @@ public class CandlesMinuteController {
         }
 
         try {
-            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
-            log.info("Дата: {}", date);
+            // Логируем только статус taskId
+            log.info("Получение минутных свечей акций за дату {}, taskId: {}", date, taskId);
 
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
-            log.info("Найдено акций: {}", shares.size());
 
             List<Map<String, Object>> allCandles = new ArrayList<>();
             int totalCandles = 0;
@@ -281,32 +275,11 @@ public class CandlesMinuteController {
             for (ShareEntity share : shares) {
                 processedInstruments++;
                 try {
-                    log.info("Получаем свечи для акции: {} ({})", share.getTicker(), share.getFigi());
-
-                    // Получаем минутные свечи из API
+                    // Получаем минутные свечи из API (без логирования каждого инструмента)
                     var candles = tinkoffApiClient.getCandles(share.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
 
                     if (candles != null && !candles.isEmpty()) {
-                        log.info("Получено {} свечей для {}", candles.size(), share.getTicker());
                         successfulInstruments++;
-
-                        // Логируем успешное получение данных для каждого FIGI
-                        SystemLogEntity figiLog = new SystemLogEntity();
-                        figiLog.setTaskId(taskId);
-                        figiLog.setEndpoint(endpoint);
-                        figiLog.setMethod("GET");
-                        figiLog.setStatus("SUCCESS");
-                        figiLog.setMessage("Успешно получено " + candles.size() + " минутных свечей для акции " + share.getTicker() + " (FIGI: " + share.getFigi() + ") за дату " + date);
-                        figiLog.setStartTime(Instant.now());
-                        figiLog.setEndTime(Instant.now());
-                        figiLog.setDurationMs(0L);
-
-                        try {
-                            systemLogRepository.save(figiLog);
-                            log.info("Лог успешного получения данных для FIGI {} сохранен", share.getFigi());
-                        } catch (Exception logException) {
-                            log.error("Ошибка сохранения лога для FIGI {}: {}", share.getFigi(), logException.getMessage(), logException);
-                        }
 
                         for (var candle : candles) {
                             Map<String, Object> candleData = new HashMap<>();
@@ -341,49 +314,12 @@ public class CandlesMinuteController {
                             totalCandles++;
                         }
                     } else {
-                        log.info("Нет данных для акции: {}", share.getTicker());
                         noDataInstruments++;
-
-                        // Логируем отсутствие данных для FIGI
-                        SystemLogEntity noDataLog = new SystemLogEntity();
-                        noDataLog.setTaskId(taskId);
-                        noDataLog.setEndpoint(endpoint);
-                        noDataLog.setMethod("GET");
-                        noDataLog.setStatus("NO_DATA");
-                        noDataLog.setMessage("Нет минутных свечей для акции " + share.getTicker() + " (FIGI: " + share.getFigi() + ") за дату " + date);
-                        noDataLog.setStartTime(Instant.now());
-                        noDataLog.setEndTime(Instant.now());
-                        noDataLog.setDurationMs(0L);
-
-                        try {
-                            systemLogRepository.save(noDataLog);
-                            log.info("Лог отсутствия данных для FIGI {} сохранен", share.getFigi());
-                        } catch (Exception logException) {
-                            log.error("Ошибка сохранения лога отсутствия данных для FIGI {}: {}", share.getFigi(), logException.getMessage(), logException);
-                        }
                     }
 
                 } catch (Exception e) {
-                    log.error("Ошибка получения свечей для акции {}: {}", share.getTicker(), e.getMessage(), e);
                     errorInstruments++;
-
-                    // Логируем ошибку для FIGI
-                    SystemLogEntity errorLog = new SystemLogEntity();
-                    errorLog.setTaskId(taskId);
-                    errorLog.setEndpoint(endpoint);
-                    errorLog.setMethod("GET");
-                    errorLog.setStatus("ERROR");
-                    errorLog.setMessage("Ошибка получения минутных свечей для акции " + share.getTicker() + " (FIGI: " + share.getFigi() + ") за дату " + date + ": " + e.getMessage());
-                    errorLog.setStartTime(Instant.now());
-                    errorLog.setEndTime(Instant.now());
-                    errorLog.setDurationMs(0L);
-
-                    try {
-                        systemLogRepository.save(errorLog);
-                        log.info("Лог ошибки для FIGI {} сохранен", share.getFigi());
-                    } catch (Exception logException) {
-                        log.error("Ошибка сохранения лога ошибки для FIGI " + share.getFigi() + ": " + logException.getMessage());
-                    }
+                    // Ошибки по отдельным инструментам не логируем, только общий статус taskId
                 }
             }
 
@@ -425,9 +361,8 @@ public class CandlesMinuteController {
                 response.put("averagePrice", avgPrice);
             }
 
-            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ===");
-            log.info("Всего инструментов: {}", shares.size());
-            log.info("Всего свечей: {}", totalCandles);
+            // Логируем только статус taskId с итоговой статистикой
+            log.info("Завершение получения минутных свечей акций, taskId: {}, инструментов: {}, свечей: {}", taskId, shares.size(), totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -514,13 +449,11 @@ public class CandlesMinuteController {
         }
 
         try {
-            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ АКЦИЙ ЗА ДАТУ ===");
-            log.info("Дата: {}", date);
-            log.info("Task ID: {}", taskId);
+            // Логируем только статус taskId
+            log.info("Запуск загрузки минутных свечей акций за дату {}, taskId: {}", date, taskId);
 
             // Получаем все акции из БД
             List<ShareEntity> shares = shareRepository.findAll();
-            log.info("Найдено акций: {}", shares.size());
 
             // Создаем запрос для загрузки всех минутных свечей акций
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -607,13 +540,11 @@ public class CandlesMinuteController {
         }
 
         try {
-            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ЗА ДАТУ ===");
-            log.info("Дата: {}", date);
-            log.info("Task ID: {}", taskId);
+            // Логируем только статус taskId
+            log.info("Запуск загрузки минутных свечей фьючерсов за дату {}, taskId: {}", date, taskId);
 
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
-            log.info("Найдено фьючерсов: {}", futures.size());
 
             // Создаем запрос для загрузки всех минутных свечей фьючерсов
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -697,25 +628,21 @@ public class CandlesMinuteController {
         }
 
         try {
-            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
-            log.info("Дата: {}", date);
+            // Логируем только статус taskId
+            log.info("Получение минутных свечей фьючерсов за дату {}, taskId: {}", date, taskId);
 
             // Получаем все фьючерсы из БД
             List<FutureEntity> futures = futureRepository.findAll();
-            log.info("Найдено фьючерсов: {}", futures.size());
 
             List<Map<String, Object>> allCandles = new ArrayList<>();
             int totalCandles = 0;
 
             for (FutureEntity future : futures) {
                 try {
-                    log.info("Получаем свечи для фьючерса: {} ({})", future.getTicker(), future.getFigi());
-
-                    // Получаем минутные свечи из API
+                    // Получаем минутные свечи из API (без логирования каждого инструмента)
                     var candles = tinkoffApiClient.getCandles(future.getFigi(), date, "CANDLE_INTERVAL_1_MIN");
 
                     if (candles != null && !candles.isEmpty()) {
-                        log.info("Получено {} свечей для {}", candles.size(), future.getTicker());
 
                         for (var candle : candles) {
                             Map<String, Object> candleData = new HashMap<>();
@@ -749,12 +676,11 @@ public class CandlesMinuteController {
                             allCandles.add(candleData);
                             totalCandles++;
                         }
-                    } else {
-                        log.info("Нет данных для фьючерса: {}", future.getTicker());
                     }
+                    // Ошибки и отсутствие данных по отдельным инструментам не логируем
 
                 } catch (Exception e) {
-                    log.error("Ошибка получения свечей для фьючерса " + future.getTicker() + ": " + e.getMessage());
+                    // Ошибки по отдельным инструментам не логируем, только общий статус taskId
                 }
             }
 
@@ -792,9 +718,8 @@ public class CandlesMinuteController {
                 response.put("averagePrice", avgPrice);
             }
 
-            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ФЬЮЧЕРСОВ ===");
-            log.info("Всего инструментов: " + futures.size());
-            log.info("Всего свечей: {}", totalCandles);
+            // Логируем только статус taskId с итоговой статистикой
+            log.info("Завершение получения минутных свечей фьючерсов, taskId: {}, инструментов: {}, свечей: {}", taskId, futures.size(), totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();
@@ -879,13 +804,11 @@ public class CandlesMinuteController {
         }
 
         try {
-            log.info("=== ЗАГРУЗКА МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ЗА ДАТУ ===");
-            log.info("Дата: {}", date);
-            log.info("Task ID: {}", taskId);
+            // Логируем только статус taskId
+            log.info("Запуск загрузки минутных свечей индикативов за дату {}, taskId: {}", date, taskId);
 
             // Получаем все индикативы из БД
             List<IndicativeEntity> indicatives = indicativeRepository.findAll();
-            log.info("Найдено индикативов: {}", indicatives.size());
 
             // Создаем запрос для загрузки всех минутных свечей индикативов
             MinuteCandleRequestDto request = new MinuteCandleRequestDto();
@@ -969,12 +892,11 @@ public class CandlesMinuteController {
         }
 
         try {
-            log.info("=== ПОЛУЧЕНИЕ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
-            log.info("Дата: {}", date);
+            // Логируем только статус taskId
+            log.info("Получение минутных свечей индикативов за дату {}, taskId: {}", date, taskId);
 
             // Получаем все индикативы из БД
             List<IndicativeEntity> indicatives = indicativeRepository.findAll();
-            log.info("Найдено индикативов: {}", indicatives.size());
 
             List<Map<String, Object>> allCandles = new ArrayList<>();
             int totalCandles = 0;
@@ -1021,12 +943,11 @@ public class CandlesMinuteController {
                             allCandles.add(candleData);
                             totalCandles++;
                         }
-                    } else {
-                        log.info("Нет данных для индикатива: {}", indicative.getTicker());
                     }
+                    // Ошибки и отсутствие данных по отдельным инструментам не логируем
 
                 } catch (Exception e) {
-                    log.error("Ошибка получения свечей для индикатива " + indicative.getTicker() + ": " + e.getMessage());
+                    // Ошибки по отдельным инструментам не логируем, только общий статус taskId
                 }
             }
 
@@ -1064,9 +985,8 @@ public class CandlesMinuteController {
                 response.put("averagePrice", avgPrice);
             }
 
-            log.info("=== ЗАВЕРШЕНИЕ ПОЛУЧЕНИЯ МИНУТНЫХ СВЕЧЕЙ ИНДИКАТИВОВ ===");
-            log.info("Всего инструментов: " + indicatives.size());
-            log.info("Всего свечей: {}", totalCandles);
+            // Логируем только статус taskId с итоговой статистикой
+            log.info("Завершение получения минутных свечей индикативов, taskId: {}, инструментов: {}, свечей: {}", taskId, indicatives.size(), totalCandles);
 
             // Логируем успешное завершение
             SystemLogEntity resultLog = new SystemLogEntity();

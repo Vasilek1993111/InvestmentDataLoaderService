@@ -71,9 +71,8 @@ public class MinuteCandleService {
     public CompletableFuture<SaveResponseDto> saveMinuteCandlesAsync(MinuteCandleRequestDto request, String taskId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                log.info("=== НАЧАЛО ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
-                log.info("Task ID: {}", taskId);
-                log.info("Request: {}", request);
+                // Логируем только статус taskId, детали по инструментам не логируем
+                log.info("Начало загрузки минутных свечей, taskId: {}", taskId);
 
                 List<String> instrumentIds = request.getInstruments();
                 LocalDate date = request.getDate();
@@ -91,9 +90,6 @@ public class MinuteCandleService {
                     instrumentIds = getAllInstrumentIds(assetTypes);
                 }
 
-                log.info("Загружаем минутные свечи для {} инструментов", instrumentIds.size());
-                log.info("Дата: {}", finalDate);
-
                 // Счетчики для статистики
                 AtomicInteger totalRequested = new AtomicInteger(0);
                 AtomicInteger newItemsSaved = new AtomicInteger(0);
@@ -106,7 +102,7 @@ public class MinuteCandleService {
                 int batchSize = Math.max(1, instrumentIds.size() / 10); // 10 батчей максимум
                 List<List<String>> batches = partitionList(instrumentIds, batchSize);
 
-                log.info("Обрабатываем {} батчей по {} инструментов", batches.size(), batchSize);
+                // Обрабатываем батчи (без логирования каждого батча)
 
                 // Создаем задачи для каждого батча
                 List<CompletableFuture<Void>> batchTasks = batches.stream()
@@ -129,12 +125,9 @@ public class MinuteCandleService {
                     log.error("Ошибка ожидания завершения загрузки минутных свечей: {}", e.getMessage(), e);
                 }
 
-                log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ МИНУТНЫХ СВЕЧЕЙ ===");
-                log.info("Всего запрошено: {}", totalRequested.get());
-                log.info("Новых сохранено: {}", newItemsSaved.get());
-                log.info("Пропущено существующих: {}", existingItemsSkipped.get());
-                log.info("Отфильтровано неверных: {}", invalidItemsFiltered.get());
-                log.info("Отсутствует в API: {}", missingFromApi.get());
+                // Логируем только статус taskId с итоговой статистикой
+                log.info("Завершение загрузки минутных свечей, taskId: {}, запрошено: {}, сохранено: {}, пропущено: {}, отфильтровано: {}, отсутствует: {}", 
+                    taskId, totalRequested.get(), newItemsSaved.get(), existingItemsSkipped.get(), invalidItemsFiltered.get(), missingFromApi.get());
 
                 SaveResponseDto result = new SaveResponseDto(
                     true,
@@ -204,7 +197,7 @@ public class MinuteCandleService {
                                                      AtomicInteger existingItemsSkipped, AtomicInteger invalidItemsFiltered,
                                                      AtomicInteger missingFromApi, List<String> savedItems) {
         return CompletableFuture.runAsync(() -> {
-            log.info("Обрабатываем батч из {} инструментов", batch.size());
+            // Обрабатываем батч (без логирования каждого батча)
             
             // Создаем задачи для каждого инструмента в батче
             List<CompletableFuture<Void>> instrumentTasks = batch.stream()
@@ -223,7 +216,7 @@ public class MinuteCandleService {
                 log.error("Ошибка ожидания завершения обработки батча: {}", e.getMessage(), e);
             }
             
-            log.info("Батч из {} инструментов обработан", batch.size());
+            // Батч обработан (без логирования каждого батча)
         }, minuteCandleExecutor);
     }
 
@@ -241,15 +234,13 @@ public class MinuteCandleService {
             Instant figiStartTime = Instant.now();
             
             try {
-                log.info("Обрабатываем инструмент: {}", figi);
-                
-                // Получаем минутные свечи из API асинхронно
+                // Получаем минутные свечи из API асинхронно (без логирования каждого инструмента)
                 CompletableFuture<List<com.example.InvestmentDataLoaderService.dto.CandleDto>> apiTask = 
                     CompletableFuture.supplyAsync(() -> {
                         try {
                             return tinkoffApiClient.getCandles(figi, date, "CANDLE_INTERVAL_1_MIN");
                         } catch (Exception e) {
-                            log.error("Ошибка получения данных из API для {}: {}", figi, e.getMessage(), e);
+                            // Ошибки по отдельным инструментам не логируем, только общий статус taskId
                             return null;
                         }
                     }, apiDataExecutor);
@@ -259,15 +250,12 @@ public class MinuteCandleService {
                     // Таймаут 5 минут для получения данных из API
                     candles = apiTask.get(5, TimeUnit.MINUTES);
                 } catch (TimeoutException e) {
-                    log.error("Превышен таймаут получения данных из API для {} (5 минут)", figi);
                     candles = null;
                 } catch (Exception e) {
-                    log.error("Ошибка получения данных из API для {}: {}", figi, e.getMessage(), e);
                     candles = null;
                 }
                 
                 if (candles == null || candles.isEmpty()) {
-                    log.info("Нет данных для инструмента: {}", figi);
                     missingFromApi.incrementAndGet();
                     
                     // Логируем отсутствие данных для FIGI
@@ -277,7 +265,7 @@ public class MinuteCandleService {
                 }
 
                 totalRequested.addAndGet(candles.size());
-                log.info("Получено {} минутных свечей для {}", candles.size(), figi);
+                // Не логируем каждый инструмент, только общий статус taskId
 
                 // Сохраняем свечи в БД пакетно
                 List<MinuteCandleEntity> entitiesToSave = new ArrayList<>();
@@ -287,7 +275,6 @@ public class MinuteCandleService {
                     try {
                         // Фильтруем незакрытые свечи (is_complete=false)
                         if (!candle.isComplete()) {
-                            log.info("Пропускаем незакрытую свечу для {} в {}", figi, candle.time());
                             invalidItemsFiltered.incrementAndGet();
                             continue;
                         }
