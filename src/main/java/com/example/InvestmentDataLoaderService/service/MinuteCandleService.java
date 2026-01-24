@@ -136,7 +136,7 @@ public class MinuteCandleService {
                 log.info("Отфильтровано неверных: {}", invalidItemsFiltered.get());
                 log.info("Отсутствует в API: {}", missingFromApi.get());
 
-                return new SaveResponseDto(
+                SaveResponseDto result = new SaveResponseDto(
                     true,
                     "Загрузка минутных свечей завершена успешно",
                     totalRequested.get(),
@@ -147,8 +147,46 @@ public class MinuteCandleService {
                     savedItems
                 );
 
+                // Логируем успешное завершение в БД
+                try {
+                    LogInfo logInfo = findStartLogInfo(taskId);
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint(logInfo.endpoint);
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(logInfo.startTime);
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
+                }
+
+                return result;
+
             } catch (Exception e) {
                 log.error("Критическая ошибка загрузки минутных свечей: {}", e.getMessage(), e);
+                
+                // Логируем ошибку завершения в БД
+                try {
+                    LogInfo logInfo = findStartLogInfo(taskId);
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint(logInfo.endpoint);
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка загрузки минутных свечей: " + e.getMessage());
+                    errorLog.setStartTime(logInfo.startTime);
+                    errorLog.setEndTime(Instant.now());
+                    errorLog.setDurationMs(Instant.now().toEpochMilli() - logInfo.startTime.toEpochMilli());
+                    systemLogRepository.save(errorLog);
+                    log.info("[{}] Лог ошибки завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога ошибки завершения", taskId, logException);
+                }
+                
                 return new SaveResponseDto(
                     false,
                     "Ошибка загрузки минутных свечей: " + e.getMessage(),
@@ -375,6 +413,40 @@ public class MinuteCandleService {
     @Transactional
     public void saveMinuteCandlesBatch(List<MinuteCandleEntity> entities) {
         minuteCandleRepository.saveAll(entities);
+    }
+
+    /**
+     * Вспомогательный класс для хранения информации из лога STARTED
+     */
+    private static class LogInfo {
+        final String endpoint;
+        final Instant startTime;
+
+        LogInfo(String endpoint, Instant startTime) {
+            this.endpoint = endpoint;
+            this.startTime = startTime;
+        }
+    }
+
+    /**
+     * Находит информацию о начале задачи из лога STARTED по taskId
+     */
+    private LogInfo findStartLogInfo(String taskId) {
+        try {
+            List<SystemLogEntity> logs = systemLogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+            for (SystemLogEntity log : logs) {
+                if ("STARTED".equals(log.getStatus()) && log.getStartTime() != null) {
+                    return new LogInfo(
+                        log.getEndpoint() != null ? log.getEndpoint() : "/api/candles/minute",
+                        log.getStartTime()
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Не удалось найти информацию из лога STARTED, используем значения по умолчанию", taskId, e);
+        }
+        // Если не удалось найти, используем значения по умолчанию
+        return new LogInfo("/api/candles/minute", Instant.now().minusMillis(1000));
     }
 
     /**

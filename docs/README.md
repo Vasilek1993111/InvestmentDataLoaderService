@@ -1,77 +1,38 @@
 # Investment Data Loader Service — Документация
 
-Сервис для загрузки и агрегации инвестиционных данных (акции, фьючерсы, индикативы) с использованием Tinkoff Invest API и PostgreSQL.
+Сервис для загрузки и агрегации инвестиционных данных (акции, фьючерсы, индикативы, рыночные данные) с использованием Tinkoff Invest API и PostgreSQL.
 
-## 🚀 Быстрый старт
+## 🔧 Основные возможности
 
-### Системные требования
-- Java 17+
-- Maven 3.6+
-- PostgreSQL 12+
-- Docker (опционально)
+### Работа с инструментами
+- ✅ Загрузка справочников (акции, фьючерсы, индикативы) из Tinkoff API
+- ✅ Сохранение в БД с защитой от дубликатов
+- ✅ Фильтрация по различным параметрам
+- ✅ Поиск по FIGI или тикеру
+- ✅ Получение статистики по количеству инструментов
+- ✅ Автоматический прогрев кэша при запуске приложения
+- ✅ Ручное управление кэшем через REST API
 
-### Конфигурация
+### Рыночные данные
+- ✅ Загрузка цен закрытия/открытия
+- ✅ Исторические свечи и сделки
+- ✅ Ежеминутная актуализация данных
+- ✅ Агрегация по сессиям (утренняя, основная, вечерняя)
 
-1) Установите переменные окружения (минимум токен Tinkoff):
-```bash
-# Windows (PowerShell)
-$env:T_INVEST_TOKEN = "<ваш_токен>"
+### API и интеграция
+- ✅ RESTful API с JSON
+- ✅ Автоматическая документация (Swagger/OpenAPI)
+- ✅ Обработка ошибок и валидация
+- ✅ Кэширование для повышения производительности
+- ✅ Управление кэшем через REST API
 
-# Linux/Mac
-export T_INVEST_TOKEN=<ваш_токен>
-```
+## 🚦 Статус системы
 
-2) Настройте подключение к БД (опционально):
-```bash
-# Windows (PowerShell)
-$env:DB_HOST = "localhost"
-$env:DB_PORT = "5434"
-$env:DB_NAME = "postgres"
-$env:DB_USERNAME = "postgres"
-$env:DB_PASSWORD = "password"
+**Порт**: 8083 - prod и 8087 - test 
+**База данных**: PostgreSQL (по умолчанию `localhost:5434/postgres`)  
+**Таймзона**: Europe/Moscow  
+**Версия Java**: 17+  
 
-# Linux/Mac
-export DB_HOST=localhost
-export DB_PORT=5434
-export DB_NAME=postgres
-export DB_USERNAME=postgres
-export DB_PASSWORD=password
-```
-
-### Запуск
-
-**Локальный запуск:**
-```bash
-mvn spring-boot:run
-```
-
-**Docker Compose (рекомендуется):**
-```bash
-docker-compose up -d
-```
-
-**Docker (ручная сборка):**
-```bash
-docker build -t investment-data-loader:latest .
-docker run -p 8083:8083 -e T_INVEST_TOKEN=<ваш_токен> investment-data-loader:latest
-```
-
-### Проверка работоспособности
-
-```bash
-# Проверка здоровья API
-curl http://localhost:8083/api/system/health
-
-# Получение статистики инструментов
-curl http://localhost:8083/api/instruments/count
-
-# Получение списка акций
-curl http://localhost:8083/api/instruments/shares?exchange=MOEX&currency=RUB
-
-# Управление кэшем
-curl -X POST http://localhost:8083/api/cache/warmup
-curl http://localhost:8083/api/cache/stats
-```
 
 ## 📚 Структура документации
 
@@ -84,6 +45,7 @@ curl http://localhost:8083/api/cache/stats
 - **Использование таймзон**: `docs/timezone-usage.md` - работа с временными зонами
 
 ### API Документация
+- **Обзор API**: [`docs/api/README.md`](docs/api/README.md) - общая документация по REST API
 - **Инструменты**: `docs/api/instruments.md` - работа с акциями, фьючерсами, индикативами
 - **Цены основной сессии**: `docs/api/main-session-prices.md` - цены закрытия
 - **Утренняя сессия**: `docs/api/morning-session.md` - данные утренней сессии
@@ -119,48 +81,9 @@ curl http://localhost:8083/api/cache/stats
 - **Docker** - контейнеризация
 - **Maven** - управление зависимостями
 
-## 🔧 Основные возможности
-
-### Работа с инструментами
-- ✅ Загрузка справочников (акции, фьючерсы, индикативы) из Tinkoff API
-- ✅ Сохранение в БД с защитой от дубликатов
-- ✅ Фильтрация по различным параметрам
-- ✅ Поиск по FIGI или тикеру
-- ✅ Получение статистики по количеству инструментов
-- ✅ Автоматический прогрев кэша при запуске приложения
-- ✅ Ручное управление кэшем через REST API
-
-### Рыночные данные
-- ✅ Загрузка цен закрытия/открытия
-- ✅ Исторические свечи и сделки
-- ✅ Ежеминутная актуализация данных
-- ✅ Агрегация по сессиям (утренняя, основная, вечерняя)
-
-### API и интеграция
-- ✅ RESTful API с JSON
-- ✅ Автоматическая документация (Swagger/OpenAPI)
-- ✅ Обработка ошибок и валидация
-- ✅ Кэширование для повышения производительности
-- ✅ Управление кэшем через REST API
-
-## 🚦 Статус системы
-
-**Порт**: 8083  
-**База данных**: PostgreSQL (по умолчанию `localhost:5434/postgres`)  
-**Таймзона**: Europe/Moscow  
-**Версия Java**: 17+  
-
 ## 🔗 Полезные ссылки
 
 - [Tinkoff Invest API](https://tinkoff.github.io/investAPI/)
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 - [Docker Documentation](https://docs.docker.com/)
-
-## 📞 Поддержка
-
-При возникновении проблем:
-1. Проверьте логи приложения
-2. Убедитесь в корректности переменных окружения
-3. Проверьте доступность Tinkoff API
-4. Обратитесь к документации по API в папке `docs/api/`

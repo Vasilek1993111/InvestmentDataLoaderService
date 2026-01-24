@@ -70,9 +70,9 @@ public class StatusController {
         try {
             log.info("Ищем логи для taskId: {}", taskId);
             // Получаем все логи по taskId, отсортированные по времени создания (новые первыми)
-            List<SystemLogEntity> logs = systemLogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+            List<SystemLogEntity> allLogs = systemLogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
             
-            if (logs.isEmpty()) {
+            if (allLogs.isEmpty()) {
                 log.warn("Задача с taskId '{}' не найдена", taskId);
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
@@ -84,28 +84,91 @@ public class StatusController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
             
-            // Берем последний лог (самый свежий)
-            SystemLogEntity latestLog = logs.get(0);
-            log.info("Найден последний лог для taskId {}: статус {}, сообщение: {}", 
-                taskId, latestLog.getStatus(), latestLog.getMessage());
+            // Фильтруем только логи со статусами STARTED, FAILED, COMPLETED
+            List<SystemLogEntity> filteredLogs = allLogs.stream()
+                .filter(logEntry -> "STARTED".equals(logEntry.getStatus()) || 
+                              "FAILED".equals(logEntry.getStatus()) || 
+                              "COMPLETED".equals(logEntry.getStatus()))
+                .toList();
+            
+            if (filteredLogs.isEmpty()) {
+                log.warn("Для задачи с taskId '{}' не найдено логов со статусами STARTED, FAILED, COMPLETED", taskId);
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Для задачи с taskId '" + taskId + "' не найдено логов со статусами STARTED, FAILED, COMPLETED");
+                response.put("error", "NOT_FOUND");
+                response.put("taskId", taskId);
+                response.put("timestamp", LocalDateTime.now().toString());
+                
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+            
+            // Определяем приоритетный статус: COMPLETED > FAILED > STARTED
+            SystemLogEntity resultLog = null;
+            
+            // Ищем COMPLETED (высший приоритет - задача успешно завершена)
+            for (SystemLogEntity logEntry : filteredLogs) {
+                if ("COMPLETED".equals(logEntry.getStatus())) {
+                    resultLog = logEntry;
+                    log.info("Найден статус COMPLETED для taskId {}: задача завершена успешно", taskId);
+                    break;
+                }
+            }
+            
+            // Если COMPLETED не найден, ищем FAILED (задача завершена с ошибкой)
+            if (resultLog == null) {
+                for (SystemLogEntity logEntry : filteredLogs) {
+                    if ("FAILED".equals(logEntry.getStatus())) {
+                        resultLog = logEntry;
+                        log.info("Найден статус FAILED для taskId {}: задача завершена с ошибкой", taskId);
+                        break;
+                    }
+                }
+            }
+            
+            // Если ни COMPLETED, ни FAILED не найдены, берем STARTED (задача выполняется)
+            if (resultLog == null) {
+                for (SystemLogEntity logEntry : filteredLogs) {
+                    if ("STARTED".equals(logEntry.getStatus())) {
+                        resultLog = logEntry;
+                        log.info("Найден статус STARTED для taskId {}: задача выполняется", taskId);
+                        break;
+                    }
+                }
+            }
+            
+            if (resultLog == null) {
+                log.error("Не удалось определить статус для taskId {}", taskId);
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Не удалось определить статус для задачи с taskId '" + taskId + "'");
+                response.put("error", "INTERNAL_ERROR");
+                response.put("taskId", taskId);
+                response.put("timestamp", LocalDateTime.now().toString());
+                
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            }
+            
+            log.info("Определен статус для taskId {}: {}, сообщение: {}", 
+                taskId, resultLog.getStatus(), resultLog.getMessage());
             
             // Формируем ответ
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("taskId", taskId);
-            response.put("status", latestLog.getStatus());
-            response.put("message", latestLog.getMessage());
-            response.put("endpoint", latestLog.getEndpoint());
-            response.put("method", latestLog.getMethod());
-            response.put("startTime", latestLog.getStartTime().toString());
-            response.put("endTime", latestLog.getEndTime() != null ? latestLog.getEndTime().toString() : null);
+            response.put("status", resultLog.getStatus());
+            response.put("message", resultLog.getMessage());
+            response.put("endpoint", resultLog.getEndpoint());
+            response.put("method", resultLog.getMethod());
+            response.put("startTime", resultLog.getStartTime().toString());
+            response.put("endTime", resultLog.getEndTime() != null ? resultLog.getEndTime().toString() : null);
             
             // Вычисляем длительность для основного ответа
-            if (latestLog.getDurationMs() != null) {
-                response.put("durationMs", latestLog.getDurationMs());
-            } else if ("STARTED".equals(latestLog.getStatus())) {
+            if (resultLog.getDurationMs() != null) {
+                response.put("durationMs", resultLog.getDurationMs());
+            } else if ("STARTED".equals(resultLog.getStatus())) {
                 // Для активных задач показываем время с момента запуска
-                long currentDuration = System.currentTimeMillis() - latestLog.getStartTime().toEpochMilli();
+                long currentDuration = System.currentTimeMillis() - resultLog.getStartTime().toEpochMilli();
                 response.put("durationMs", currentDuration);
                 response.put("isActive", true);
             } else {
@@ -114,8 +177,8 @@ public class StatusController {
             
             response.put("timestamp", LocalDateTime.now().toString());
             
-            // Добавляем историю операций (последние 5 записей)
-            List<Map<String, Object>> history = logs.stream()
+            // Добавляем историю операций только с нужными статусами (последние 5 записей)
+            List<Map<String, Object>> history = filteredLogs.stream()
                 .limit(5)
                 .map(logEntry -> {
                     Map<String, Object> entry = new HashMap<>();
@@ -140,7 +203,7 @@ public class StatusController {
                 .toList();
             response.put("history", history);
             
-            log.info("Статус задачи {} успешно получен. Найдено {} записей в истории", taskId, logs.size());
+            log.info("Статус задачи {} успешно получен. Найдено {} записей в истории", taskId, filteredLogs.size());
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {

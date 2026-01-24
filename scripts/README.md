@@ -12,6 +12,12 @@
 - `docker-run-test.bat` / `docker-run-test.sh` - запуск тестового окружения в Docker
 - `docker-run-prod.bat` / `docker-run-prod.sh` - запуск продакшн окружения в Docker
 
+### 🐍 **Python скрипты автоматизации**
+- `load-daily-candles-2025.py` - автоматическая загрузка дневных свечей за 2025 год
+  - Требует: `pip install requests`
+  - Использование: `python scripts/load-daily-candles-2025.py --test`
+  - Подробная документация: [API Automation Guide](../docs/api-automation-guide.md)
+
 ### ⚙️ **Файлы конфигурации**
 - `env.test` - переменные окружения для тестового профиля
 - `env.prod` - переменные окружения для продакшн профиля
@@ -49,6 +55,33 @@ chmod +x *.sh
 
 # Docker продакшн окружение
 ./docker-run-prod.sh
+
+# Python скрипт автоматизации (требует установки requests)
+python scripts/load-daily-candles-2025.py --test
+```
+
+## 🐍 Python скрипты автоматизации
+
+### Установка зависимостей
+
+```bash
+pip install requests
+```
+
+### Использование
+
+Подробная документация: [API Automation Guide](../docs/api-automation-guide.md)
+
+**Быстрый старт:**
+```bash
+# Тестовое окружение
+python scripts/load-daily-candles-2025.py --test
+
+# Продакшн окружение
+python scripts/load-daily-candles-2025.py
+
+# С исключением выходных дней
+python scripts/load-daily-candles-2025.py --exclude-weekends
 ```
 
 ## ⚙️ Настройка переменных окружения
@@ -87,7 +120,8 @@ cp env.prod ../.env.prod
 1. **Перед запуском продакшн окружения** убедитесь, что установлены переменные окружения
 2. **Для Docker** убедитесь, что Docker запущен
 3. **Для тестового окружения** убедитесь, что PostgreSQL запущен на localhost:5434
-4. **Не коммитьте** файлы `.env.test` и `.env.prod` в Git
+4. **Для Python скриптов** установите зависимости: `pip install requests`
+5. **Не коммитьте** файлы `.env.test` и `.env.prod` в Git
 
 ## 🛠️ Отладка
 
@@ -101,9 +135,15 @@ cp env.prod ../.env.prod
 2. Проверьте, что образ приложения собран
 3. Убедитесь, что порты не заняты
 
+### **Проблемы с Python скриптами:**
+1. Убедитесь, что установлен Python 3.6+
+2. Проверьте установку зависимостей: `pip list | grep requests`
+3. Проверьте доступность API: `curl http://localhost:8083/api/health`
+
 ## 📞 Поддержка
 
 При возникновении проблем:
 1. Проверьте логи приложения
 2. Убедитесь в правильности переменных окружения
 3. Проверьте доступность внешних сервисов (БД, API)
+4. Для Python скриптов см. [API Automation Guide](../docs/api-automation-guide.md)

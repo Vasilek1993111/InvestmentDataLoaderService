@@ -76,3 +76,7 @@ scope: manual
 <timezone>UTC+3</timezone>
 
 <encoding>UTF-8 без bom</encoding>
+
+<documentation>
+Общую документацию по всему проекту и БД ищи в папке investment-platform-docs
+</documentation>

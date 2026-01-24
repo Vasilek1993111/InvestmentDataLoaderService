@@ -599,17 +599,19 @@ public class MainSessionPriceService {
                 
                 // Логируем успешное завершение в БД
                 try {
+                    Instant startTime = findStartTimeFromLog(taskId);
                     SystemLogEntity successLog = new SystemLogEntity();
                     successLog.setTaskId(taskId);
                     successLog.setEndpoint("/api/main-session-prices/");
                     successLog.setMethod("POST");
                     successLog.setStatus("COMPLETED");
                     successLog.setMessage(result.getMessage());
-                    successLog.setStartTime(Instant.now().minusMillis(1000)); // Примерное время начала
+                    successLog.setStartTime(startTime);
                     successLog.setEndTime(Instant.now());
                     systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен", taskId);
                 } catch (Exception logException) {
-                    log.error("Ошибка сохранения лога успешного завершения", logException);
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
                 }
                 
                 return result;
@@ -723,6 +725,23 @@ public class MainSessionPriceService {
                 log.info("[{}] Асинхронное сохранение цен закрытия для акций завершено", taskId);
                 log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
+                // Логируем успешное завершение в БД
+                try {
+                    Instant startTime = findStartTimeFromLog(taskId);
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/main-session-prices/shares");
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(startTime);
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
+                }
+                
                 return result;
                 
             } catch (Exception e) {
@@ -818,6 +837,23 @@ public class MainSessionPriceService {
                 log.info("[{}] Асинхронное сохранение цен закрытия для фьючерсов завершено", taskId);
                 log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
+                // Логируем успешное завершение в БД
+                try {
+                    Instant startTime = findStartTimeFromLog(taskId);
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/main-session-prices/futures");
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(startTime);
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
+                }
+                
                 return result;
                 
             } catch (Exception e) {
@@ -884,6 +920,23 @@ public class MainSessionPriceService {
                 
                 log.info("[{}] Асинхронное сохранение цены закрытия для инструмента завершено", taskId);
                 log.info("[{}] Результат: {}", taskId, response.getMessage());
+                
+                // Логируем успешное завершение в БД
+                try {
+                    Instant startTime = findStartTimeFromLog(taskId);
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/main-session-prices/instrument/" + figi);
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(response.getMessage());
+                    successLog.setStartTime(startTime);
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
+                }
                 
                 return response;
                 
@@ -979,6 +1032,23 @@ public class MainSessionPriceService {
                 log.info("[{}] Асинхронное сохранение цен основной сессии завершено", taskId);
                 log.info("[{}] Результат: {}", taskId, result.getMessage());
                 
+                // Логируем успешное завершение в БД
+                try {
+                    Instant startTime = findStartTimeFromLog(taskId);
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint("/api/main-session-prices/by-date/" + date);
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(startTime);
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
+                }
+                
                 return result;
                 
             } catch (Exception e) {
@@ -989,6 +1059,24 @@ public class MainSessionPriceService {
     }
 
     // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    /**
+     * Находит время начала задачи из лога STARTED по taskId
+     */
+    private Instant findStartTimeFromLog(String taskId) {
+        try {
+            List<SystemLogEntity> logs = systemLogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+            for (SystemLogEntity log : logs) {
+                if ("STARTED".equals(log.getStatus()) && log.getStartTime() != null) {
+                    return log.getStartTime();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Не удалось найти startTime из лога STARTED, используем примерное время", taskId, e);
+        }
+        // Если не удалось найти, используем примерное время (как было раньше)
+        return Instant.now().minusMillis(1000);
+    }
 
     /**
      * Разбивает список инструментов на пакеты заданного размера

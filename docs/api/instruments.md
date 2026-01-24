@@ -22,6 +22,9 @@ API для работы с финансовыми инструментами п�
 - **Защита от дубликатов** - инструменты не дублируются в БД
 - **Автоматическое определение** - API сам определяет FIGI или тикер
 - **Fallback** - при недоступности REST API используются данные из БД
+- **Асинхронная обработка** - все POST методы выполняются асинхронно с возвратом `taskId`
+- **Детальное логирование** - все операции логируются в БД с уникальным `taskId`
+- **Валидация параметров** - двухуровневая валидация всех входных параметров
 
 ---
 
@@ -32,13 +35,13 @@ API для работы с финансовыми инструментами п�
 Получение списка акций с фильтрацией. Поддерживает два источника данных:
 
 **Параметры запроса:**
-- `source` (опционально) - источник данных: `"api"` (по умолчанию) или `"database"`
-- `status` (опционально) - статус инструмента: `INSTRUMENT_STATUS_ACTIVE`, `INSTRUMENT_STATUS_BASE`
-- `exchange` (опционально) - биржа (например: `MOEX`, `SPB`)
-- `currency` (опционально) - валюта (например: `RUB`, `USD`, `EUR`)
+- `source` (опционально, по умолчанию `"api"`) - источник данных: `"api"` или `"database"`
+- `status` (опционально, только для `source=api`) - статус инструмента: `INSTRUMENT_STATUS_UNSPECIFIED`, `INSTRUMENT_STATUS_BASE`, `INSTRUMENT_STATUS_ALL`
+- `exchange` (опционально) - биржа: `MOEX`, `moex`, `SPB`, `FORTS_MAIN`, `UNKNOWN` и др.
+- `currency` (опционально) - валюта: `RUB`, `USD`, `rub`, `usd`
 - `ticker` (опционально) - тикер инструмента (например: `SBER`, `GAZP`)
 - `figi` (опционально) - уникальный идентификатор инструмента
-- `filter` (опционально) - расширенный фильтр для базы данных (только для `source=database`)
+- `filter` (опционально, в теле запроса) - расширенный фильтр для базы данных (только для `source=database`), включает: `sector`, `tradingStatus`
 
 **Примеры использования:**
 
@@ -107,53 +110,71 @@ curl "http://localhost:8083/api/instruments/shares/SBER"
 
 ### POST /api/instruments/shares
 
-Сохранение акций в базу данных по фильтрам с защитой от дубликатов.
+**Асинхронное** сохранение акций в базу данных по фильтрам с защитой от дубликатов.
+
+⚠️ **Важно:** Операция выполняется асинхронно. Метод возвращает `taskId` для отслеживания статуса операции. Результат можно получить через System API по `taskId`.
 
 **Тело запроса:**
 ```json
 {
-  "status": "INSTRUMENT_STATUS_ACTIVE",
+  "status": "INSTRUMENT_STATUS_BASE",
   "exchange": "MOEX",
   "currency": "RUB",
   "ticker": "SBER",
-  "figi": "BBG004730N88"
+  "figi": "BBG004730N88",
+  "sector": "Financial Services",
+  "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING"
 }
 ```
+
+**Параметры фильтра:**
+- `status` (опционально) - статус инструмента: `INSTRUMENT_STATUS_UNSPECIFIED`, `INSTRUMENT_STATUS_BASE`, `INSTRUMENT_STATUS_ALL`
+- `exchange` (опционально) - биржа: `MOEX`, `moex`, `SPB`, `FORTS_MAIN`, `UNKNOWN` и др.
+- `currency` (опционально) - валюта: `RUB`, `USD`, `rub`, `usd`
+- `ticker` (опционально) - тикер инструмента
+- `figi` (опционально) - уникальный идентификатор инструмента
+- `sector` (опционально) - сектор экономики
+- `tradingStatus` (опционально) - статус торговли
 
 **Пример:**
 ```bash
 curl -X POST "http://localhost:8083/api/instruments/shares" \
   -H "Content-Type: application/json" \
   -d '{
-    "status": "INSTRUMENT_STATUS_ACTIVE",
+    "status": "INSTRUMENT_STATUS_BASE",
     "exchange": "MOEX",
     "currency": "RUB"
   }'
 ```
 
-**Ответ (пример):**
+**Ответ (202 Accepted):**
 ```json
 {
   "success": true,
-  "message": "Успешно загружено 5 новых акций из 10 найденных.",
-  "totalRequested": 10,
-  "newItemsSaved": 5,
-  "existingItemsSkipped": 5,
-  "invalidItemsFiltered": 0,
-  "missingFromApi": 0,
-  "savedItems": [
-    {
-      "figi": "BBG004730N88",
-      "ticker": "SBER",
-      "name": "Сбербанк",
-      "currency": "RUB",
-      "exchange": "MOEX",
-      "sector": "Financial Services",
-      "tradingStatus": "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-    }
-  ]
+  "message": "Асинхронное сохранение акций запущено",
+  "taskId": "550e8400-e29b-41d4-a716-446655440000",
+  "endpoint": "/api/instruments/shares",
+  "filter": {
+    "status": "INSTRUMENT_STATUS_BASE",
+    "exchange": "MOEX",
+    "currency": "RUB"
+  },
+  "status": "STARTED",
+  "startTime": "2024-01-15T18:30:00.123Z"
 }
 ```
+
+**Отслеживание статуса:**
+Используйте `taskId` для проверки статуса операции через System API:
+```bash
+GET /api/system/logs/{taskId}
+```
+
+**Статусы операции:**
+- `STARTED` - операция запущена
+- `PROCESSING` - операция выполняется
+- `COMPLETED` - операция завершена успешно
+- `FAILED` - операция завершилась с ошибкой
 
 ---
 
@@ -218,12 +239,14 @@ curl "http://localhost:8083/api/instruments/futures/Si-12.24"
 
 ### POST /api/instruments/futures
 
-Сохранение фьючерсов в базу данных по фильтрам с защитой от дубликатов.
+**Асинхронное** сохранение фьючерсов в базу данных по фильтрам с защитой от дубликатов.
+
+⚠️ **Важно:** Операция выполняется асинхронно. Метод возвращает `taskId` для отслеживания статуса операции.
 
 **Тело запроса:**
 ```json
 {
-  "status": "INSTRUMENT_STATUS_ACTIVE",
+  "status": "INSTRUMENT_STATUS_BASE",
   "exchange": "MOEX",
   "currency": "RUB",
   "ticker": "Si-12.24",
@@ -231,39 +254,47 @@ curl "http://localhost:8083/api/instruments/futures/Si-12.24"
 }
 ```
 
+**Параметры фильтра:**
+- `status` (опционально) - статус инструмента: `INSTRUMENT_STATUS_UNSPECIFIED`, `INSTRUMENT_STATUS_BASE`, `INSTRUMENT_STATUS_ALL`
+- `exchange` (опционально) - биржа: `MOEX`, `moex`, `SPB`, `FORTS_MAIN`, `FORTS_EVENING`, `forts_futures_weekend`, `UNKNOWN` и др.
+- `currency` (опционально) - валюта: `RUB`, `USD`, `rub`, `usd`
+- `ticker` (опционально) - тикер фьючерса
+- `assetType` (опционально) - тип базового актива: `COMMODITY`, `CURRENCY`, `EQUITY`, `BOND`, `INDEX`, `INTEREST_RATE`, `CRYPTO`, `UNKNOWN`
+
 **Пример:**
 ```bash
 curl -X POST "http://localhost:8083/api/instruments/futures" \
   -H "Content-Type: application/json" \
   -d '{
-    "status": "INSTRUMENT_STATUS_ACTIVE",
+    "status": "INSTRUMENT_STATUS_BASE",
     "exchange": "MOEX",
     "currency": "RUB",
     "assetType": "CURRENCY"
   }'
 ```
 
-**Ответ (пример):**
+**Ответ (202 Accepted):**
 ```json
 {
   "success": true,
-  "message": "Успешно загружено 3 новых фьючерса из 8 найденных.",
-  "totalRequested": 8,
-  "newItemsSaved": 3,
-  "existingItemsSkipped": 5,
-  "invalidItemsFiltered": 0,
-  "missingFromApi": 0,
-  "savedItems": [
-    {
-      "figi": "FUTSI1224000",
-      "ticker": "Si-12.24",
-      "assetType": "CURRENCY",
-      "basicAsset": "USD/RUB",
-      "currency": "RUB",
-      "exchange": "MOEX"
-    }
-  ]
+  "message": "Асинхронное сохранение фьючерсов запущено",
+  "taskId": "550e8400-e29b-41d4-a716-446655440001",
+  "endpoint": "/api/instruments/futures",
+  "filter": {
+    "status": "INSTRUMENT_STATUS_BASE",
+    "exchange": "MOEX",
+    "currency": "RUB",
+    "assetType": "CURRENCY"
+  },
+  "status": "STARTED",
+  "startTime": "2024-01-15T18:30:00.123Z"
 }
+```
+
+**Отслеживание статуса:**
+Используйте `taskId` для проверки статуса операции через System API:
+```bash
+GET /api/system/logs/{taskId}
 ```
 
 ---
@@ -334,7 +365,9 @@ curl "http://localhost:8083/api/instruments/indicatives/IMOEX"
 
 ### POST /api/instruments/indicatives
 
-Сохранение индикативных инструментов в базу данных по фильтрам с защитой от дубликатов.
+**Асинхронное** сохранение индикативных инструментов в базу данных по фильтрам с защитой от дубликатов.
+
+⚠️ **Важно:** Операция выполняется асинхронно. Метод возвращает `taskId` для отслеживания статуса операции.
 
 **Тело запроса:**
 ```json
@@ -345,6 +378,12 @@ curl "http://localhost:8083/api/instruments/indicatives/IMOEX"
   "figi": "BBG00QPYJ5X0"
 }
 ```
+
+**Параметры фильтра:**
+- `exchange` (опционально) - биржа: `MOEX`, `moex`, `SPB`, `FORTS_MAIN`, `UNKNOWN` и др.
+- `currency` (опционально) - валюта: `RUB`, `USD`, `rub`, `usd`
+- `ticker` (опционально) - тикер индикативного инструмента
+- `figi` (опционально) - уникальный идентификатор инструмента
 
 **Пример:**
 ```bash
@@ -357,30 +396,27 @@ curl -X POST "http://localhost:8083/api/instruments/indicatives" \
   }'
 ```
 
-**Ответ (пример):**
+**Ответ (202 Accepted):**
 ```json
 {
   "success": true,
-  "message": "Успешно загружено 2 новых индикативных инструмента из 5 найденных.",
-  "totalRequested": 5,
-  "newItemsSaved": 2,
-  "existingItemsSkipped": 3,
-  "invalidItemsFiltered": 0,
-  "missingFromApi": 0,
-  "savedItems": [
-    {
-      "figi": "BBG00QPYJ5X0",
-      "ticker": "IMOEX",
-      "name": "Индекс МосБиржи",
-      "currency": "RUB",
-      "exchange": "MOEX",
-      "classCode": "SPBXM",
-      "uid": "e6123145-9665-43e0-8413-cd61d8e6e372",
-      "sellAvailableFlag": true,
-      "buyAvailableFlag": true
-    }
-  ]
+  "message": "Асинхронное сохранение индикативов запущено",
+  "taskId": "550e8400-e29b-41d4-a716-446655440002",
+  "endpoint": "/api/instruments/indicatives",
+  "filter": {
+    "exchange": "MOEX",
+    "currency": "RUB",
+    "ticker": "IMOEX"
+  },
+  "status": "STARTED",
+  "startTime": "2024-01-15T18:30:00.123Z"
 }
+```
+
+**Отслеживание статуса:**
+Используйте `taskId` для проверки статуса операции через System API:
+```bash
+GET /api/system/logs/{taskId}
 ```
 
 ---
@@ -410,8 +446,8 @@ curl "http://localhost:8083/api/instruments/count"
 
 ## Связанные API
 
-### Управление кэшем
-Для работы с кэшем инструментов используйте отдельный API: **[Cache API](/api/cache)**
+#### Управление кэшем
+Для работы с кэшем инструментов используйте отдельный API: **[Cache API](docs/api/cache.md)**
 
 Включает операции:
 - Прогрев кэша (`POST /api/cache/warmup`)
@@ -419,14 +455,61 @@ curl "http://localhost:8083/api/instruments/count"
 - Статистика кэша (`GET /api/cache/stats`)
 - Очистка кэша (`DELETE /api/cache/clear`)
 
+#### Отслеживание задач
+Для проверки статуса асинхронных операций используйте: **[System API](docs/api/system.md)**
+
+Основные эндпоинты:
+- Получение лога по taskId (`GET /api/system/logs/{taskId}`)
+- Получение всех логов (`GET /api/system/logs`)
+- Статистика системы (`GET /api/system/stats`)
+
 ---
 
-## Коды ошибок
+## Коды ответов
 
-- `200 OK` - Успешный запрос
-- `404 Not Found` - Инструмент не найден
-- `400 Bad Request` - Некорректные параметры запроса
-- `500 Internal Server Error` - Внутренняя ошибка сервера
+### Успешные ответы
+- `200 OK` - данные получены успешно
+- `202 Accepted` - асинхронная операция запущена (для POST методов)
+
+### Ошибки
+- `400 Bad Request` - некорректные параметры запроса, валидация не пройдена
+- `404 Not Found` - инструмент не найден
+- `500 Internal Server Error` - внутренняя ошибка сервера
+
+### Примеры ошибок
+
+**400 Bad Request (невалидные параметры):**
+```json
+{
+  "success": false,
+  "message": "Ошибка валидации: Невалидная биржа: INVALID_EXCHANGE",
+  "timestamp": "2024-01-15T18:30:00",
+  "error": "ValidationException",
+  "field": "exchange"
+}
+```
+
+**404 Not Found (инструмент не найден):**
+```json
+{
+  "success": false,
+  "message": "Акция с тикером 'INVALID' не найдена в базе данных",
+  "error": "NotFound",
+  "timestamp": "2024-01-15T18:30:00",
+  "identifier": "INVALID",
+  "type": "TICKER"
+}
+```
+
+**500 Internal Server Error:**
+```json
+{
+  "success": false,
+  "message": "Ошибка запуска асинхронного сохранения акций: ...",
+  "taskId": "550e8400-e29b-41d4-a716-446655440000",
+  "error": "InternalServerError"
+}
+```
 
 ---
 
@@ -492,22 +575,38 @@ curl "http://localhost:8083/api/instruments/futures/FUTSI1224000"
 curl "http://localhost:8083/api/instruments/indicatives/BBG00QPYJ5X0"
 ```
 
-### Сохранение инструментов
+### Сохранение инструментов (асинхронное)
 ```bash
 # Сохранение акций
 curl -X POST "http://localhost:8083/api/instruments/shares" \
   -H "Content-Type: application/json" \
-  -d '{"exchange": "MOEX", "currency": "RUB"}'
+  -d '{
+    "status": "INSTRUMENT_STATUS_BASE",
+    "exchange": "MOEX",
+    "currency": "RUB"
+  }'
+
+# Ответ: 202 Accepted с taskId
+# Проверка статуса:
+curl "http://localhost:8083/api/system/logs/{taskId}"
 
 # Сохранение фьючерсов
 curl -X POST "http://localhost:8083/api/instruments/futures" \
   -H "Content-Type: application/json" \
-  -d '{"exchange": "MOEX", "currency": "RUB", "assetType": "CURRENCY"}'
+  -d '{
+    "status": "INSTRUMENT_STATUS_BASE",
+    "exchange": "MOEX",
+    "currency": "RUB",
+    "assetType": "CURRENCY"
+  }'
 
 # Сохранение индикативов
 curl -X POST "http://localhost:8083/api/instruments/indicatives" \
   -H "Content-Type: application/json" \
-  -d '{"exchange": "MOEX", "currency": "RUB"}'
+  -d '{
+    "exchange": "MOEX",
+    "currency": "RUB"
+  }'
 ```
 
 ### Статистика
@@ -518,24 +617,42 @@ curl "http://localhost:8083/api/instruments/count"
 
 ---
 
-## ⚠️ Коды ответов
+## ⚠️ Валидация параметров
 
-### Успешные ответы
-- **200 OK** - данные получены или сохранены успешно
+Все параметры запросов проходят двухуровневую валидацию:
 
-### Ошибки
-- **404 Not Found** - инструмент не найден
-- **400 Bad Request** - некорректные параметры запроса
-- **500 Internal Server Error** - внутренняя ошибка сервера
+1. **Проверка разрешенных параметров** - проверяется, что переданы только допустимые query-параметры
+2. **Валидация значений** - проверяется корректность значений параметров (enum, форматы)
 
-### Примеры ошибок
-```json
-{
-  "error": "Инструмент не найден",
-  "message": "Инструмент с идентификатором SBER не найден в базе данных",
-  "timestamp": "2024-01-15T18:30:00"
-}
-```
+При передаче невалидных параметров возвращается `400 Bad Request` с детальным описанием ошибки.
+
+### Допустимые значения
+
+**Статус инструмента:**
+- `INSTRUMENT_STATUS_UNSPECIFIED`
+- `INSTRUMENT_STATUS_BASE`
+- `INSTRUMENT_STATUS_ALL`
+
+**Биржи:**
+- `MOEX`, `moex`, `moex_mrng_evng_e_wknd_dlr`
+- `SPB`
+- `FORTS_MAIN`, `FORTS_EVENING`, `forts_futures_weekend`
+- `UNKNOWN`
+
+**Валюты:**
+- `RUB`, `rub`
+- `USD`, `usd`
+- `EUR`, `eur`
+
+**Типы активов (для фьючерсов):**
+- `COMMODITY`
+- `CURRENCY`
+- `EQUITY`
+- `BOND`
+- `INDEX`
+- `INTEREST_RATE`
+- `CRYPTO`
+- `UNKNOWN`
 
 ---
 
@@ -549,13 +666,20 @@ curl "http://localhost:8083/api/instruments/count"
 5. **Сортировка** - упорядочивание по тикеру
 6. **Ответ** - возврат данных клиенту
 
-### Сохранение инструментов
+### Сохранение инструментов (асинхронное)
 1. **Запрос** - POST запрос с фильтром
-2. **Получение из API** - загрузка данных из Tinkoff API
-3. **Фильтрация** - применение параметров запроса
-4. **Проверка дубликатов** - исключение существующих
-5. **Сохранение** - запись в базу данных
-6. **Ответ** - возврат статистики клиенту
+2. **Валидация** - проверка параметров фильтра
+3. **Генерация taskId** - создание уникального идентификатора задачи
+4. **Логирование** - сохранение записи о начале операции в БД
+5. **Запуск асинхронной задачи** - запуск фоновой обработки
+6. **Немедленный ответ** - возврат `taskId` клиенту (202 Accepted)
+7. **Фоновая обработка** (асинхронно):
+   - Получение данных из Tinkoff API
+   - Фильтрация по параметрам запроса
+   - Проверка дубликатов в БД
+   - Сохранение новых инструментов
+   - Логирование результата в БД
+8. **Отслеживание** - клиент может проверить статус через System API по `taskId`
 
 ### Поиск по идентификатору
 1. **Запрос** - GET запрос с идентификатором

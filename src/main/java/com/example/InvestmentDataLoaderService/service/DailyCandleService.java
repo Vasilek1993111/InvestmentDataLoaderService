@@ -108,12 +108,16 @@ public class DailyCandleService {
 
                 log.info("Обрабатываем {} батчей по {} инструментов", batches.size(), batchSize);
 
-                // Создаем задачи для каждого батча
-                List<CompletableFuture<Void>> batchTasks = batches.stream()
-                    .map(batch -> processBatchAsync(batch, finalDate, taskId, totalRequested, 
+                // Создаем задачи для каждого батча и собираем futures для сохранения в БД
+                List<CompletableFuture<Void>> batchTasks = new ArrayList<>();
+                List<CompletableFuture<Void>> saveTasks = Collections.synchronizedList(new ArrayList<>());
+                
+                for (List<String> batch : batches) {
+                    CompletableFuture<Void> batchTask = processBatchAsync(batch, finalDate, taskId, totalRequested, 
                         newItemsSaved, existingItemsSkipped, invalidItemsFiltered, 
-                        missingFromApi, savedItems))
-                    .collect(Collectors.toList());
+                        missingFromApi, savedItems, saveTasks);
+                    batchTasks.add(batchTask);
+                }
 
                 // Ждем завершения всех батчей с таймаутом
                 CompletableFuture<Void> allBatches = CompletableFuture.allOf(
@@ -122,11 +126,27 @@ public class DailyCandleService {
                 try {
                     // Таймаут 2 часа для загрузки всех свечей
                     allBatches.get(2, TimeUnit.HOURS);
+                    log.info("[{}] Все батчи обработаны, ожидаем завершения сохранения в БД", taskId);
                 } catch (TimeoutException e) {
                     log.error("Превышен таймаут ожидания завершения загрузки дневных свечей (2 часа)");
                     // Продолжаем работу, чтобы вернуть статистику по обработанным данным
                 } catch (Exception e) {
                     log.error("Ошибка ожидания завершения загрузки дневных свечей: {}", e.getMessage(), e);
+                }
+
+                // Ждем завершения всех операций сохранения в БД
+                if (!saveTasks.isEmpty()) {
+                    CompletableFuture<Void> allSaves = CompletableFuture.allOf(
+                        saveTasks.toArray(new CompletableFuture[0]));
+                    try {
+                        log.info("[{}] Ожидаем завершения {} операций сохранения в БД", taskId, saveTasks.size());
+                        allSaves.get(30, TimeUnit.MINUTES); // Таймаут 30 минут на сохранение
+                        log.info("[{}] Все операции сохранения в БД завершены", taskId);
+                    } catch (TimeoutException e) {
+                        log.error("[{}] Превышен таймаут ожидания завершения сохранения в БД (30 минут)", taskId);
+                    } catch (Exception e) {
+                        log.error("[{}] Ошибка ожидания завершения сохранения в БД: {}", taskId, e.getMessage(), e);
+                    }
                 }
 
                 log.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ДНЕВНЫХ СВЕЧЕЙ ===");
@@ -136,7 +156,7 @@ public class DailyCandleService {
                 log.info("Отфильтровано неверных: {}", invalidItemsFiltered.get());
                 log.info("Отсутствует в API: {}", missingFromApi.get());
 
-                return new SaveResponseDto(
+                SaveResponseDto result = new SaveResponseDto(
                     true,
                     "Загрузка дневных свечей завершена успешно",
                     totalRequested.get(),
@@ -147,8 +167,46 @@ public class DailyCandleService {
                     savedItems
                 );
 
+                // Логируем успешное завершение в БД только после завершения всех сохранений
+                try {
+                    LogInfo logInfo = findStartLogInfo(taskId);
+                    SystemLogEntity successLog = new SystemLogEntity();
+                    successLog.setTaskId(taskId);
+                    successLog.setEndpoint(logInfo.endpoint);
+                    successLog.setMethod("POST");
+                    successLog.setStatus("COMPLETED");
+                    successLog.setMessage(result.getMessage());
+                    successLog.setStartTime(logInfo.startTime);
+                    successLog.setEndTime(Instant.now());
+                    systemLogRepository.save(successLog);
+                    log.info("[{}] Лог успешного завершения сохранен после завершения всех операций сохранения", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога успешного завершения", taskId, logException);
+                }
+
+                return result;
+
             } catch (Exception e) {
                 log.error("Критическая ошибка загрузки дневных свечей: {}", e.getMessage(), e);
+                
+                // Логируем ошибку завершения в БД
+                try {
+                    LogInfo logInfo = findStartLogInfo(taskId);
+                    SystemLogEntity errorLog = new SystemLogEntity();
+                    errorLog.setTaskId(taskId);
+                    errorLog.setEndpoint(logInfo.endpoint);
+                    errorLog.setMethod("POST");
+                    errorLog.setStatus("FAILED");
+                    errorLog.setMessage("Ошибка загрузки дневных свечей: " + e.getMessage());
+                    errorLog.setStartTime(logInfo.startTime);
+                    errorLog.setEndTime(Instant.now());
+                    errorLog.setDurationMs(Instant.now().toEpochMilli() - logInfo.startTime.toEpochMilli());
+                    systemLogRepository.save(errorLog);
+                    log.info("[{}] Лог ошибки завершения сохранен", taskId);
+                } catch (Exception logException) {
+                    log.error("[{}] Ошибка сохранения лога ошибки завершения", taskId, logException);
+                }
+                
                 return new SaveResponseDto(
                     false,
                     "Ошибка загрузки дневных свечей: " + e.getMessage(),
@@ -164,13 +222,14 @@ public class DailyCandleService {
     private CompletableFuture<Void> processBatchAsync(List<String> batch, LocalDate date, String taskId,
                                                      AtomicInteger totalRequested, AtomicInteger newItemsSaved,
                                                      AtomicInteger existingItemsSkipped, AtomicInteger invalidItemsFiltered,
-                                                     AtomicInteger missingFromApi, List<String> savedItems) {
+                                                     AtomicInteger missingFromApi, List<String> savedItems,
+                                                     List<CompletableFuture<Void>> saveTasks) {
         // Создаем задачи для каждого инструмента в батче напрямую через dailyApiDataExecutor
         // чтобы избежать вложенности executor'ов и блокировок
         List<CompletableFuture<Void>> instrumentTasks = batch.stream()
             .map(figi -> processInstrumentAsync(figi, date, taskId, totalRequested, 
                 newItemsSaved, existingItemsSkipped, invalidItemsFiltered, 
-                missingFromApi, savedItems))
+                missingFromApi, savedItems, saveTasks))
             .collect(Collectors.toList());
 
         // Возвращаем CompletableFuture, который завершится когда все инструменты обработаны
@@ -186,7 +245,8 @@ public class DailyCandleService {
     private CompletableFuture<Void> processInstrumentAsync(String figi, LocalDate date, String taskId,
                                                           AtomicInteger totalRequested, AtomicInteger newItemsSaved,
                                                           AtomicInteger existingItemsSkipped, AtomicInteger invalidItemsFiltered,
-                                                          AtomicInteger missingFromApi, List<String> savedItems) {
+                                                          AtomicInteger missingFromApi, List<String> savedItems,
+                                                          List<CompletableFuture<Void>> saveTasks) {
         // Используем dailyApiDataExecutor напрямую, чтобы избежать вложенности и блокировок
         return CompletableFuture.supplyAsync(() -> {
             AtomicInteger figiNewItems = new AtomicInteger(0);
@@ -248,9 +308,9 @@ public class DailyCandleService {
                     }
                 }
 
-                // Пакетная запись в БД асинхронно (не блокируем текущий поток)
+                // Пакетная запись в БД асинхронно - добавляем future в список для отслеживания
                 if (!entitiesToSave.isEmpty()) {
-                    CompletableFuture.runAsync(() -> {
+                    CompletableFuture<Void> saveFuture = CompletableFuture.runAsync(() -> {
                         try {
                             saveDailyCandlesBatch(entitiesToSave);
                             figiNewItems.addAndGet(entitiesToSave.size());
@@ -260,7 +320,8 @@ public class DailyCandleService {
                             log.error("Ошибка пакетного сохранения для {}: {}", figi, e.getMessage(), e);
                         }
                     }, dailyBatchWriteExecutor);
-                    // Не ждем завершения сохранения - оно произойдет асинхронно
+                    // Добавляем future в список для отслеживания завершения всех сохранений
+                    saveTasks.add(saveFuture);
                 }
 
                 figiExistingItems.addAndGet(existingTimes.size());
@@ -349,6 +410,40 @@ public class DailyCandleService {
     @Transactional
     public void saveDailyCandlesBatch(List<DailyCandleEntity> entities) {
         dailyCandleRepository.saveAll(entities);
+    }
+
+    /**
+     * Вспомогательный класс для хранения информации из лога STARTED
+     */
+    private static class LogInfo {
+        final String endpoint;
+        final Instant startTime;
+
+        LogInfo(String endpoint, Instant startTime) {
+            this.endpoint = endpoint;
+            this.startTime = startTime;
+        }
+    }
+
+    /**
+     * Находит информацию о начале задачи из лога STARTED по taskId
+     */
+    private LogInfo findStartLogInfo(String taskId) {
+        try {
+            List<SystemLogEntity> logs = systemLogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+            for (SystemLogEntity log : logs) {
+                if ("STARTED".equals(log.getStatus()) && log.getStartTime() != null) {
+                    return new LogInfo(
+                        log.getEndpoint() != null ? log.getEndpoint() : "/api/candles/daily",
+                        log.getStartTime()
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Не удалось найти информацию из лога STARTED, используем значения по умолчанию", taskId, e);
+        }
+        // Если не удалось найти, используем значения по умолчанию
+        return new LogInfo("/api/candles/daily", Instant.now().minusMillis(1000));
     }
 
     /**
