@@ -39,7 +39,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-
         <!-- Spring Boot Web и JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
