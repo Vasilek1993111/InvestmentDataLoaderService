@@ -52,4 +52,4 @@ ENV SPRING_DEVTOOLS_RESTART_ENABLED=true
 ENV SPRING_DEVTOOLS_LIVERELOAD_ENABLED=true
 
 # Команда запуска с диагностикой
-ENTRYPOINT ["sh", "-c", "echo 'Starting application with JAVA_OPTS: $JAVA_OPTS' && echo 'Database URL: $SPRING_DATASOURCE_URL' && echo 'DevTools enabled: $SPRING_DEVTOOLS_RESTART_ENABLED' && java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "echo 'Starting application with JAVA_OPTS: $JAVA_OPTS' && echo 'Database configuration loaded' && echo 'DevTools enabled: $SPRING_DEVTOOLS_RESTART_ENABLED' && java $JAVA_OPTS -jar app.jar"]

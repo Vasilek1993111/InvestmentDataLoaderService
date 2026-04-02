@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 import jakarta.annotation.PostConstruct;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -16,6 +17,7 @@ import java.util.Map;
 @Slf4j
 @Configuration
 public class EnvironmentConfig {
+    private static final String MASKED_VALUE = "***";
 
     @Value("${spring.profiles.active:default}")
     private String activeProfile;
@@ -54,16 +56,16 @@ public class EnvironmentConfig {
             
             int loadedCount = 0;
             
-            // Принудительно загружаем переменные из .env файла (переопределяем системные)
+            // Загружаем только отсутствующие переменные и никогда не логируем их значения.
             for (Map.Entry<String, String> entry : envVars.entrySet()) {
                 String key = entry.getKey();
                 String value = entry.getValue();
-                
-                // Всегда устанавливаем переменные из .env файла
-                System.setProperty(key, value);
+
+                if (System.getProperty(key) == null) {
+                    System.setProperty(key, value);
+                }
                 loadedCount++;
-                log.debug("Загружена переменная окружения: {} = {}", key, 
-                        key.contains("PASSWORD") || key.contains("TOKEN") ? "***" : value);
+                log.debug("Загружена переменная окружения: {} = {}", key, shouldMask(key) ? MASKED_VALUE : "<set>");
             }
             
             log.info("Успешно загружено {} переменных окружения из {} файла", loadedCount, envFileName);
@@ -102,5 +104,14 @@ public class EnvironmentConfig {
         
         // Для других профилей используем .env.{profile}
         return ".env." + activeProfile;
+    }
+
+    private boolean shouldMask(String key) {
+        String normalizedKey = key == null ? "" : key.toUpperCase(Locale.ROOT);
+        return normalizedKey.contains("PASSWORD")
+                || normalizedKey.contains("TOKEN")
+                || normalizedKey.contains("SECRET")
+                || normalizedKey.contains("KEY")
+                || normalizedKey.contains("CREDENTIAL");
     }
 }

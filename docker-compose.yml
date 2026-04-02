@@ -17,7 +17,7 @@ services:
 
       SPRING_DATASOURCE_TEST_URL: jdbc:postgresql://host.docker.internal:5434/postgres
       SPRING_DATASOURCE_TEST_USERNAME: postgres
-      SPRING_DATASOURCE_TEST_PASSWORD: 123password123
+      SPRING_DATASOURCE_TEST_PASSWORD: ${SPRING_DATASOURCE_TEST_PASSWORD}
       
       # Настройки JVM для контейнера
       JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
@@ -64,6 +64,7 @@ services:
     environment:
       # Профиль
       SPRING_PROFILES_ACTIVE: prod
+      APP_SECURITY_API_KEY: ${APP_SECURITY_API_KEY}
       
       # Настройки JVM для контейнера
       JAVA_OPTS: "-Xmx1024m -Xms512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
